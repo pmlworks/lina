@@ -15,7 +15,7 @@ export default {
       initial: {
       },
       fields: [
-        [this.$t('common.Basic'), ['name', 'assets', 'comment']]
+        [this.$t('common.Basic'), ['name', 'assets', 'terminals', 'comment']]
       ],
       fieldsMeta: {
         assets: {
@@ -25,9 +25,19 @@ export default {
           el: {
             value: []
           }
+        },
+        terminals: {
+          el: {
+            value: [],
+            ajax: {
+              url: '/api/v1/terminal/terminals/?fields_size=mini',
+              transformOption: (item) => {
+                return { label: item.name + '(' + item.type + ')', value: item.id }
+              }
+            }
+          }
         }
       },
-
       url: '/api/v1/assets/domains/'
     }
   }

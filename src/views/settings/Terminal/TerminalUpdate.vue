@@ -22,7 +22,7 @@ export default {
       successUrl: { name: 'TerminalSetting', params: { activeMenu: 'TerminalList' }},
       url: '/api/v1/terminal/terminals/',
       fields: [
-        [this.$t('sessions.info'), ['name', 'remote_addr', 'command_storage', 'replay_storage']],
+        [this.$t('sessions.info'), ['name', 'remote_addr', 'ssh_port', 'command_storage', 'replay_storage']],
         [this.$t('common.Other'), ['comment']]
       ],
       fieldsMeta: {
