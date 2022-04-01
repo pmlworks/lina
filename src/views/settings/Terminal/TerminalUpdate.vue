@@ -9,6 +9,7 @@
 </template>
 
 <script>
+import Protocols from './components/Protocols'
 import { GenericCreateUpdatePage } from '@/layout/components'
 import { getAllCommandStorage, getAllReplayStorage } from '@/api/sessions'
 
@@ -22,10 +23,13 @@ export default {
       successUrl: { name: 'TerminalSetting', params: { activeMenu: 'TerminalList' }},
       url: '/api/v1/terminal/terminals/',
       fields: [
-        [this.$t('sessions.info'), ['name', 'remote_addr', 'ssh_port', 'command_storage', 'replay_storage']],
+        [this.$t('sessions.info'), ['name', 'protocols_group', 'command_storage', 'replay_storage']],
         [this.$t('common.Other'), ['comment']]
       ],
       fieldsMeta: {
+        protocols_group: {
+          component: Protocols
+        },
         command_storage: {
           type: 'select',
           options: []

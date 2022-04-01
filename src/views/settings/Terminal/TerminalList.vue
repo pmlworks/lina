@@ -104,7 +104,7 @@ export default {
           resource: 'terminal'
         },
         columns: [
-          'name', 'remote_addr', 'session_online',
+          'name', 'type', 'remote_addr', 'session_online',
           'stat.cpu_load',
           'stat.disk_used', 'stat.memory_used',
           'status',
