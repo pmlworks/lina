@@ -2,7 +2,7 @@
   <div>
     <el-radio-group v-model="currentValue.strategy" @change="onChange">
       <el-radio
-        v-for="item in radioGroup.options"
+        v-for="item in strategyOptions"
         :key="item.value"
         :label="item.value"
       >
@@ -13,24 +13,24 @@
       v-show="isHidden('objects')"
       ref="select2"
       v-model="currentValue.objects"
-      v-bind="Object.assign(newObjects, objects)"
+      v-bind="objects"
     />
-    <ResourceTable
-      v-show="isHidden('attrs')"
-      v-model="currentValue.attrs"
-      :attrs-option="attrsOption"
-      :new-attrs="newAttrs"
-    />
+    <!--    <ResourceTable-->
+    <!--      v-show="isHidden('attrs')"-->
+    <!--      v-model="currentValue.attrs"-->
+    <!--      :attrs-option="attrs"-->
+    <!--      :new-attrs="newAttrs"-->
+    <!--    />-->
   </div>
 </template>
 
 <script>
-import { Select2 } from '@/components/FormFields'
-import ResourceTable from './components/ResourceTable'
+import Select2 from '../Select2'
+// import ResourceTable from './components/ResourceTable'
 export default {
   components: {
-    Select2,
-    ResourceTable
+    Select2
+    // ResourceTable
   },
   props: {
     value: {
@@ -43,19 +43,17 @@ export default {
       default: () => {}
     },
     // Custom attrs form configuration
-    attrsOption: {
+    attrs: {
       type: Object,
       default: () => {}
     },
-    // Get the configuration returned by the option interface
-    fields: {
-      type: Array,
-      default: () => []
+    fieldMeta: {
+      type: Object,
+      default: () => {}
     }
   },
   data() {
     return {
-      radioGroup: {},
       newObjects: {},
       newAttrs: {},
       currentValue: {
@@ -66,6 +64,11 @@ export default {
     }
   },
   computed: {
+    strategyOptions() {
+      return this.fieldMeta.children.strategy.choices.map(item => {
+        return { label: item['display_name'], value: item.value }
+      })
+    },
     isHidden() {
       return value => {
         return this.currentValue.strategy === value
@@ -91,16 +94,6 @@ export default {
   },
   methods: {
     init() {
-      this.fields.forEach(item => {
-        if (item.id === 'strategy') this.radioGroup = item
-        if (item.id === 'objects') this.newObjects = item
-        if (item.id === 'attrs') this.newAttrs = item
-      })
-      // console.log(this.value, 'vvvv-----')
-      // console.log(this.currentValue, 'currentValue----------------')
-      console.log(this.fields, '-------fields-------zujian')
-      // console.log(this.newObjects, 'this.newObjects--')
-      // console.log(this.newAttrs, 'this.newAttrs')
     },
     onChange(val) {
       this.currentValue.strategy = val

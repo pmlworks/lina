@@ -110,6 +110,10 @@ export class FormFieldGenerator {
       }
     }
     field.rules = filedRules
+
+    if (fieldMeta.requireMeta) {
+      field.el.fieldMeta = fieldRemoteMeta
+    }
     return field
   }
   generateField(name, fieldsMeta, remoteFieldsMeta) {

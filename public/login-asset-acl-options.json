@@ -55,7 +55,7 @@
                             },
                             {
                                 "value": "attrs",
-                                "display_name": "Attribute"
+                                "display_name": "属性"
                             }
                         ]
                     },
@@ -1584,7 +1584,7 @@
                 "type": "nested object",
                 "required": true,
                 "read_only": false,
-                "label": "Users",
+                "label": "用户",
                 "write_only": false,
                 "children": {
                     "strategy": {
@@ -1596,15 +1596,15 @@
                         "choices": [
                             {
                                 "value": "all",
-                                "display_name": "全部-post"
+                                "display_name": "全部"
                             },
                             {
                                 "value": "objects",
-                                "display_name": "对象"
+                                "display_name": "资产"
                             },
                             {
                                 "value": "attrs",
-                                "display_name": "Attribute"
+                                "display_name": "属性"
                             }
                         ]
                     },
@@ -1613,7 +1613,7 @@
                         "required": false,
                         "default": [],
                         "read_only": false,
-                        "label": "对象",
+                        "label": "资产",
                         "write_only": false,
                         "child": {
                             "type": "string",
@@ -1626,7 +1626,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {

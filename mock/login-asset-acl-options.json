@@ -77,7 +77,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -118,7 +118,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -131,7 +131,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -207,7 +207,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -248,7 +248,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -269,7 +269,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -345,7 +345,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -386,7 +386,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -403,7 +403,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -593,7 +593,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -634,7 +634,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -647,7 +647,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -723,7 +723,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -764,7 +764,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -785,7 +785,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -861,7 +861,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -902,7 +902,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -919,7 +919,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1110,7 +1110,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -1151,7 +1151,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1164,7 +1164,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1240,7 +1240,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -1281,7 +1281,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1302,7 +1302,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1378,7 +1378,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -1419,7 +1419,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1436,7 +1436,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1584,7 +1584,7 @@
                 "type": "nested object",
                 "required": true,
                 "read_only": false,
-                "label": "Users",
+                "label": "用户",
                 "write_only": false,
                 "children": {
                     "strategy": {
@@ -1626,7 +1626,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -1667,7 +1667,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1680,7 +1680,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1714,7 +1714,7 @@
                 "type": "nested object",
                 "required": true,
                 "read_only": false,
-                "label": "System users",
+                "label": "系统用户",
                 "write_only": false,
                 "children": {
                     "strategy": {
@@ -1756,7 +1756,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -1797,7 +1797,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1818,7 +1818,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1852,7 +1852,7 @@
                 "type": "nested object",
                 "required": true,
                 "read_only": false,
-                "label": "Assets",
+                "label": "资产",
                 "write_only": false,
                 "children": {
                     "strategy": {
@@ -1868,11 +1868,11 @@
                             },
                             {
                                 "value": "objects",
-                                "display_name": "对象"
+                                "display_name": "资产"
                             },
                             {
                                 "value": "attrs",
-                                "display_name": "Attribute"
+                                "display_name": "属性"
                             }
                         ]
                     },
@@ -1881,7 +1881,7 @@
                         "required": false,
                         "default": [],
                         "read_only": false,
-                        "label": "对象",
+                        "label": "资产",
                         "write_only": false,
                         "child": {
                             "type": "string",
@@ -1894,7 +1894,7 @@
                         "type": "nested object",
                         "required": true,
                         "read_only": false,
-                        "label": "Attrs",
+                        "label": "属性",
                         "write_only": false,
                         "children": {
                             "logical_operator": {
@@ -1935,7 +1935,7 @@
                                             "type": "nested object",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "Attr",
+                                            "label": "属性",
                                             "write_only": false,
                                             "choices": [
                                                 {
@@ -1952,7 +1952,7 @@
                                             "type": "choice",
                                             "required": true,
                                             "read_only": false,
-                                            "label": "运营商",
+                                            "label": "操作符",
                                             "write_only": false,
                                             "choices": [
                                                 {

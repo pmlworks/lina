@@ -51,7 +51,7 @@
 
 <script>
 import Dialog from '@/components/Dialog'
-import { RequiredChange } from '@/components/DataForm/rules'
+import { RequiredChange } from '../../../DataForm/rules'
 
 export default {
   components: { Dialog },

@@ -4,7 +4,7 @@
 
 <script>
 import GenericCreateUpdatePage from '@/layout/components/GenericCreateUpdatePage'
-import { ResourceSelection } from '@/components'
+import { ResourceSelector } from '@/components/FormFields'
 import rules from '@/components/DataForm/rules'
 export default {
   name: 'AclCreateUpdate',
@@ -25,8 +25,6 @@ export default {
         },
         assets: {
           strategy: 'all'
-          // hostname_group: '*',
-          // ip_group: '*'
         }
       },
       fields: [
@@ -42,17 +40,19 @@ export default {
           rules: [rules.Required]
         },
         assets: {
-          fields: ['strategy', 'objects', 'attrs'],
-          component: ResourceSelection,
+          label: '资产',
+          component: ResourceSelector,
+          requireMeta: true,
           el: {
             objects: {
               value: [],
-              multiple: true,
               ajax: {
-                url: '/api/v1/users/groups/'
+                url: '/api/v1/users/users/?fields_size=mini',
+                transformOption: (item) => {
+                  return { label: item.name + '(' + item.username + ')', value: item.id }
+                }
               }
-            },
-            attrsOption: {}
+            }
           }
         },
         users: {
@@ -86,33 +86,33 @@ export default {
           objects: [],
           attrs: []
         }
-        formValue.assets.ip_group = formValue.assets.ip_group.toString()
-        formValue.assets.hostname_group = formValue.assets.hostname_group.toString()
-        formValue.system_users.name_group = formValue.system_users.name_group.toString()
-        formValue.system_users.protocol_group = formValue.system_users.protocol_group.toString()
-        formValue.system_users.username_group = formValue.system_users.username_group.toString()
-        formValue.users.username_group = formValue.users.username_group.toString()
+        // formValue.assets.ip_group = formValue.assets.ip_group.toString()
+        // formValue.assets.hostname_group = formValue.assets.hostname_group.toString()
+        // formValue.system_users.name_group = formValue.system_users.name_group.toString()
+        // formValue.system_users.protocol_group = formValue.system_users.protocol_group.toString()
+        // formValue.system_users.username_group = formValue.system_users.username_group.toString()
+        // formValue.users.username_group = formValue.users.username_group.toString()
         return formValue
       },
       cleanFormValue(value) {
-        if (!Array.isArray(value.assets.ip_group)) {
-          value.assets.ip_group = value.assets.ip_group ? value.assets.ip_group.split(',') : []
-        }
-        if (!Array.isArray(value.assets.hostname_group)) {
-          value.assets.hostname_group = value.assets.hostname_group ? value.assets.hostname_group.split(',') : []
-        }
-        if (!Array.isArray(value.system_users.protocol_group)) {
-          value.system_users.protocol_group = value.system_users.protocol_group ? value.system_users.protocol_group.split(',') : []
-        }
-        if (!Array.isArray(value.system_users.name_group)) {
-          value.system_users.name_group = value.system_users.name_group ? value.system_users.name_group.split(',') : []
-        }
-        if (!Array.isArray(value.system_users.username_group)) {
-          value.system_users.username_group = value.system_users.username_group ? value.system_users.username_group.split(',') : []
-        }
-        if (!Array.isArray(value.users.username_group)) {
-          value.users.username_group = value.users.username_group ? value.users.username_group.split(',') : []
-        }
+        // if (!Array.isArray(value.assets.ip_group)) {
+        //   value.assets.ip_group = value.assets.ip_group ? value.assets.ip_group.split(',') : []
+        // }
+        // if (!Array.isArray(value.assets.hostname_group)) {
+        //   value.assets.hostname_group = value.assets.hostname_group ? value.assets.hostname_group.split(',') : []
+        // }
+        // if (!Array.isArray(value.system_users.protocol_group)) {
+        //   value.system_users.protocol_group = value.system_users.protocol_group ? value.system_users.protocol_group.split(',') : []
+        // }
+        // if (!Array.isArray(value.system_users.name_group)) {
+        //   value.system_users.name_group = value.system_users.name_group ? value.system_users.name_group.split(',') : []
+        // }
+        // if (!Array.isArray(value.system_users.username_group)) {
+        //   value.system_users.username_group = value.system_users.username_group ? value.system_users.username_group.split(',') : []
+        // }
+        // if (!Array.isArray(value.users.username_group)) {
+        //   value.users.username_group = value.users.username_group ? value.users.username_group.split(',') : []
+        // }
         return value
       }
     }

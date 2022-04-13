@@ -10,6 +10,7 @@ import WeekCronSelect from './WeekCronSelect'
 import UpdateToken from './UpdateToken'
 import JsonEditor from './JsonEditor'
 import Text from './Text'
+import ResourceSelector from './ResourceSelector'
 
 export default {
   DatetimeRangePicker,
@@ -23,7 +24,8 @@ export default {
   WeekCronSelect,
   UpdateToken,
   JsonEditor,
-  Text
+  Text,
+  ResourceSelector
 }
 
 export {
@@ -38,5 +40,6 @@ export {
   WeekCronSelect,
   UpdateToken,
   JsonEditor,
-  Text
+  Text,
+  ResourceSelector
 }
