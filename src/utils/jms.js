@@ -1,5 +1,6 @@
 import store from '@/store'
 import { constantRoutes } from '@/router'
+import VueCookie from 'vue-cookie'
 
 export function openTaskPage(taskId) {
   window.open(`/#/ops/celery/task/${taskId}/log/`, '', 'width=900,height=600')
@@ -130,4 +131,73 @@ export function getConstRouteName() {
   }
   addRoutes(names, constRoutes)
   return names
+}
+
+export function onWinLoadRegister() {
+  let register = 0
+  const registerKey = 'JMS_SESSION_WIN'
+  const ttl = 5000
+  const id = new Date().getTime()
+
+  function getRegistered() {
+    const value = localStorage.getItem(registerKey)
+    let registered
+    try {
+      registered = JSON.parse(value)
+    } catch (e) {
+      registered = {}
+    }
+    if (!registered || typeof registered !== 'object') {
+      registered = {}
+    }
+    return registered
+  }
+
+  function saveRegistered(registered) {
+    const data = JSON.stringify(registered)
+    localStorage.setItem(registerKey, data)
+  }
+
+  function expireSessionId() {
+    let cookieNamePrefix = VueCookie.get('SESSION_COOKIE_NAME_PREFIX', '')
+    if (cookieNamePrefix === '""') {
+      cookieNamePrefix = ''
+    }
+
+    return VueCookie.set(cookieNamePrefix + 'sessionid', { expires: 0, path: '/', domain: '.jms.local' })
+  }
+
+  function onLoad() {
+    register = setInterval(() => {
+      const registered = getRegistered()
+      registered[id] = new Date().getTime()
+      saveRegistered(registered)
+    }, ttl)
+  }
+
+  function onBeforeUnload(e) {
+    clearInterval(register)
+    const registered = getRegistered()
+    delete registered[id]
+    console.log('Event: ', e)
+
+    e.returnValue = 'How are you?'
+    // return '你要确定吗?'
+
+    // 做校对，避免哪个结束的时候，没有 unload
+    const now = new Date().getTime()
+    for (const [i, time] of Object.entries(registered)) {
+      if (time < now - 3 * ttl) {
+        delete registered[i]
+      }
+    }
+    saveRegistered(registered)
+    console.log('Registed is: ', registered)
+    if (Object.keys(registered).length === 0) {
+      expireSessionId()
+    }
+  }
+
+  onLoad()
+  window.onbeforeunload = onBeforeUnload
 }
