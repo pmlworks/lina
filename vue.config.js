@@ -74,6 +74,15 @@ module.exports = {
         changeOrigin: true
       }
     },
+    before(app) {
+      app.options('/api/v1/acls/login-asset-acls/*', (req, res) => {
+        const filePath = `/public/login-asset-acl-options.json`
+        // json数据绝对地址
+        const abPath = path.join(__dirname, filePath)
+        const data = require(abPath)
+        res.json(data)
+      })
+    },
     after: require('./mock/mock-server.js')
   },
   configureWebpack: {

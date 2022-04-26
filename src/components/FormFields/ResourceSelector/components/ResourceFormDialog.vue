@@ -1,14 +1,12 @@
 <template>
   <div>
-    <i class="el-icon-circle-plus add" @click="dialogVisible = true" />
-
     <Dialog
       :title="this.$t('common.AttributeRule')"
       top="2vh"
       width="640px"
       :show-cancel="false"
       v-bind="$attrs"
-      :visible.sync="dialogVisible"
+      :visible.sync="iVisible"
       @confirm="handleConfirm"
     >
       <el-form
@@ -18,7 +16,7 @@
         :label-width="formLabelWidth"
       >
         <el-form-item
-          v-for="(val, key) in newAttrs"
+          v-for="(val, key) in attrs"
           :key="key"
           :label="val.label"
           label-position="left"
@@ -56,15 +54,11 @@ import { RequiredChange } from '../../../DataForm/rules'
 export default {
   components: { Dialog },
   props: {
-    attrs: {
-      type: Array,
-      default: () => []
-    },
-    dialogFormVisible: {
+    visible: {
       type: Boolean,
       default: false
     },
-    newAttrs: {
+    attrs: {
       type: Object,
       default: () => {}
     }
@@ -72,7 +66,6 @@ export default {
   data() {
     return {
       form: {},
-      dialogVisible: false,
       formLabelWidth: '90px',
       rules: {
         attr: [RequiredChange],
@@ -82,24 +75,32 @@ export default {
     }
   },
   computed: {
+    iVisible: {
+      set(val) {
+        this.$emit('update:visible', val)
+      },
+      get() {
+        return this.visible
+      }
+    }
   },
   create() {
-    this.initForm()
+    this.resetForm()
   },
   methods: {
-    initForm() {
-      Object.keys(this.newAttrs).forEach(i => {
+    resetForm() {
+      for (const i in this.attrs) {
         this.form[i] = ''
-      })
+      }
     },
     handleConfirm() {
       this.$refs.ruleForm.validate((valid) => {
         if (valid) {
           const currentForm = _.cloneDeep(this.form)
           this.$emit('addItem', currentForm)
-          this.dialogVisible = false
+          this.$emit('update:visible', false)
           this.$nextTick(() => {
-            this.$refs['ruleForm'].resetFields()
+            this.$refs['ruleForm']?.resetFields()
           })
         } else {
           console.log('error submit!!')
@@ -112,8 +113,4 @@ export default {
 </script>
 
 <style scoped>
-  .add {
-    font-size: 22px;
-    cursor:pointer;
-  }
 </style>

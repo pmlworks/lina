@@ -1,15 +1,19 @@
 <template>
-  <div>
+  <div class="layout">
+    <span class="create">
+      <i class="el-icon-circle-plus add" @click="dialogVisible" />
+    </span>
     <ResourceFormDialog
-      :new-attrs="createFormAttrs"
-      :dialog-form-visible.sync="dialogFormVisible"
+      v-if="visible"
+      :attrs="attrs"
+      :visible.sync="visible"
       @addItem="handleForm"
     />
     <el-table
       :data="tableDatas"
       style="width: 100%"
     >
-      <div v-for="(val, key) in createFormAttrs" :key="key">
+      <div v-for="(val, key) in attrs" :key="key">
         <el-table-column
           :key="key"
           :prop="key"
@@ -40,11 +44,7 @@ export default {
       type: Array,
       default: () => []
     },
-    attrsOption: {
-      type: Object,
-      default: () => {}
-    },
-    newAttrs: {
+    attrs: {
       type: Object,
       default: () => {}
     }
@@ -52,13 +52,10 @@ export default {
   data() {
     return {
       tableDatas: this.value || [],
-      dialogFormVisible: false
+      visible: false
     }
   },
   computed: {
-    createFormAttrs() {
-      return Object.assign((this.newAttrs.children.rules.child.children || {}), this.attrsOption)
-    }
   },
   methods: {
     handleForm(item) {
@@ -67,10 +64,29 @@ export default {
     handleDelete(index, rows) {
       rows.splice(index, 1)
       this.$emit('handleValue', rows)
+    },
+    dialogVisible() {
+      this.visible = true
     }
   }
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+  .layout {
+    position: relative;
+    .create {
+      position: absolute;
+      top: 16px;
+      left: -50px;
+      z-index: 1;
+    }
+    .add {
+      font-size: 22px;
+      &:hover {
+        cursor: pointer;
+        opacity: .8;
+      }
+    }
+  }
 </style>
