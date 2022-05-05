@@ -3,7 +3,8 @@
     <el-col :md="17" :sm="24">
       <Details :detail-card-items="detailCardItems" :title="$t('common.BasicInfo')" />
       <Details v-if="specialCardItems.length > 0" :detail-card-items="specialCardItems" :title="$t('common.ApplyInfo')" />
-      <Details v-if="object.state === 'approved' && assignedCardItems.length > 0" :detail-card-items="assignedCardItems" :title="$t('tickets.AssignedInfo')" />
+      <Details v-if="showOneApprovedCard && oneApprovedCardItems.length > 0" :detail-card-items="oneApprovedCardItems" :title="$t('tickets.AssignedInfo')+ ' 1'" />
+      <Details v-if="showTwoApprovedCard && twoApprovedCardItems.length > 0" :detail-card-items="twoApprovedCardItems" :title="$t('tickets.AssignedInfo') + ' 2'" />
       <slot id="MoreDetails" />
       <Comments :object="object" v-bind="$attrs" />
     </el-col>
@@ -36,13 +37,27 @@ export default {
       type: Array,
       default: () => ([])
     },
-    assignedCardItems: {
+    oneApprovedCardItems: {
+      type: Array,
+      default: () => ([])
+    },
+    twoApprovedCardItems: {
       type: Array,
       default: () => ([])
     }
   },
   data() {
     return {}
+  },
+  computed: {
+    showOneApprovedCard() {
+      const object = this.object
+      return (object.state === 'approved' && object.approval_step === 1) || object.approval_step !== 1
+    },
+    showTwoApprovedCard() {
+      const object = this.object
+      return object.status === 'closed' && object.approval_step === 2 && object.state === 'approved'
+    }
   }
 }
 </script>

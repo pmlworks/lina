@@ -89,6 +89,8 @@ export function toSafeLocalDateStr(d) {
 }
 
 export function forMatAction(vm, d) {
+  if (!d) return ''
+
   d.forEach(function(item, index, arr) {
     if ([vm.$t('perms.clipboardCopyPaste'), vm.$t('perms.upDownload'), vm.$t('perms.all')].includes(item)) {
       arr.splice(index, 1)

@@ -3,21 +3,52 @@
     :object="object"
     :detail-card-items="detailCardItems"
     :special-card-items="specialCardItems"
-    :assigned-card-items="assignedCardItems"
+    :one-approved-card-items="oneApprovedCardItems"
+    :two-approved-card-items="twoApprovedCardItems"
     :approve="handleApprove"
     :close="handleClose"
     :reject="handleReject"
-  />
+  >
+    <IBox v-if="hasActionPerm&&object.status !== 'closed'" class="box">
+      <div slot="header" class="clearfix ibox-title">
+        <i class="fa fa-edit" /> {{ $t('common.Actions') }}
+      </div>
+      <template>
+        <el-form ref="requestForm" :model="requestForm" label-width="140px" label-position="left" class="assets">
+          <el-form-item :label="$t('assets.Applications')" :rules="requestForm.isRequired">
+            <Select2 v-model="requestForm.applications" v-bind="appsSelect2" style="width: 50% !important" />
+          </el-form-item>
+          <el-form-item :label="$t('tickets.SystemUser')" :rules="requestForm.isRequired">
+            <Select2 v-model="requestForm.systemusers" v-bind="systemuserSelect2" style="width: 50% !important" />
+          </el-form-item>
+          <el-form-item :label="$t('common.dateStart')" required>
+            <el-date-picker
+              v-model="requestForm.apply_date_start"
+              type="datetime"
+            />
+          </el-form-item>
+          <el-form-item :label="$t('common.dateExpired')" required>
+            <el-date-picker
+              v-model="requestForm.apply_date_expired"
+              type="datetime"
+            />
+          </el-form-item>
+        </el-form>
+      </template>
+    </IBox>
+  </GenericTicketDetail>
 </template>
 
 <script>
 import { formatTime, getDateTimeStamp } from '@/utils/index'
 import { toSafeLocalDateStr } from '@/utils/common'
 import { STATUS_MAP } from '../../const'
+import Select2 from '@/components/FormFields/Select2'
+import IBox from '@/components/IBox'
 import GenericTicketDetail from '@/views/tickets/components/GenericTicketDetail'
 export default {
   name: '',
-  components: { GenericTicketDetail },
+  components: { GenericTicketDetail, IBox, Select2 },
   props: {
     object: {
       type: Object,
@@ -28,14 +59,41 @@ export default {
     return {
       statusMap: this.object.status === 'open' ? STATUS_MAP['notified'] : STATUS_MAP[this.object.state],
       requestForm: {
-        name: this.object.meta.approve_permission_name,
-        application: this.object.meta['apply_applications'],
-        systemuser: this.object.meta['apply_system_users'],
-        apply_date_expired: this.object.meta.apply_date_expired,
-        apply_date_start: this.object.meta.apply_date_start
+        isRequired: this.object.approval_step === this.object.process_map.length ? [{ required: true }] : [{ required: false }],
+        applications: this.object.current_meta.apply_applications,
+        systemusers: this.object.current_meta.apply_system_users,
+        apply_date_expired: this.object.current_meta.apply_date_expired,
+        apply_date_start: this.object.current_meta.apply_date_start
       },
       comments: '',
-      assets: []
+      appsSelect2: {
+        multiple: true,
+        value: this.object.current_meta['apply_applications'],
+        ajax: {
+          url: function() {
+            const oid = this.object.org_id === '' ? 'DEFAULT' : this.object.org_id
+            return `/api/v1/applications/applications/?oid=${oid}&type=${this.object.meta.apply_type}`
+          }.bind(this)(),
+          transformOption: (item) => {
+            return { label: item.name, value: item.id }
+          }
+        }
+      },
+      systemuserSelect2: {
+        multiple: true,
+        value: this.object.current_meta['apply_system_users'],
+        ajax: {
+          url: function() {
+            const oid = this.object.org_id === '' ? 'DEFAULT' : this.object.org_id
+            const protocol = this.object.meta.apply_category === 'remote_app' ? 'rdp' : this.object.meta.apply_type
+            return `/api/v1/assets/system-users/?oid=${oid}&protocol=${protocol}`
+          }.bind(this)(),
+          transformOption: (item) => {
+            const username = item.username || '*'
+            return { label: item.name + '(' + username + ')', value: item.id }
+          }
+        }
+      }
     }
   },
   computed: {
@@ -100,16 +158,16 @@ export default {
         }
       ]
     },
-    assignedCardItems() {
+    oneApprovedCardItems() {
       const vm = this
-      const meta = this.object.meta || {}
+      const meta = this.object.process_map[0] || {}
       return [
         {
           key: this.$t('tickets.PermissionName'),
           value: meta.apply_permission_name,
           formatter: function(item, value) {
             const to = { name: 'ApplicationPermissionDetail', params: { id: vm.object.id }, query: { oid: vm.object.org_id }}
-            if (vm.object.status === 'closed' && vm.object.state === 'approved') {
+            if (vm.object.status === 'closed' && vm.object.state === 'approved' && vm.object.process_map.length === 1) {
               return <router-link to={to}>{ value }</router-link>
             } else {
               return <span>{ value }</span>
@@ -126,16 +184,50 @@ export default {
         },
         {
           key: this.$t('common.dateStart'),
-          value: toSafeLocalDateStr(meta.apply_date_start)
+          value: toSafeLocalDateStr(meta?.apply_date_start)
         },
         {
           key: this.$t('common.dateExpired'),
-          value: toSafeLocalDateStr(meta.apply_date_expired)
+          value: toSafeLocalDateStr(meta?.apply_date_expired)
+        }
+      ]
+    },
+    twoApprovedCardItems() {
+      const vm = this
+      const meta = this.object.process_map[1] || {}
+      return [
+        {
+          key: this.$t('tickets.PermissionName'),
+          value: meta.apply_permission_name,
+          formatter: function(item, value) {
+            const to = { name: 'ApplicationPermissionDetail', params: { id: vm.object.id }, query: { oid: vm.object.org_id }}
+            if (vm.object.status === 'closed' && vm.object.state === 'approved' && vm.object.process_map.length === 2) {
+              return <router-link to={to}>{ value }</router-link>
+            } else {
+              return <span>{ value }</span>
+            }
+          }
+        },
+        {
+          key: this.$t('applications.appName'),
+          value: meta?.apply_applications_display?.join(', ') || ''
+        },
+        {
+          key: this.$t('tickets.SystemUser'),
+          value: meta?.apply_system_users_display?.join(', ') || ''
+        },
+        {
+          key: this.$t('common.dateStart'),
+          value: toSafeLocalDateStr(meta?.apply_date_start)
+        },
+        {
+          key: this.$t('common.dateExpired'),
+          value: toSafeLocalDateStr(meta?.apply_date_expired)
         }
       ]
     },
     hasActionPerm() {
-      return this.object.assignees.indexOf(this.$store.state.users.profile.id) !== -1
+      return this.object.process_map[this.object.approval_step - 1].assignees.indexOf(this.$store.state.users.profile.id) !== -1
     }
   },
   methods: {
@@ -149,20 +241,23 @@ export default {
       window.location.reload()
     },
     handleApprove() {
-      if (this.requestForm.application.length === 0 || this.requestForm.systemuser.length === 0) {
-        return this.$message.error(this.$tc('common.NeedAssetsAndSystemUserErrMsg'))
-      } else {
-        this.$axios.put(`/api/v1/tickets/tickets/${this.object.id}/approve/`, {
-          meta: {}
-        }).then(
-          () => {
-            this.$message.success(this.$tc('common.updateSuccessMsg'))
-            this.reloadPage()
-          }
-        ).catch(
-          () => this.$message.success(this.$tc('common.updateErrorMsg'))
-        )
-      }
+      this.$axios.put(`/api/v1/tickets/tickets/${this.object.id}/approve/`, {
+        meta: {
+          apply_category: this.object.current_meta.apply_category,
+          apply_type: this.object.current_meta.apply_type,
+          apply_system_users: this.requestForm.systemusers ? this.requestForm.systemusers : [],
+          apply_applications: this.requestForm.applications ? this.requestForm.applications : [],
+          apply_date_start: this.requestForm.apply_date_start,
+          apply_date_expired: this.requestForm.apply_date_expired
+        }
+      }).then(
+        () => {
+          this.$message.success(this.$tc('common.updateSuccessMsg'))
+          this.reloadPage()
+        }
+      ).catch(
+        () => this.$message.success(this.$tc('common.updateErrorMsg'))
+      )
     },
     handleClose() {
       const url = `/api/v1/tickets/tickets/${this.object.id}/close/`

@@ -3,11 +3,46 @@
     :object="object"
     :detail-card-items="detailCardItems"
     :special-card-items="specialCardItems"
-    :assigned-card-items="assignedCardItems"
+    :one-approved-card-items="oneApprovedCardItems"
+    :two-approved-card-items="twoApprovedCardItems"
     :approve="handleApprove"
     :close="handleClose"
     :reject="handleReject"
-  />
+  >
+    <IBox v-if="hasActionPerm&&object.status !== 'closed'" class="box">
+      <div slot="header" class="clearfix ibox-title">
+        <i class="fa fa-edit" /> {{ $t('common.Actions') }}
+      </div>
+      <template>
+        <el-form ref="requestForm" :model="requestForm" label-width="140px" label-position="left" class="assets">
+          <el-form-item :label="$t('assets.Node')">
+            <Select2 v-model="requestForm.nodes" v-bind="nodeSelect2" style="width: 50% !important" />
+          </el-form-item>
+          <el-form-item :label="$t('tickets.Asset')">
+            <Select2 v-model="requestForm.assets" v-bind="assetSelect2" style="width: 50% !important" />
+          </el-form-item>
+          <el-form-item :label="$t('tickets.SystemUser')" :rules="requestForm.isRequired">
+            <Select2 v-model="requestForm.systemusers" v-bind="systemuserSelect2" style="width: 50% !important" />
+          </el-form-item>
+          <el-form-item :label="$t('common.dateStart')" required>
+            <el-date-picker
+              v-model="requestForm.apply_date_start"
+              type="datetime"
+            />
+          </el-form-item>
+          <el-form-item :label="$t('common.dateExpired')" required>
+            <el-date-picker
+              v-model="requestForm.apply_date_expired"
+              type="datetime"
+            />
+          </el-form-item>
+          <el-form-item :label="$t('assets.Action')" required>
+            <AssetPermissionFormActionField v-model="requestForm.actions" style="width: 30% !important" />
+          </el-form-item>
+        </el-form>
+      </template>
+    </IBox>
+  </GenericTicketDetail>
 </template>
 
 <script>
@@ -15,9 +50,12 @@ import { formatTime, getDateTimeStamp } from '@/utils/index'
 import { toSafeLocalDateStr, forMatAction } from '@/utils/common'
 import { STATUS_MAP } from '../../const'
 import GenericTicketDetail from '@/views/tickets/components/GenericTicketDetail'
+import Select2 from '@/components/FormFields/Select2'
+import IBox from '@/components/IBox'
+import AssetPermissionFormActionField from '@/views/tickets/RequestAssetPerm/components/AssetPermissionFormActionField'
 export default {
   name: '',
-  components: { GenericTicketDetail },
+  components: { GenericTicketDetail, IBox, Select2, AssetPermissionFormActionField },
   props: {
     object: {
       type: Object,
@@ -27,13 +65,56 @@ export default {
   data() {
     return {
       statusMap: this.object.status === 'open' ? STATUS_MAP['notified'] : STATUS_MAP[this.object.state],
-      requestForm: {
-        node: this.object.meta.apply_nodes,
-        asset: this.object.meta.apply_assets,
-        systemuser: this.object.meta.apply_system_users
-      },
       comments: '',
-      assets: []
+      requestForm: {
+        isRequired: this.object.approval_step === this.object.process_map.length ? [{ required: true }] : [{ required: false }],
+        nodes: this.object.current_meta.apply_nodes,
+        assets: this.object.current_meta.apply_assets,
+        systemusers: this.object.current_meta.apply_system_users,
+        actions: this.object.current_meta.apply_actions_representation,
+        apply_date_expired: this.object.current_meta.apply_date_expired,
+        apply_date_start: this.object.current_meta.apply_date_start
+      },
+      nodeSelect2: {
+        multiple: true,
+        value: this.object.current_meta.apply_nodes,
+        ajax: {
+          url: (function(object) {
+            const oid = object.org_id === '' ? 'DEFAULT' : object.org_id
+            return `/api/v1/assets/nodes/?oid=${oid}&protocol__in=rdp,vnc,ssh,telnet`
+          }(this.object)),
+          transformOption: (item) => {
+            return { label: `${item.full_value}`, value: item.id }
+          }
+        }
+      },
+      assetSelect2: {
+        multiple: true,
+        value: this.object.current_meta.apply_assets,
+        ajax: {
+          url: (function(object) {
+            const oid = object.org_id === '' ? 'DEFAULT' : object.org_id
+            return `/api/v1/assets/assets/?oid=${oid}&protocol__in=rdp,vnc,ssh,telnet`
+          }(this.object)),
+          transformOption: (item) => {
+            return { label: item.hostname, value: item.id }
+          }
+        }
+      },
+      systemuserSelect2: {
+        multiple: true,
+        value: this.object.current_meta.apply_system_users,
+        ajax: {
+          url: (function(object) {
+            const oid = object.org_id === '' ? 'DEFAULT' : object.org_id
+            return `/api/v1/assets/system-users/?oid=${oid}&protocol__in=rdp,vnc,ssh,telnet`
+          }(this.object)),
+          transformOption: (item) => {
+            const username = item.username || '*'
+            return { label: item.name + '(' + username + ')', value: item.id }
+          }
+        }
+      }
     }
   },
   computed: {
@@ -102,16 +183,16 @@ export default {
         }
       ]
     },
-    assignedCardItems() {
+    oneApprovedCardItems() {
       const vm = this
-      const meta = this.object.meta || {}
+      const meta = this.object.process_map[0] || {}
       return [
         {
           key: this.$t('tickets.PermissionName'),
           value: this.object.meta.apply_permission_name,
           formatter: function(item, value) {
             const to = { name: 'AssetPermissionDetail', params: { id: vm.object.id }, query: { oid: vm.object.org_id }}
-            if (vm.object.status === 'closed' && vm.object.state === 'approved') {
+            if (vm.object.status === 'closed' && vm.object.state === 'approved' && vm.object.process_map.length === 1) {
               return <router-link to={to}>{ value }</router-link>
             } else {
               return <span>{ value }</span>
@@ -132,7 +213,49 @@ export default {
         },
         {
           key: this.$t('assets.Action'),
-          value: forMatAction(this, meta['apply_actions_display'])
+          value: forMatAction(this, meta?.apply_actions_display)
+        },
+        {
+          key: this.$t('common.dateStart'),
+          value: toSafeLocalDateStr(meta?.apply_date_start)
+        },
+        {
+          key: this.$t('common.dateExpired'),
+          value: toSafeLocalDateStr(meta?.apply_date_expired)
+        }
+      ]
+    },
+    twoApprovedCardItems() {
+      const vm = this
+      const meta = this.object.process_map[1] || {}
+      return [
+        {
+          key: this.$t('tickets.PermissionName'),
+          value: this.object.meta.apply_permission_name,
+          formatter: function(item, value) {
+            const to = { name: 'AssetPermissionDetail', params: { id: vm.object.id }, query: { oid: vm.object.org_id }}
+            if (vm.object.status === 'closed' && vm.object.state === 'approved' && vm.object.process_map.length === 2) {
+              return <router-link to={to}>{ value }</router-link>
+            } else {
+              return <span>{ value }</span>
+            }
+          }
+        },
+        {
+          key: this.$t('perms.Node'),
+          value: meta?.apply_nodes_display?.join(', ') || ''
+        },
+        {
+          key: this.$t('assets.Asset'),
+          value: meta?.apply_assets_display?.join(', ') || ''
+        },
+        {
+          key: this.$t('tickets.SystemUser'),
+          value: meta?.apply_system_users_display?.join(', ') || ''
+        },
+        {
+          key: this.$t('assets.Action'),
+          value: forMatAction(this, meta?.apply_actions_display)
         },
         {
           key: this.$t('common.dateStart'),
@@ -145,7 +268,7 @@ export default {
       ]
     },
     hasActionPerm() {
-      return this.object.assignees.indexOf(this.$store.state.users.profile.id) !== -1
+      return this.object.process_map[this.object.approval_step - 1].assignees.indexOf(this.$store.state.users.profile.id) !== -1
     }
   },
   methods: {
@@ -159,22 +282,21 @@ export default {
       window.location.reload()
     },
     handleApprove() {
-      const assetLength = this.requestForm.asset.length
-      const nodeLength = this.requestForm.node.length
-      if (assetLength === 0 && nodeLength === 0) {
-        return this.$message.error(this.$tc('common.SelectAtLeastOneAssetOrNodeErrMsg'))
-      } else if (this.requestForm.systemuser.length === 0) {
-        return this.$message.error(this.$tc('common.RequiredSystemUserErrMsg'))
-      } else {
-        this.$axios.put(`/api/v1/tickets/tickets/${this.object.id}/approve/`, {
-          meta: {}
-        }).then(() => {
-          this.$message.success(this.$tc('common.updateSuccessMsg'))
-          this.reloadPage()
-        }).catch(() => {
-          this.$message.success(this.$tc('common.updateErrorMsg'))
-        })
-      }
+      this.$axios.put(`/api/v1/tickets/tickets/${this.object.id}/approve/`, {
+        meta: {
+          apply_system_users: this.requestForm.systemusers ? this.requestForm.systemusers : [],
+          apply_nodes: this.requestForm.nodes,
+          apply_assets: this.requestForm.assets,
+          apply_actions: this.requestForm.actions,
+          apply_date_start: this.requestForm.apply_date_start,
+          apply_date_expired: this.requestForm.apply_date_expired
+        }
+      }).then(() => {
+        this.$message.success(this.$tc('common.updateSuccessMsg'))
+        this.reloadPage()
+      }).catch(() => {
+        this.$message.success(this.$tc('common.updateErrorMsg'))
+      })
     },
     handleClose() {
       const url = `/api/v1/tickets/tickets/${this.object.id}/close/`
