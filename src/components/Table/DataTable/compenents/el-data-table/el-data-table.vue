@@ -7,14 +7,14 @@
     <template v-else>
       <el-table
         ref="table"
-        v-loading="loading"
+        v-loading="tableLoading"
         :data="data"
         :row-class-name="rowClassName"
         v-bind="tableAttrs"
         @select="selectStrategy.onSelect"
         v-on="$listeners"
         @selection-change="selectStrategy.onSelectionChange"
-        @select-all="selectStrategy.onSelectAll($event, canSelect)"
+        @select-all="handleSelectAll($event, canSelect)"
         @sort-change="onSortChange"
       >
         <!--TODO 不用jsx写, 感觉template逻辑有点不清晰了-->
@@ -99,8 +99,12 @@
             :filter-multiple="false"
             :filters="col.filters || null"
             :formatter="typeof col.formatter === 'function' ? col.formatter : null"
+            :title="col.label"
             v-bind="{align: columnsAlign, ...col}"
           >
+            <template #header>
+              <span :title="col.label">{{ col.label }}</span>
+            </template>
             <template v-if="col.formatter && typeof col.formatter !== 'function'" v-slot:default="{row, column, index}">
               <div
                 :is="col.formatter"
@@ -362,7 +366,7 @@ export default {
     newText: {
       type: String,
       default: function() {
-        return this.$t('ops.Add')
+        return this.$t('Add')
       }
     },
     /**
@@ -371,7 +375,7 @@ export default {
     editText: {
       type: String,
       default: function() {
-        return this.$t('ops.Modify')
+        return this.$t('Modify')
       }
     },
     /**
@@ -380,7 +384,7 @@ export default {
     viewText: {
       type: String,
       default: function() {
-        return this.$t('ops.View')
+        return this.$t('View')
       }
     },
     /**
@@ -389,7 +393,7 @@ export default {
     deleteText: {
       type: String,
       default: function() {
-        return this.$t('ops.Delete')
+        return this.$t('Delete')
       }
     },
     /**
@@ -400,7 +404,7 @@ export default {
     deleteMessage: {
       type: Function,
       default() {
-        return this.$t('ops.Confirm') + this.deleteText + '?'
+        return this.$t('Confirm') + this.deleteText + '?'
       }
     },
     /**
@@ -459,7 +463,7 @@ export default {
     onSuccess: {
       type: Function,
       default() {
-        return this.$message.success(this.$t('ops.SuccessfulOperation'))
+        return this.$message.success(this.$t('SuccessfulOperation'))
       }
     },
     /**
@@ -745,7 +749,7 @@ export default {
       page: defaultFirstPage,
       // https://github.com/ElemeFE/element/issues/1153
       total: null,
-      loading: false,
+      tableLoading: false,
       // 多选项的数组
       selected: [],
 
@@ -863,7 +867,8 @@ export default {
       if (query) {
         this.page = parseInt(query[this.pageKey])
         this.size = parseInt(query[this.pageSizeKey])
-        // 恢复查询条件，但对slot=search无效
+
+        // 恢复查询条件，但对 slot = search 无效
         if (this.$refs.searchForm) {
           delete query[this.pageKey]
           delete query[this.pageSizeKey]
@@ -874,6 +879,9 @@ export default {
     if (this.totalData) {
       this.getList()
     }
+  },
+  created() {
+    this.debouncedGetListFromRemote = _.debounce(this.getListFromRemote, 300)
   },
   methods: {
     getQuery() {
@@ -923,7 +931,7 @@ export default {
     getList({ loading = true } = {}) {
       const { url } = this
       if (url) {
-        return this.getListFromRemote({ loading: loading })
+        return this.debouncedGetListFromRemote({ loading })
       }
       if (this.totalData) {
         return this.getListFromStaticData({ loading: true })
@@ -932,11 +940,11 @@ export default {
     },
     getListFromStaticData({ loading = true } = {}) {
       if (loading) {
-        this.loading = true
+        this.tableLoading = true
       }
       if (!this.hasPagination) {
         this.data = this.totalData
-        this.loading = false
+        this.tableLoading = false
         if (this.isTree) {
           this.data = this.tree2Array(this.data, this.expandAll)
         }
@@ -949,7 +957,7 @@ export default {
       const end = (page + pageOffset) * this.size
       this.$log.debug(`page: ${page}, size: ${this.size}, start: ${start}, end: ${end}`)
       this.data = this.totalData.slice(start, end)
-      this.loading = false
+      this.tableLoading = false
       this.data = this.tree2Array(this.data, this.expandAll)
       return this.data
     },
@@ -975,7 +983,7 @@ export default {
         queryUtil.stringify(query, '=', '&')
 
       // 请求开始
-      this.loading = loading
+      this.tableLoading = loading
 
       // 存储query记录, 便于后面恢复
       if (this.saveQuery) {
@@ -1015,7 +1023,7 @@ export default {
             this.total === 0 &&
             (_isEmpty(formValue) || _values(formValue).every(isFalsey))
 
-          this.loading = false
+          this.tableLoading = false
           /**
            * 请求返回, 数据更新后触发
            * @property {object} data - table的数据
@@ -1035,7 +1043,7 @@ export default {
            */
           this.$emit('error', err)
           this.total = 0
-          this.loading = false
+          this.tableLoading = false
         })
     },
     search(attrs, reset) {
@@ -1097,6 +1105,14 @@ export default {
 
       this.page = val
       this.getList()
+    },
+    handleSelectAll(selection, selectable = () => true) {
+      this.tableLoading = true
+      try {
+        this.selectStrategy.onSelectAll(selection, selectable)
+      } finally {
+        this.tableLoading = false
+      }
     },
     /**
      * 切换某一行的选中状态，如果使用了第二个参数，则是设置这一行选中与否
@@ -1167,7 +1183,7 @@ export default {
      * @param {object|object[]} - 要删除的数据对象或数组
      */
     onDefaultDelete(data) {
-      this.$confirm(this.deleteMessage(data), this.$t('common.Info'), {
+      this.$confirm(this.deleteMessage(data), this.$t('Info'), {
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
         beforeClose: async(action, instance, done) => {

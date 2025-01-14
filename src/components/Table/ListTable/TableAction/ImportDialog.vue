@@ -8,16 +8,16 @@
     :title="importTitle"
     :visible.sync="showImportDialog"
     class="importDialog"
-    width="70%"
+    width="900px"
     @close="handleImportCancel"
   >
     <el-form v-if="!showTable" label-position="left" style="padding-left: 20px">
-      <el-form-item :label="$tc('common.Import' )" :label-width="'100px'">
+      <el-form-item :label="$tc('Import' )" :label-width="'100px'">
         <el-radio v-if="canImportCreate" v-model="importOption" class="export-item" label="create">
-          {{ this.$t('common.Create') }}
+          {{ this.$t('Create') }}
         </el-radio>
         <el-radio v-if="canImportUpdate" v-model="importOption" class="export-item" label="update">
-          {{ this.$t('common.Update') }}
+          {{ this.$t('Update') }}
         </el-radio>
         <div style="line-height: 1.5">
           <span class="el-upload__tip">
@@ -27,7 +27,7 @@
           </span>
         </div>
       </el-form-item>
-      <el-form-item :label="$tc('common.Upload' )" :label-width="'100px'" class="file-uploader">
+      <el-form-item :label="$tc('Upload' )" :label-width="'100px'" class="file-uploader">
         <el-upload
           ref="upload"
           :auto-upload="false"
@@ -41,11 +41,11 @@
         >
           <i class="el-icon-upload" />
           <div class="el-upload__text">
-            {{ $t('common.imExport.dragUploadFileInfo') }}
+            {{ $t('DragUploadFileInfo') }}
           </div>
           <div slot="tip" class="el-upload__tip">
             <span :class="{'hasError': hasFileFormatOrSizeError }">
-              {{ $t('common.imExport.uploadCsvLth10MHelpText') }}
+              {{ $t('UploadCsvLth10MHelpText') }}
             </span>
             <div v-if="renderError" class="hasError">{{ renderError }}</div>
           </div>
@@ -68,7 +68,7 @@
 <script>
 import Dialog from '@/components/Dialog/index.vue'
 import ImportTable from '@/components/Table/ListTable/TableAction/ImportTable.vue'
-import { getErrorResponseMsg } from '@/utils/common'
+import { download, getErrorResponseMsg } from '@/utils/common'
 import { createSourceIdCache } from '@/api/common'
 
 export default {
@@ -87,11 +87,11 @@ export default {
       default: () => ''
     },
     canImportCreate: {
-      type: [Boolean, Function],
+      type: [Boolean, Function, String],
       default: false
     },
     canImportUpdate: {
-      type: [Boolean, Function],
+      type: [Boolean, Function, String],
       default: false
     }
   },
@@ -122,17 +122,19 @@ export default {
     },
     downloadTemplateTitle() {
       if (this.importOption === 'create') {
-        return this.$t('common.imExport.downloadImportTemplateMsg')
+        return this.$t('DownloadImportTemplateMsg')
       } else {
-        return this.$t('common.imExport.downloadUpdateTemplateMsg')
+        return this.$t('DownloadUpdateTemplateMsg')
       }
     },
     importTitle() {
+      let option = ''
       if (this.importOption === 'create') {
-        return this.$t('common.Import') + this.$t('common.Create')
+        option = this.$t('Create')
       } else {
-        return this.$t('common.Import') + this.$t('common.Update')
+        option = this.$t('Update')
       }
+      return `${this.$t('Import')} & ${option}`
     }
   },
   watch: {
@@ -140,16 +142,21 @@ export default {
       this.showTable = false
     }
   },
+  beforeDestroy() {
+    this.$eventBus.$off('showImportDialog', this.showImportEventHandler)
+  },
   mounted() {
-    this.$eventBus.$on('showImportDialog', ({ url }) => {
+    this.$eventBus.$on('showImportDialog', this.showImportEventHandler)
+  },
+  methods: {
+    showImportEventHandler({ url }) {
       if (url === this.url) {
         this.showImportDialog = true
       }
-    })
-  },
-  methods: {
+    },
     closeDialog() {
       this.showImportDialog = false
+      this.$emit('importDialogClose')
     },
     cancelUpload() {
       this.showTable = false
@@ -169,10 +176,12 @@ export default {
       const url = new URL(this.url, 'http://localhost')
       url.pathname += 'render-to-json/'
       const renderToJsonUrl = url.toString().replace('http://localhost', '')
-      this.$axios.post(
-        renderToJsonUrl,
-        file.raw,
+      const requestMethod = this.importOption === 'create' ? 'post' : 'put'
+      this.$axios(
         {
+          url: renderToJsonUrl,
+          data: file.raw,
+          method: requestMethod,
           headers: { 'Content-Type': isCsv ? 'text/csv' : 'text/xlsx' },
           disableFlashErrorMsg: true
         }
@@ -199,7 +208,8 @@ export default {
     },
     async getDownloadTemplateUrl(tp) {
       const template = this.importOption === 'create' ? 'import' : 'update'
-      let query = `format=${tp}&template=${template}`
+      const action = this.importOption === 'create' ? 'create' : 'partial_update'
+      let query = `format=${tp}&template=${template}&action=${action}`
       if (this.importOption === 'update' && this.selectedRows.length > 0) {
         const resources = []
         for (const item of this.selectedRows) {
@@ -220,10 +230,7 @@ export default {
       this.$message.success(msg)
     },
     downloadCsv(url) {
-      const a = document.createElement('a')
-      a.href = url
-      a.click()
-      window.URL.revokeObjectURL(url)
+      download(url)
     },
     async handleImportConfirm() {
       await this.$refs['importTable'].performUpload()
@@ -241,21 +248,23 @@ export default {
 
 <style lang='scss' scoped>
   @import "~@/styles/variables";
+
   .error-msg {
     color: $--color-danger;
   }
+
   .error-msg.error-results {
     background-color: #f3f3f4;
     max-height: 200px;
     overflow: auto
   }
 
-  .file-uploader >>> .el-upload {
+  .file-uploader ::v-deep .el-upload {
     width: 100%;
     //padding-right: 150px;
   }
 
-  .file-uploader >>> .el-upload-dragger {
+  .file-uploader ::v-deep .el-upload-dragger {
     width: 100%;
   }
 
@@ -271,7 +280,7 @@ export default {
     }
   }
 
-  .importTable >>> .el-dialog__body {
+  .importTable ::v-deep .el-dialog__body {
     padding-bottom: 20px;
   }
 
@@ -279,20 +288,20 @@ export default {
     margin-left: 80px;
   }
 
-  .export-item:first-child {
-    margin-left: 0;
-  }
+.export-item:first-child {
+  margin-left: 0;
+}
 
-  .hasError {
-    color: $--color-danger;
-  }
+.hasError {
+  color: $--color-danger;
+}
 
-  .el-upload__tip {
-    line-height: 1.5;
-    padding-top: 0;
+.el-upload__tip {
+  line-height: 1.5;
+  padding-top: 0;
 
-    .el-link {
-      margin-left: 10px;
-    }
+  .el-link {
+    margin-left: 10px;
   }
+}
 </style>

@@ -8,7 +8,7 @@
     :title="title"
     :visible.sync="iVisible"
     v-bind="$attrs"
-    width="70%"
+    width="900px"
     v-on="$listeners"
   >
     <AccountCreateUpdateForm
@@ -53,7 +53,7 @@ export default {
     title: {
       type: String,
       default: function() {
-        return this.$t('assets.AddAccount')
+        return this.$t('AddAccount')
       }
     }
   },
@@ -92,7 +92,7 @@ export default {
         data = formValue
         url = `/api/v1/accounts/accounts/bulk/`
         if (data.assets.length === 0) {
-          this.$message.error(this.$tc('assets.PleaseSelectAsset'))
+          this.$message.error(this.$tc('PleaseSelectAsset'))
           return
         }
       }
@@ -114,7 +114,7 @@ export default {
       this.$axios.patch(`/api/v1/accounts/accounts/${this.account.id}/`, data).then(() => {
         this.iVisible = false
         this.$emit('add', true)
-        this.$message.success(this.$tc('common.updateSuccessMsg'))
+        this.$message.success(this.$tc('UpdateSuccessMsg'))
       }).catch(error => this.setFieldError(error))
     },
     handleResult(resp, error) {
@@ -127,7 +127,7 @@ export default {
       }
       if (!bulkCreate) {
         if (!error) {
-          this.$message.success(this.$tc('common.createSuccessMsg'))
+          this.$message.success(this.$tc('CreateSuccessMsg'))
         } else {
           this.setFieldError(error)
         }
@@ -172,7 +172,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

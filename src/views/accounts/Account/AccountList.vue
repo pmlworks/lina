@@ -47,7 +47,7 @@ export default {
       cursor: pointer;
     }
 
-    & > > > .table-content {
+    & ::v-deep .table-content {
       margin-left: 21px;
     }
 

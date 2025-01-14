@@ -9,7 +9,7 @@ export default {
   redirect: '/settings/basic',
   name: 'SystemSetting',
   meta: {
-    title: i18n.t('route.Settings'),
+    title: i18n.t('Settings'),
     icon: 'system-setting',
     activeMenu: '/settings',
     view: 'settings',
@@ -24,7 +24,7 @@ export default {
       name: 'Basic',
       component: () => import('@/views/settings/Basic'),
       meta: {
-        title: i18n.t('setting.Basic'),
+        title: i18n.t('BasicSettings'),
         icon: 'basic',
         permissions: ['settings.view_setting']
       }
@@ -45,7 +45,7 @@ export default {
           component: () => import('@/views/settings/Org/OrganizationList'),
           name: 'OrganizationList',
           meta: {
-            title: i18n.t('xpack.Organization.OrganizationList'),
+            title: i18n.t('OrganizationList'),
             icon: 'organization-set',
             permissions: ['orgs.view_organization']
           }
@@ -56,9 +56,10 @@ export default {
           name: 'OrganizationCreate',
           hidden: true,
           meta: {
-            title: i18n.t('xpack.Organization.OrganizationCreate'),
+            title: i18n.t('OrganizationCreate'),
             action: 'create',
-            permissions: ['orgs.add_organization']
+            permissions: ['orgs.add_organization'],
+            activeMenu: '/settings/orgs'
           }
         },
         {
@@ -67,9 +68,10 @@ export default {
           name: 'OrganizationUpdate',
           hidden: true,
           meta: {
-            title: i18n.t('xpack.Organization.OrganizationUpdate'),
+            title: i18n.t('OrganizationUpdate'),
             action: 'update',
-            permissions: ['orgs.change_organization']
+            permissions: ['orgs.change_organization'],
+            activeMenu: '/settings/orgs'
           }
         },
         {
@@ -78,20 +80,20 @@ export default {
           name: 'OrganizationDetail',
           hidden: true,
           meta: {
-            title: i18n.t('xpack.Organization.OrganizationDetail'),
+            title: i18n.t('OrganizationDetail'),
             permissions: ['orgs.view_organization']
           }
         }
       ]
     },
     {
-      path: '/settings/msg',
+      path: '/settings/notification',
       name: 'Msg',
       component: () => import('@/views/settings/Msg'),
       meta: {
-        title: i18n.t('setting.Message'),
-        icon: 'email-set',
-        permissions: ['settings.change_email']
+        title: i18n.t('Notifications'),
+        icon: 'remind',
+        permissions: ['settings.change_email | settings.change_sms | settings.change_systemmsgsubscription']
       }
     },
     {
@@ -99,9 +101,12 @@ export default {
       name: 'Feature',
       component: () => import('@/views/settings/Feature'),
       meta: {
-        title: i18n.t('setting.Features'),
+        title: i18n.t('Features'),
         icon: 'feature',
-        permissions: ['settings.view_setting']
+        permissions: [
+          'settings.change_ticket | settings.change_ops | settings.change_vault | ' +
+          'settings.change_chatai | settings.view_chatprompt | settings.change_virtualapp'
+        ]
       }
     },
     {
@@ -109,17 +114,87 @@ export default {
       name: 'Auth',
       component: () => import('@/views/settings/Auth'),
       meta: {
-        title: i18n.t('setting.Auth'),
+        title: i18n.t('Auth'),
         icon: 'attestation',
         permissions: ['settings.change_auth']
       }
     },
     {
+      path: '/settings/storage',
+      component: empty,
+      redirect: {
+        name: 'Storage'
+      },
+      meta: {
+        title: i18n.t('BaseStorage'),
+        app: 'terminal',
+        permissions: ['terminal.view_commandstorage | terminal.view_replaystorage']
+      },
+      children: [
+        {
+          path: '',
+          name: 'Storage',
+          component: () => import('@/views/settings/Storage'),
+          meta: {
+            title: i18n.t('StorageSetting'),
+            icon: 'storage',
+            permissions: ['settings.change_terminal']
+          }
+        },
+        {
+          path: 'replay-storage/create',
+          name: 'CreateReplayStorage',
+          component: () => import('@/views/settings/Storage/ReplayStorageCreateUpdate'),
+          meta: {
+            title: i18n.t('CreateReplayStorage'),
+            activeMenu: '/settings/storage',
+            permissions: ['terminal.add_replaystorage']
+          },
+          hidden: true
+        },
+        {
+          path: 'replay-storage/:id/update',
+          name: 'ReplayStorageUpdate',
+          component: () => import('@/views/settings/Storage/ReplayStorageCreateUpdate'),
+          meta: {
+            title: i18n.t('ReplayStorageUpdate'),
+            activeMenu: '/settings/storage',
+            permissions: ['terminal.change_replaystorage']
+          },
+          hidden: true
+        },
+        {
+          path: 'command-storage/create',
+          name: 'CreateCommandStorage',
+          component: () => import('@/views/settings/Storage/CommandStorageCreateUpdate'),
+          meta: {
+            title: i18n.t('CreateCommandStorage'),
+            activeMenu: '/settings/storage',
+            permissions: ['terminal.add_commandstorage']
+          },
+          hidden: true
+        },
+        {
+          path: 'command-storage/:id/update',
+          name: 'CommandStorageUpdate',
+          component: () => import('@/views/settings/Storage/CommandStorageCreateUpdate'),
+          meta: {
+            title: i18n.t('CommandStorageUpdate'),
+            activeMenu: '/settings/storage',
+            permissions: ['terminal.change_commandstorage']
+          },
+          hidden: true
+        }
+      ]
+    },
+    {
       path: '/settings/terminal',
       component: empty,
-      redirect: '',
+      redirect: {
+        name: 'TerminalSetting'
+      },
       meta: {
-        title: i18n.t('setting.Terminal'),
+        title: i18n.t('BaseTerminal'),
         app: 'terminal',
         permissions: ['settings.change_terminal']
       },
@@ -129,7 +204,7 @@ export default {
           name: 'TerminalSetting',
           component: () => import('@/views/settings/Terminal'),
           meta: {
-            title: i18n.t('setting.Terminal'),
+            title: i18n.t('Terminal'),
             icon: 'terminal-set',
             permissions: ['settings.change_terminal']
           }
@@ -139,7 +214,7 @@ export default {
           name: 'TerminalDetail',
           component: () => import('@/views/settings/Terminal/Component/TerminalDetail'),
           meta: {
-            title: i18n.t('route.Terminal'),
+            title: i18n.t('Terminal'),
             permissions: ['terminal.view_terminal']
           },
           hidden: true
@@ -149,52 +224,8 @@ export default {
           name: 'TerminalUpdate',
           component: () => import('@/views/settings/Terminal/Component/TerminalUpdate'),
           meta: {
-            title: i18n.t('route.Terminal'),
+            title: i18n.t('Terminal'),
             permissions: ['terminal.change_terminal']
-          },
-          hidden: true
-        },
-        {
-          path: 'replay-storage/create',
-          name: 'CreateReplayStorage',
-          component: () => import('@/views/settings/Terminal/Storage/ReplayStorageCreateUpdate'),
-          meta: {
-            title: i18n.t('route.CreateReplayStorage'),
-            activeMenu: '/settings/terminal',
-            permissions: ['terminal.add_replaystorage']
-          },
-          hidden: true
-        },
-        {
-          path: 'replay-storage/:id/update',
-          name: 'ReplayStorageUpdate',
-          component: () => import('@/views/settings/Terminal/Storage/ReplayStorageCreateUpdate'),
-          meta: {
-            title: i18n.t('route.ReplayStorageUpdate'),
-            activeMenu: '/settings/terminal',
-            permissions: ['terminal.change_replaystorage']
-          },
-          hidden: true
-        },
-        {
-          path: 'command-storage/create',
-          name: 'CreateCommandStorage',
-          component: () => import('@/views/settings/Terminal/Storage/CommandStorageCreateUpdate'),
-          meta: {
-            title: i18n.t('route.CreateCommandStorage'),
-            activeMenu: '/settings/terminal',
-            permissions: ['terminal.add_commandstorage']
-          },
-          hidden: true
-        },
-        {
-          path: 'command-storage/:id/update',
-          name: 'CommandStorageUpdate',
-          component: () => import('@/views/settings/Terminal/Storage/CommandStorageCreateUpdate'),
-          meta: {
-            title: i18n.t('route.CommandStorageUpdate'),
-            activeMenu: '/settings/terminal',
-            permissions: ['terminal.change_commandstorage']
           },
           hidden: true
         },
@@ -203,7 +234,7 @@ export default {
           name: 'EndpointCreate',
           component: () => import('@/views/settings/Terminal/Endpoint/EndpointCreateUpdate'),
           meta: {
-            title: i18n.t('route.CreateEndpoint'),
+            title: i18n.t('CreateEndpoint'),
             activeMenu: '/settings/terminal',
             permissions: ['terminal.add_endpoint']
           },
@@ -214,7 +245,7 @@ export default {
           name: 'EndpointUpdate',
           component: () => import('@/views/settings/Terminal/Endpoint/EndpointCreateUpdate'),
           meta: {
-            title: i18n.t('route.UpdateEndpoint'),
+            title: i18n.t('UpdateEndpoint'),
             activeMenu: '/settings/terminal',
             permissions: ['terminal.change_endpoint']
           },
@@ -225,7 +256,7 @@ export default {
           name: 'EndpointRuleCreate',
           component: () => import('@/views/settings/Terminal/EndpointRule/EndpointRuleCreateUpdate'),
           meta: {
-            title: i18n.t('route.CreateEndpointRule'),
+            title: i18n.t('CreateEndpointRule'),
             activeMenu: '/settings/terminal',
             permissions: ['terminal.add_endpointrule']
           },
@@ -236,7 +267,7 @@ export default {
           name: 'EndpointRuleUpdate',
           component: () => import('@/views/settings/Terminal/EndpointRule/EndpointRuleCreateUpdate'),
           meta: {
-            title: i18n.t('route.UpdateEndpointRule'),
+            title: i18n.t('UpdateEndpointRule'),
             activeMenu: '/settings/terminal',
             permissions: ['terminal.change_endpointrule']
           },
@@ -247,11 +278,13 @@ export default {
     {
       path: '/settings/applets',
       component: empty,
-      redirect: '',
+      redirect: {
+        name: 'Applets'
+      },
       meta: {
-        title: i18n.t('setting.Applets'),
+        title: i18n.t('BaseApplets'),
         app: 'terminal',
-        permissions: ['terminal.view_applet']
+        permissions: ['terminal.view_applet | terminal.view_applethost']
       },
       children: [
         {
@@ -259,7 +292,7 @@ export default {
           name: 'Applets',
           component: () => import('@/views/settings/Applet'),
           meta: {
-            title: i18n.t('setting.Applets'),
+            title: i18n.t('Applets'),
             icon: 'application',
             permissions: ['terminal.view_applet']
           }
@@ -270,8 +303,8 @@ export default {
           component: () => import('@/views/settings/Applet/Applet/AppletDetail/index'),
           hidden: true,
           meta: {
-            title: i18n.t('route.AppletDetail'),
-            permissions: ['settings.change_terminal'],
+            title: i18n.t('AppletDetail'),
+            permissions: ['terminal.view_applet'],
             activeMenu: '/settings/applets'
           }
         },
@@ -281,7 +314,7 @@ export default {
           component: () => import('@/views/settings/Applet/AppletHost/AppletHostCreateUpdate'),
           hidden: true,
           meta: {
-            title: i18n.t('route.AppletHostCreate'),
+            title: i18n.t('AppletHostCreate'),
             permissions: ['terminal.add_applethost'],
             activeMenu: '/settings/applets'
           }
@@ -292,7 +325,7 @@ export default {
           component: () => import('@/views/settings/Applet/AppletHost/AppletHostDetail/index'),
           hidden: true,
           meta: {
-            title: i18n.t('route.AppletHostDetail'),
+            title: i18n.t('AppletHostDetail'),
             permissions: ['terminal.view_applethost'],
             activeMenu: '/settings/applets'
           }
@@ -303,8 +336,52 @@ export default {
           component: () => import('@/views/settings/Applet/AppletHost/AppletHostCreateUpdate'),
           hidden: true,
           meta: {
-            title: i18n.t('route.AppletHostUpdate'),
+            title: i18n.t('AppletHostUpdate'),
             permissions: ['terminal.change_applethost'],
+            activeMenu: '/settings/applets'
+          }
+        },
+        {
+          path: 'virtual-apps/create',
+          name: 'VirtualAppCreate',
+          component: () => import('@/views/settings/Applet/VirtualApp/VirtualAppCreateUpdate'),
+          hidden: true,
+          meta: {
+            title: i18n.t('VirtualAppCreate'),
+            permissions: ['terminal.add_virtualapp'],
+            activeMenu: '/settings/applets'
+          }
+        },
+        {
+          path: 'virtual-apps/:id',
+          name: 'VirtualAppDetail',
+          component: () => import('@/views/settings/Applet/VirtualApp/VirtualAppDetail/index.vue'),
+          hidden: true,
+          meta: {
+            title: i18n.t('VirtualAppDetail'),
+            permissions: ['terminal.view_virtualapp'],
+            activeMenu: '/settings/applets'
+          }
+        },
+        {
+          path: 'virtual-apps/:id/update',
+          name: 'VirtualAppUpdate',
+          component: () => import('@/views/settings/Applet/VirtualApp/VirtualAppCreateUpdate'),
+          hidden: true,
+          meta: {
+            title: i18n.t('VirtualHostUpdate'),
+            permissions: ['terminal.change_virtualapp'],
+            activeMenu: '/settings/applets'
+          }
+        },
+        {
+          path: 'app-providers/:id',
+          name: 'AppProviderDetail',
+          component: () => import('@/views/settings/Applet/AppProvider/AppProviderDetail/index.vue'),
+          hidden: true,
+          meta: {
+            title: i18n.t('AppProviderDetail'),
+            permissions: ['terminal.view_appprovider'],
             activeMenu: '/settings/applets'
           }
         }
@@ -315,7 +392,7 @@ export default {
       name: 'Security',
       component: () => import('@/views/settings/Security'),
       meta: {
-        title: i18n.t('setting.Security'),
+        title: i18n.t('Security'),
         icon: 'security',
         permissions: ['settings.change_security']
       }
@@ -325,19 +402,18 @@ export default {
       name: 'Interface',
       component: () => import('@/views/settings/Interface'),
       meta: {
-        title: i18n.t('xpack.InterfaceSettings'),
+        title: i18n.t('InterfaceSettings'),
         icon: 'face',
         licenseRequired: true,
         permissions: ['settings.change_interface']
       }
     },
-
     {
       path: '/settings/tools',
       name: 'Tools',
       component: () => import('@/views/settings/Tool'),
       meta: {
-        title: i18n.t('setting.SystemTools'),
+        title: i18n.t('SystemTools'),
         icon: 'tools',
         permissions: ['settings.view_setting']
       }
@@ -345,8 +421,11 @@ export default {
     {
       path: '/settings/tasks',
       component: empty,
+      redirect: {
+        name: 'TaskList'
+      },
       meta: {
-        title: i18n.t('route.TaskList'),
+        title: i18n.t('BaseSystemTasks'),
         icon: 'tasks',
         permissions: ['ops.view_celerytask']
       },
@@ -356,7 +435,7 @@ export default {
           name: 'TaskList',
           component: () => import('@/views/settings/Task/index.vue'),
           meta: {
-            title: i18n.t('route.TaskList'),
+            title: i18n.t('SystemTasks'),
             permissions: ['ops.view_celerytask']
           }
         },
@@ -366,7 +445,7 @@ export default {
           name: 'TaskDetail',
           hidden: true,
           meta: {
-            title: i18n.t('route.TaskDetail'),
+            title: i18n.t('TaskDetail'),
             permissions: ['ops.view_celerytask'],
             activeMenu: '/settings/tasks'
           }
@@ -378,7 +457,7 @@ export default {
       name: 'License',
       component: () => import('@/views/settings/License'),
       meta: {
-        title: i18n.t('setting.License'),
+        title: i18n.t('License'),
         icon: 'license',
         permissions: ['settings.change_license']
       }

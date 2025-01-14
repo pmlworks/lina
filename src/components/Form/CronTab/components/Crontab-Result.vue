@@ -1,19 +1,20 @@
 /* eslint-disable */
 <template>
-  <div class="popup-result">
-    <p class="title">{{ this.$t('common.CronTab.runningTimes') }}</p>
+  <div class="popup-result-time">
+    <p class="title">{{ this.$t('RunningTimes') }}</p>
     <ul class="popup-result-scroll">
       <template v-if="isShow">
         <li v-for="item in resultList" :key="item">{{ item }}</li>
       </template>
-      <li v-else>{{ this.$t('common.CronTab.calculationResults') }}</li>
+      <li v-else>{{ this.$t('CalculationResults') }}</li>
     </ul>
   </div>
 </template>
 
 <script>
 import parser from 'cron-parser'
-import { toSafeLocalDateStr } from '@/utils/common'
+import { toSafeLocalDateStr } from '@/utils/time'
+
 export default {
   name: 'CrontabResult',
   props: {
@@ -51,6 +52,10 @@ export default {
           const cur = interval.next().toString()
           this.resultList.push(toSafeLocalDateStr(cur))
         }
+        const first = new Date(this.resultList[0])
+        const second = new Date(this.resultList[1])
+        const diff = Math.abs(second - first)
+        this.$emit('crontabDiffChange', diff)
       } catch (error) {
         this.isShow = false
         // debug(error, 'error')
@@ -60,3 +65,12 @@ export default {
 }
 
 </script>
+<style lang='scss' scoped>
+.popup-result-time {
+  margin-top: 10px;
+}
+.title {
+  margin-bottom: 0;
+}
+
+</style>

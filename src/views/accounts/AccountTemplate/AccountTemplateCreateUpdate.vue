@@ -1,5 +1,8 @@
 <template>
-  <GenericCreateUpdatePage v-bind="$data" />
+  <GenericCreateUpdatePage
+    v-bind="$data"
+    @getObjectDone="getObjectDone"
+  />
 </template>
 
 <script>
@@ -14,6 +17,13 @@ export default {
   },
   data() {
     const vm = this
+    const isUpdate = vm.$route.path.indexOf('/update') > -1 && vm.$route.params?.id
+    const formFields = templateFields(vm)
+    for (const [key, value] of formFields) {
+      if (key === vm.$t('Secret')) {
+        isUpdate && value.push('is_sync_account')
+      }
+    }
     return {
       initial: {
         secret_type: 'password',
@@ -21,11 +31,28 @@ export default {
       },
       url: '/api/v1/accounts/account-templates/',
       hasDetailInMsg: false,
-      fields: [
-        ...templateFields(vm)
-      ],
+      fields: formFields,
       fieldsMeta: {
-        ...templateFieldsMeta(vm)
+        ...templateFieldsMeta(vm),
+        is_sync_account: {
+          label: this.$t('SyncUpdateAccountInfo'),
+          el: {
+            icon: 'fa fa-external-link',
+            type: 'primary',
+            size: 'mini'
+          },
+          component: 'el-button',
+          on: {
+            click: () => {
+              vm.$router.push({
+                name: 'AccountTemplateDetail',
+                query: {
+                  tab: 'Account'
+                }
+              })
+            }
+          }
+        }
       },
       cleanFormValue(value) {
         Object.keys(value).forEach((item, index, arr) => {
@@ -35,15 +62,19 @@ export default {
           }
         })
         value['secret'] = encryptPassword(value['secret'])
+        delete value.is_sync_account
         return value
       },
       createSuccessNextRoute: { name: 'AccountTemplateList' },
       updateSuccessNextRoute: { name: 'AccountTemplateList' }
     }
+  },
+  methods: {
+    getObjectDone(obj) {
+      if (['token', 'access_key', 'api_key'].includes(obj.secret_type.value)) {
+        this.fieldsMeta.auto_push.el.disabled = true
+      }
+    }
   }
 }
 </script>
-
-<style>
-
-</style>

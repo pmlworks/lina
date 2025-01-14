@@ -1,12 +1,19 @@
 <template>
   <div>
+    <el-row :gutter="20">
+      <el-col :md="24" :sm="24">
+        <el-alert type="success">
+          {{ $t('AppletHelpText') }}
+        </el-alert>
+      </el-col>
+    </el-row>
     <CardTable ref="CardTable" v-bind="$data" />
     <UploadDialog :visible.sync="uploadDialogVisible" @upload-event="handleUpload" />
   </div>
 </template>
 
 <script>
-import CardTable from './components/CardTable'
+import CardTable from '@/components/Table/CardTable'
 import UploadDialog from './UploadDialog'
 
 export default {
@@ -26,14 +33,15 @@ export default {
         onCreate: () => {
           this.uploadDialogVisible = true
         },
-        createTitle: this.$t('common.Upload'),
+        createTitle: this.$t('Upload'),
+        hasCreate: this.$hasPerm('terminal.add_applet'),
         searchConfig: {
           getUrlQuery: false,
           exclude: ['version']
         },
         extraActions: [
           {
-            title: this.$t('terminal.Marketplace'),
+            title: this.$t('Marketplace'),
             icon: 'el-icon-shopping-bag-1',
             callback: () => {
               window.open('https://apps.fit2cloud.com/jumpserver')

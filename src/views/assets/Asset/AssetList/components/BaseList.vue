@@ -1,7 +1,7 @@
 <template>
   <div>
-    <el-alert v-if="helpMessage" type="success">
-      <span class="announcement-main" v-html="helpMessage" />
+    <el-alert v-if="helpMessage" show-icon type="info">
+      <span v-sanitize="helpMessage" class="announcement-main" />
     </el-alert>
     <ListTable ref="ListTable" :header-actions="iHeaderActions" :table-config="iTableConfig" />
     <PlatformDialog :category="category" :visible.sync="showPlatform" />
@@ -23,7 +23,7 @@
 <script>
 import { ListTable } from '@/components'
 import {
-  ActionsFormatter, ArrayFormatter, ChoicesFormatter, DetailFormatter, ProtocolsFormatter, TagsFormatter
+  ActionsFormatter, ArrayFormatter, ChoicesFormatter, DetailFormatter, ProtocolsFormatter
 } from '@/components/Table/TableFormatters'
 import AssetBulkUpdateDialog from './AssetBulkUpdateDialog'
 import { connectivityMeta } from '@/components/Apps/AccountListTable/const'
@@ -57,6 +57,10 @@ export default {
       default: () => ({})
     },
     addExtraMoreActions: {
+      type: Array,
+      default: () => []
+    },
+    addExtraMoreColActions: {
       type: Array,
       default: () => []
     },
@@ -97,8 +101,13 @@ export default {
         route.query.type = row.type.value
         route.query.category = row.type.category
       }
-      const { href } = vm.$router.resolve(route)
-      window.open(href, '_blank')
+      const createInNewPage = this.$route.query.node_id
+      if (createInNewPage) {
+        const { href } = vm.$router.resolve(route)
+        window.open(href, '_blank')
+      } else {
+        this.$router.push(route)
+      }
     }
     const extraQuery = this.$route.params?.extraQuery || {}
     return {
@@ -125,8 +134,8 @@ export default {
           ]
         },
         columnsMeta: {
-          type: { formatter: ChoicesFormatter },
-          category: { formatter: ChoicesFormatter },
+          type: { formatter: ChoicesFormatter, sortable: false },
+          category: { formatter: ChoicesFormatter, sortable: false },
           name: {
             formatter: DetailFormatter,
             formatterArgs: {
@@ -144,8 +153,11 @@ export default {
           nodes_display: {
             formatter: ArrayFormatter
           },
+          address: {
+            minWidth: '200px'
+          },
           gathered_info: {
-            label: this.$t('assets.HardwareInfo'),
+            label: this.$t('HardwareInfo'),
             formatter: HostInfoFormatter,
             formatterArgs: {
               info: vm?.optionInfo,
@@ -159,17 +171,6 @@ export default {
             }
           },
           connectivity: connectivityMeta,
-          labels: {
-            formatter: TagsFormatter,
-            formatterArgs: {
-              getTags(cellValue) {
-                return cellValue.map(item => `${item.name}:${item.value}`)
-              },
-              config: {
-                size: 'mini'
-              }
-            }
-          },
           actions: {
             formatter: ActionsFormatter,
             formatterArgs: {
@@ -183,18 +184,18 @@ export default {
               extraActions: [
                 {
                   name: 'Test',
-                  title: this.$t('common.Test'),
+                  title: this.$t('Test'),
                   can: ({ row }) =>
                     this.$hasPerm('assets.test_assetconnectivity') &&
                     !this.$store.getters.currentOrgIsRoot &&
                     row?.auto_config?.ansible_enabled &&
                     row?.auto_config?.ping_enabled,
                   callback: ({ row }) => {
-                    if (row.platform.name === 'Gateway') {
+                    if (row.platform.name.startsWith('Gateway')) {
                       this.GatewayVisible = true
                       const port = row.protocols.find(item => item.name === 'ssh').port
                       if (!port) {
-                        return this.$message.error(this.$tc('common.BadRequestErrorMsg'))
+                        return this.$message.error(this.$tc('BadRequestErrorMsg'))
                       } else {
                         this.GatewayPort = port
                         this.GatewayCell = row.id
@@ -208,7 +209,8 @@ export default {
                       })
                     }
                   }
-                }
+                },
+                ...this.addExtraMoreColActions
               ]
             }
           }
@@ -218,13 +220,38 @@ export default {
         onCreate: () => {
           this.showPlatform = true
         },
+        hasLabelSearch: true,
         searchConfig: {
           getUrlQuery: false
         },
         extraMoreActions: [
           {
+            name: 'TestSelected',
+            title: this.$t('TestSelected'),
+            type: 'primary',
+            icon: 'fa fa-link',
+            can: ({ selectedRows }) =>
+              this.$hasPerm('assets.test_assetconnectivity') &&
+              !this.$store.getters.currentOrgIsRoot &&
+              selectedRows.length > 0 &&
+              selectedRows[0].auto_config?.ansible_enabled &&
+              selectedRows[0].auto_config?.ping_enabled,
+            callback: function({ selectedRows }) {
+              const ids = selectedRows.map(v => {
+                return v.id
+              })
+              this.$axios.post(
+                '/api/v1/assets/assets/tasks/',
+                { action: 'test', assets: ids }).then(res => {
+                openTaskPage(res['task'])
+              }).catch(err => {
+                this.$message.error(this.$tc('common.bulkVerifyErrorMsg' + ' ' + err))
+              })
+            }.bind(this)
+          },
+          {
             name: 'DeactiveSelected',
-            title: this.$t('common.BatchDisable'),
+            title: this.$t('DisableSelected'),
             type: 'primary',
             icon: 'fa fa-ban',
             can: ({ selectedRows }) => {
@@ -235,16 +262,16 @@ export default {
                 return { pk: v.id, is_active: false }
               })
               this.$axios.patch(`/api/v1/assets/assets/`, ids).then(res => {
-                this.$message.success(this.$tc('common.updateSuccessMsg'))
+                this.$message.success(this.$tc('UpdateSuccessMsg'))
                 this.$refs.ListTable.reloadTable()
               }).catch(err => {
-                this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + err))
+                this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + err))
               })
             }.bind(this)
           },
           {
             name: 'ActiveSelected',
-            title: this.$t('common.BatchActivate'),
+            title: this.$t('ActivateSelected'),
             type: 'primary',
             icon: 'fa fa-check-circle-o',
             can: ({ selectedRows }) => {
@@ -255,20 +282,20 @@ export default {
                 return { pk: v.id, is_active: true }
               })
               this.$axios.patch(`/api/v1/assets/assets/`, ids).then(res => {
-                this.$message.success(this.$tc('common.updateSuccessMsg'))
+                this.$message.success(this.$tc('UpdateSuccessMsg'))
                 this.$refs.ListTable.reloadTable()
               }).catch(err => {
-                this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + err))
+                this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + err))
               })
             }.bind(this)
           },
           {
             name: 'actionUpdateSelected',
-            title: this.$t('common.BatchUpdate'),
-            fa: 'batch-update',
+            title: this.$t('UpdateSelected'),
+            icon: 'batch-update',
             can: ({ selectedRows }) => {
               return selectedRows.length > 0 &&
-                !vm.currentOrgIsRoot &&
+                !this.$store.getters.currentOrgIsRoot &&
                 vm.$hasPerm('assets.change_asset')
             },
             callback: ({ selectedRows }) => {
@@ -303,6 +330,14 @@ export default {
   watch: {
     optionInfo(iNew) {
       this.$set(this.defaultConfig.columnsMeta.gathered_info.formatterArgs, 'info', iNew)
+    },
+    $route(iNew, old) {
+      const tab = iNew.query.tab
+      const oldTab = old.query.tab
+      if (tab !== oldTab && tab !== 'all') {
+        iNew.query.node_id = ''
+        this.$router.push(iNew)
+      }
     }
   },
   methods: {
@@ -313,7 +348,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>

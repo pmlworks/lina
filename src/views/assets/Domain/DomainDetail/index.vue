@@ -10,28 +10,36 @@
 import { GenericDetailPage, TabPage } from '@/layout/components'
 import Detail from './Detail.vue'
 import GatewayList from './GatewayList.vue'
+import AssetList from './AssetList.vue'
 
 export default {
   components: {
     GenericDetailPage,
     TabPage,
     Detail,
-    GatewayList
+    GatewayList,
+    AssetList
   },
   data() {
     return {
       TaskDetail: {},
       config: {
         activeMenu: 'Detail',
+        url: '/api/v1/assets/domains',
         submenu: [
           {
-            title: this.$t('assets.DomainDetail'),
+            title: this.$t('Basic'),
             name: 'Detail'
           },
           {
-            title: this.$t('assets.GatewayList'),
+            title: this.$t('GatewayList'),
             name: 'GatewayList',
             hidden: () => !this.$hasPerm('assets.view_gateway')
+          },
+          {
+            title: this.$t('AssetList'),
+            name: 'AssetList',
+            hidden: () => !this.$hasPerm('assets.view_asset')
           }
         ],
         hasRightSide: true

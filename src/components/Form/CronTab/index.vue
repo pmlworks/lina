@@ -1,23 +1,31 @@
 <template>
   <div>
     <div class="box">
-      <el-input v-model="input" clearable @focus="showDialog" @clear="onClear" />
+      <el-input v-model="input" clearable @clear="onClear" @focus="showDialog" />
     </div>
-    <el-dialog :title="$tc('common.CronTab.newCron')" :visible.sync="showCron" top="8vh" width="580px" append-to-body>
+    <Dialog
+      :show-buttons="false"
+      :title="$tc('NewCron')"
+      :visible.sync="showCron"
+      append-to-body
+      top="8vh"
+      width="650px"
+    >
       <Crontab
         :expression="expression"
-        @hide="showCron = false"
         @fill="crontabFill"
+        @hide="showCron = false"
       />
-    </el-dialog>
+    </Dialog>
   </div>
 </template>
 
 <script>
 import Crontab from './Crontab.vue'
+import Dialog from '@/components/Dialog/index.vue'
 
 export default {
-  components: { Crontab },
+  components: { Crontab, Dialog },
   props: {
     value: {
       type: String,
@@ -49,8 +57,9 @@ export default {
 }
 </script>
 
-<style scoped>
+<style lang='scss' scoped>
   .el-dialog__body {
     padding: 12px 16px;
   }
+
 </style>

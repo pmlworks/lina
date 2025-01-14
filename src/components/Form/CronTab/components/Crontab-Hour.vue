@@ -3,32 +3,32 @@
   <el-form size="small">
     <el-form-item>
       <el-radio v-model="radioValue" :label="1">
-        {{ this.$t('common.CronTab.hour') }}，{{ this.$t('common.CronTab.wildcardsAllowed') }}[, - * /]
+        {{ this.$t('Hour') }}，{{ this.$t('WildcardsAllowed') }}[, - * /]
       </el-radio>
     </el-form-item>
 
     <el-form-item>
       <el-radio v-model="radioValue" :label="2">
-        {{ this.$t('common.CronTab.from') }}
-        <el-input-number v-model="cycle01" :min="0" :max="60" /> -
-        <el-input-number v-model="cycle02" :min="0" :max="60" /> {{ this.$t('common.CronTab.hour') }}
+        {{ this.$t('From') }}
+        <el-input-number v-model="cycle01" :max="60" :min="0" size="mini" /> -
+        <el-input-number v-model="cycle02" :max="60" :min="0" size="mini" /> {{ this.$t('Hour') }}
       </el-radio>
     </el-form-item>
 
     <el-form-item>
       <el-radio v-model="radioValue" :label="3">
-        {{ this.$t('common.CronTab.every') }}
-        <el-input-number v-model="average02" :min="1" :max="60" /> {{ this.$t('common.CronTab.hour') }}{{ this.$t('common.CronTab.executeOnce') }}
+        {{ this.$t('Every') }}
+        <el-input-number v-model="average02" :max="60" :min="1" size="mini" /> {{ this.$t('Hour') }} {{ this.$t('ExecuteOnce') }}
       </el-radio>
     </el-form-item>
 
     <el-form-item>
       <el-radio v-model="radioValue" :label="4">
-        {{ this.$t('common.CronTab.appoint') }}
+        {{ this.$t('Appoint') }}
         <el-select
           v-model="checkboxList"
+          :placeholder="$tc('ManyChoose')"
           clearable
-          :placeholder="$tc('common.CronTab.manyChoose')"
           multiple
           style="width:100%"
         >
@@ -159,7 +159,5 @@ export default {
 </script>
 
 <style scoped>
-	.el-form-item--small.el-form-item {
-    margin-bottom: 10px
-  }
+
 </style>

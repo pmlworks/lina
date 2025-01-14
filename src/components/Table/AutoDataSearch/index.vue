@@ -1,5 +1,17 @@
 <template>
-  <TagSearch :options="iOption" v-bind="$attrs" v-on="$listeners" />
+  <span>
+    <el-button v-if="shouldFold" circle class="search-btn" size="mini" @click="handleManualSearch">
+      <svg-icon icon-class="search" />
+    </el-button>
+    <TagSearch
+      v-show="!shouldFold"
+      :options="iOption"
+      v-bind="$attrs"
+      @blur="handleBlur"
+      v-on="$listeners"
+      @tag-search="handleTagSearch"
+    />
+  </span>
 </template>
 
 <script>
@@ -25,17 +37,27 @@ export default {
     exclude: {
       type: Array,
       default: () => []
+    },
+    // 建议折叠
+    fold: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
     return {
-      internalOptions: []
+      internalOptions: [],
+      tags: [],
+      manualSearch: false
     }
   },
   computed: {
     iOption() {
       const options = this.options.concat(this.internalOptions)
       return _.uniqWith(options, _.isEqual)
+    },
+    shouldFold() {
+      return this.fold && (!this.tags || this.tags.length === 0) && !this.manualSearch
     }
   },
   watch: {
@@ -52,6 +74,22 @@ export default {
     }
   },
   methods: {
+    handleTagSearch(tags) {
+      if (_.isEqual(tags, this.tags)) {
+        return
+      }
+      this.tags = (tags || [])
+      if (tags.length === 0) {
+        this.manualSearch = false
+      }
+      this.$emit('tagSearch', tags)
+    },
+    handleBlur() {
+      this.manualSearch = false
+    },
+    handleManualSearch() {
+      this.manualSearch = true
+    },
     async genericOptions() {
       const vm = this // 透传This
       vm.internalOptions = [] // 重置
@@ -83,8 +121,8 @@ export default {
         }
         if (field.type === 'boolean') {
           option.children = [
-            { label: i18n.t('common.Yes'), value: true },
-            { label: i18n.t('common.No'), value: false }
+            { label: i18n.t('Yes'), value: true },
+            { label: i18n.t('No'), value: false }
           ]
         }
         if (option.value === 'id') {
@@ -102,4 +140,11 @@ export default {
 </script>
 
 <style lang='less' scoped>
+.search-btn {
+  margin-top: 1px;
+  cursor: pointer;
+  &:hover {
+    color: #409eff;
+  }
+}
 </style>

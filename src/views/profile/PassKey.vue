@@ -7,10 +7,14 @@
     />
     <Dialog
       :show-buttons="false"
-      :title="$tc('auth.AddPassKey')"
+      :title="$tc('AddPassKey')"
       :visible.sync="dialogVisible"
+      width="600px"
     >
-      <AutoDataForm v-bind="form" @submit="onAddConfirm" />
+      <el-alert v-if="!isLocalUser" :closable="false" class="source-alert" type="error">
+        {{ $t('PasskeyAddDisableInfo', {source: source.label}) }}
+      </el-alert>
+      <AutoDataForm v-else v-bind="form" @submit="onAddConfirm" />
     </Dialog>
   </div>
 </template>
@@ -19,6 +23,7 @@
 import { GenericListPage } from '@/layout/components'
 import { AutoDataForm, Dialog } from '@/components'
 import passkey from '@/utils/passkey'
+import { getErrorResponseMsg } from '@/utils/common'
 
 export default {
   components: {
@@ -35,7 +40,7 @@ export default {
         fields: [
           {
             id: 'name',
-            label: this.$t('common.Name'),
+            label: this.$t('Name'),
             type: 'input',
             required: true,
             el: {
@@ -60,17 +65,17 @@ export default {
               hasClone: false,
               onDelete: function({ row }) {
                 this.$axios.delete(`${ajaxUrl}${row.id}/`).then(res => {
-                  this.getRefsListTable.reloadTable()
-                  this.$message.success(this.$tc('common.deleteSuccessMsg'))
+                  this.reloadTable()
+                  this.$message.success(this.$tc('DeleteSuccessMsg'))
                 }).catch(error => {
-                  this.$message.error(this.$tc('common.deleteErrorMsg') + ' ' + error)
+                  this.$message.error(this.$tc('DeleteErrorMsg') + ' ' + error)
                 })
               }.bind(this),
               extraActions: [
                 {
                   name: 'Enabled',
                   title: ({ row }) => {
-                    return row.is_active ? this.$t('common.Disable') : this.$t('common.Enable')
+                    return row.is_active ? this.$t('Disable') : this.$t('Enable')
                   },
                   type: 'info',
                   can: () => this.$hasPerm('authentication.change_passkey'),
@@ -78,10 +83,10 @@ export default {
                     this.$axios.patch(`${ajaxUrl}${row.id}/`,
                       { is_active: !row.is_active }
                     ).then(res => {
-                      this.getRefsListTable.reloadTable()
-                      this.$message.success(this.$tc('common.updateSuccessMsg'))
+                      this.reloadTable()
+                      this.$message.success(this.$tc('UpdateSuccessMsg'))
                     }).catch(error => {
-                      this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + error))
+                      this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + error))
                     })
                   }.bind(this)
                 }
@@ -97,24 +102,20 @@ export default {
         hasExport: false,
         hasImport: false,
         hasBulkDelete: false,
-        hasCreate: false,
-        extraActions: [
-          {
-            name: this.$t('setting.Create'),
-            title: this.$t('setting.Create'),
-            type: 'primary',
-            can: () => this.$hasPerm('authentication.add_passkey'),
-            callback: function() {
-              this.dialogVisible = true
-            }.bind(this)
-          }
-        ]
+        hasCreate: this.$hasPerm('authentication.add_passkey'),
+        canCreate: this.$hasPerm('authentication.add_passkey'),
+        onCreate: function() {
+          this.dialogVisible = true
+        }.bind(this)
       }
     }
   },
   computed: {
-    getRefsListTable() {
-      return this.$refs.GenericListTable.$refs.ListTable.$refs.ListTable || {}
+    isLocalUser() {
+      return this.source?.value === 'local'
+    },
+    source() {
+      return this.$store.getters.currentUser?.source
     }
   },
   methods: {
@@ -123,6 +124,9 @@ export default {
       this.$axios.get(url).then(res => {
         return this.makeCredReq(res)
       }).then((options) => {
+        if (!location.protocol.startsWith('https')) {
+          throw new Error(this.$tc('HTTPSRequiredForSupport'))
+        }
         return navigator.credentials.create(options)
       }).then((attestation) => {
         attestation['key_name'] = form.name
@@ -130,10 +134,14 @@ export default {
         return this.$axios.post('/api/v1/authentication/passkeys/register/', data)
       }).then((res) => {
         this.dialogVisible = false
-        this.getRefsListTable.reloadTable()
-        this.$message.success(this.$tc('common.createSuccessMsg'))
+        this.reloadTable()
+        this.$message.success(this.$tc('CreateSuccessMsg'))
       }).catch((error) => {
-        alert(error)
+        if (error.response?.status === 412) {
+          return
+        }
+        const msg = getErrorResponseMsg(error)
+        alert(msg)
       })
     },
     makeCredReq(makeCredReq) {
@@ -144,10 +152,16 @@ export default {
         excludeCred.id = passkey.decode(excludeCred.id)
       }
       return makeCredReq
+    },
+    reloadTable() {
+      this.$refs.GenericListTable.reloadTable()
     }
   }
 }
 </script>
 
-<style scoped>
+<style lang='scss' scoped>
+.source-alert ::v-deep .el-alert__content {
+  text-align: center;
+}
 </style>

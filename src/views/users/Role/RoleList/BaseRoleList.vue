@@ -1,5 +1,5 @@
 <template>
-  <ListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" />
 </template>
 
 <script>
@@ -14,7 +14,7 @@ export default {
   props: {
     scope: {
       type: String,
-      default: 'org'
+      default: 'system'
     }
   },
   data() {
@@ -32,7 +32,6 @@ export default {
         },
         columnsMeta: {
           display_name: {
-            label: this.$t('common.Name'),
             formatter: DetailFormatter,
             formatterArgs: {
               permissions: [`rbac.view_${scopeRole}`],
@@ -49,8 +48,25 @@ export default {
               }
             }
           },
+          users_amount: {
+            formatter: DetailFormatter,
+            formatterArgs: {
+              getRoute({ row }) {
+                return {
+                  name: 'RoleDetail',
+                  query: {
+                    tab: 'RoleUsers',
+                    scope: row.scope.value
+                  },
+                  params: {
+                    id: row.id
+                  }
+                }
+              }
+            }
+          },
           builtin: {
-            width: '100px',
+            width: '150px',
             formatterArgs: {
               showFalse: false
             }
@@ -108,11 +124,10 @@ export default {
   methods: {
     hasPermNotBuiltin(row, perm) {
       return !row['builtin'] && this.$hasPerm(perm)
+    },
+    reloadTable() {
+      this.$refs.ListTable.reloadTable()
     }
   }
 }
 </script>
-
-<style>
-
-</style>

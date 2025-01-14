@@ -1,10 +1,12 @@
 <template>
   <Dialog
-    :title="$tc('assets.Assets')"
+    :close-on-click-modal="false"
+    :title="$tc('Assets')"
+    :disabled-status="!isLoaded"
     custom-class="asset-select-dialog"
-    top="1vh"
+    top="2vh"
     v-bind="$attrs"
-    width="80vw"
+    width="1000px"
     @cancel="handleCancel"
     @close="handleClose"
     @confirm="handleConfirm"
@@ -14,11 +16,15 @@
       ref="ListPage"
       :header-actions="headerActions"
       :node-url="baseNodeUrl"
+      :sync-select-to-url="false"
       :table-config="tableConfig"
+      :tree-setting="iTreeSetting"
       :tree-url="`${baseNodeUrl}children/tree/`"
       :url="baseUrl"
       class="tree-table"
       v-bind="$attrs"
+      v-on="$listeners"
+      @loaded="handleTableLoaded"
     />
   </Dialog>
 </template>
@@ -52,11 +58,16 @@ export default {
     disabled: {
       type: [Boolean, Function],
       default: false
+    },
+    treeSetting: {
+      type: Object,
+      default: () => ({})
     }
   },
   data() {
     const vm = this
     return {
+      isLoaded: false,
       dialogVisible: false,
       rowSelected: _.cloneDeep(this.value) || [],
       rowsAdd: [],
@@ -67,31 +78,21 @@ export default {
         columns: [
           {
             prop: 'name',
-            label: this.$t('assets.Name'),
+            label: this.$t('Name'),
             sortable: true
           },
           {
             prop: 'address',
-            label: this.$t('assets.ipDomain'),
+            label: this.$t('IpDomain'),
             sortable: 'custom'
           },
           {
             prop: 'platform',
-            label: this.$t('assets.Platform'),
+            label: this.$t('Platform'),
             sortable: true,
             formatter: function(row) {
               return row.platform.name
             }
-          },
-          {
-            prop: 'protocols',
-            formatter: function(row) {
-              const data = row.protocols.map(p => {
-                return <el-tag size='mini'>{p.name}/{p.port} </el-tag>
-              })
-              return <span> {data} </span>
-            },
-            label: this.$t('assets.Protocols')
           },
           {
             prop: 'actions',
@@ -114,15 +115,24 @@ export default {
       headerActions: {
         hasLeftActions: false,
         hasRightActions: false,
+        hasLabelSearch: true,
         searchConfig: {
           getUrlQuery: false
         }
       }
     }
   },
+  computed: {
+    iTreeSetting() {
+      return { ...this.treeSetting, selectSyncToRoute: false }
+    }
+  },
   methods: {
+    handleTableLoaded() {
+      this.isLoaded = true
+    },
     handleClose() {
-      this.$eventBus.$emit('treeComponentKey')
+      this.$refs.ListPage.$refs.TreeList.componentKey += 1
     },
     handleConfirm() {
       this.$emit('confirm', this.rowSelected, this.rowsAdd)
@@ -168,7 +178,7 @@ export default {
     }
 
     .right {
-      height: calc(100vh - 200px);
+      min-height: 500px;
       overflow: auto;
     }
 

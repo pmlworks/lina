@@ -4,9 +4,9 @@
     :destroy-on-close="true"
     :show-cancel="false"
     :show-confirm="false"
-    :title="$tc('assets.AddAccount')"
+    :title="$tc('AddAccount')"
     :visible.sync="iVisible"
-    width="70%"
+    width="800px"
   >
     <AccountCreateForm
       :account="account"

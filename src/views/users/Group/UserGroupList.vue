@@ -1,5 +1,5 @@
 <template>
-  <GenericListPage :header-actions="headerActions" :table-config="tableConfig" />
+  <GenericListPage ref="listPage" :header-actions="headerActions" :table-config="tableConfig" />
 </template>
 
 <script>
@@ -14,22 +14,29 @@ export default {
     return {
       tableConfig: {
         url: '/api/v1/users/groups/',
+        columns: ['name', 'users_amount', 'comment', 'actions', 'labels'],
         columnsShow: {
-          default: ['name', 'users', 'comment', 'actions'],
+          default: ['name', 'users_amount', 'comment', 'actions'],
           min: ['name', 'action']
         },
         columnsMeta: {
           users_amount: {
-            label: this.$t('users.Users'),
-            width: '120px'
-          },
-          users: {
-            label: this.$t('perms.User'),
-            width: '160px',
             formatter: AmountFormatter,
             formatterArgs: {
-              routeQuery: {
-                activeTab: 'GroupUser'
+              async: true,
+              getItem(item) {
+                return item.is_service_account ? null : item.name
+              },
+              getRoute({ row }) {
+                return {
+                  name: 'UserGroupDetail',
+                  params: {
+                    id: row.id
+                  },
+                  query: {
+                    tab: 'GroupUser'
+                  }
+                }
               }
             }
           }
@@ -40,13 +47,10 @@ export default {
         }
       },
       headerActions: {
+        hasLabelSearch: true,
         createRoute: 'UserGroupCreate'
       }
     }
   }
 }
 </script>
-
-<style>
-
-</style>

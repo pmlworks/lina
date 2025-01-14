@@ -21,7 +21,7 @@ export default {
         },
         columns: [
           'name', 'priority', 'strategy_rules',
-          'strategy_actions', 'actions', 'user_actions'
+          'strategy_actions', 'actions', 'rule_relation'
         ],
         columnsMeta: {
           name: {
@@ -39,7 +39,9 @@ export default {
           actions: {
             formatterArgs: {
               updateRoute: 'CloudStrategyUpdate',
-              hasClone: false
+              hasClone: false,
+              canDelete: ({ row }) => { return row.name !== 'default' },
+              canUpdate: ({ row }) => { return row.name !== 'default' }
             }
           }
         }

@@ -1,25 +1,25 @@
 <template>
   <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
+    <el-col :md="15" :sm="24">
       <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
     </el-col>
-    <el-col :md="10" :sm="24">
+    <el-col :md="9" :sm="24">
       <QuickActions :actions="quickActions" type="primary" />
-      <IBox :title="$tc('assets.Protocols')">
+      <IBox :title="$tc('Protocols')">
         <ProtocolSelector
           v-if="protocolChoices"
           v-model="object.protocols"
           :choices="protocolChoices"
-          :readonly="object['internal']"
+          :readonly="!canEdit"
         />
         <el-button
-          v-if="!object.internal"
+          v-if="canEdit"
           size="small"
           style="margin-top: 10px"
           type="primary"
           @click="updateProtocols"
         >
-          {{ $t('common.Update') }}
+          {{ $t('Update') }}
         </el-button>
       </IBox>
     </el-col>
@@ -63,7 +63,7 @@ export default {
       detailFields: [
         'id', 'name', 'charset', 'internal',
         {
-          key: this.$t('assets.Type'),
+          key: this.$t('Type'),
           value: `${this.object.category?.label}/${this.object.type?.label}`
         },
         'su_method', 'date_created', 'date_updated',
@@ -71,7 +71,8 @@ export default {
       ],
 
       protocolChoices: null,
-      constraints: {}
+      constraints: {},
+      canEdit: !this.object['internal'] && this.$hasPerm('assets.change_platform')
     }
   },
   computed: {},
@@ -83,7 +84,7 @@ export default {
     updateProtocols() {
       const url = `/api/v1/assets/platforms/${this.object.id}/`
       this.$axios.patch(url, { protocols: this.object.protocols }).then(() => {
-        this.$message.success(this.$tc('common.updateSuccessMsg'))
+        this.$message.success(this.$tc('UpdateSuccessMsg'))
       })
     },
     async getTypeConstraints() {
@@ -98,36 +99,53 @@ export default {
       const { object } = this
       const quickActions = [
         {
-          title: this.$t('assets.DomainEnabled'),
+          title: this.$t('EnableDomain'),
           type: 'switch',
           attrs: {
-            label: this.$t('common.Update'),
+            label: this.$t('Update'),
             model: object['domain_enabled'],
-            disabled: object['internal'] || this.constraints['domain_enabled'] === false
+            disabled: !this.canEdit || this.constraints['domain_enabled'] === false
           },
           callbacks: Object.freeze({
             change: (val) => {
               const data = { domain_enabled: val }
               this.$axios.patch(
                 `/api/v1/assets/platforms/${object.id}/`, data).then(res => {
-                this.$message.success(this.$tc('common.updateSuccessMsg'))
+                this.$message.success(this.$tc('UpdateSuccessMsg'))
               })
             }
           })
         },
         {
-          title: this.$t(`assets.AccountEnabled`),
+          title: this.$t('SuEnabled'),
           type: 'switch',
           attrs: {
             model: object['su_enabled'],
-            disabled: object['internal'] || this.constraints['su_enabled'] === false
+            disabled: !this.canEdit || this.constraints['su_enabled'] === false
           },
           callbacks: Object.freeze({
             change: (val) => {
               const data = { su_enabled: val }
               this.$axios.patch(
                 `/api/v1/assets/platforms/${object.id}/`, data).then(res => {
-                this.$message.success(this.$tc('common.updateSuccessMsg'))
+                this.$message.success(this.$tc('UpdateSuccessMsg'))
+              })
+            }
+          })
+        },
+        {
+          title: this.$t('SyncProtocolToAsset'),
+          attrs: {
+            type: 'primary',
+            label: this.$t('Sync'),
+            disabled: !this.canEdit
+          },
+          callbacks: Object.freeze({
+            click: () => {
+              const data = { platform_id: this.object.id }
+              this.$axios.post(
+                '/api/v1/assets/assets/sync-platform-protocols/', data).then(res => {
+                this.$message.success(this.$tc('UpdateSuccessMsg'))
               })
             }
           })

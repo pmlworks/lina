@@ -88,6 +88,13 @@
     background: url('./icons/unix.png') no-repeat center left transparent;
   }
 
+  &.db2_ico_docu {
+    background: url('./icons/db2.png') no-repeat center left transparent;
+  }
+
+  &.dameng_ico_docu {
+    background: url('./icons/dameng.png') no-repeat center left transparent;
+  }
 
   &.private_ico_docu {
     background: url('./icons/private.png') no-repeat center left transparent;
@@ -102,11 +109,16 @@
   }
 
   &.chatgpt_ico_docu {
-    background: url('./icons/chatgpt.png') no-repeat center left transparent;
+    background: url('./icons/gpt.png') no-repeat center left transparent;
   }
 
   &.clickhouse_ico_docu {
     background: url('./icons/clickhouse.png') no-repeat center left transparent;
+  }
+
+  &.WebCloud_ico_docu {
+    background: url('./icons/cloud.png') no-repeat center left transparent;
+    background-size: contain;
   }
 
   &.ico_loading {

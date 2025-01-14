@@ -10,6 +10,7 @@
 import BaseAuth from './Base'
 import { JsonEditor, UpdateToken } from '@/components/Form/FormFields'
 import { JsonRequired } from '@/components/Form/DataForm/rules'
+import { getOrgSelect2Meta } from '@/views/settings/Auth/const'
 
 export default {
   name: 'OIDC',
@@ -22,11 +23,11 @@ export default {
         url: '/api/v1/settings/setting/?category=oidc',
         encryptedFields: ['AUTH_OPENID_CLIENT_SECRET'],
         fields: [
-          [this.$t('common.Basic'), [
+          [this.$t('Basic'), [
             'AUTH_OPENID', 'BASE_SITE_URL', 'AUTH_OPENID_CLIENT_ID',
             'AUTH_OPENID_CLIENT_SECRET', 'AUTH_OPENID_CLIENT_AUTH_METHOD'
           ]],
-          [this.$t('common.Params'), [
+          [this.$t('Server'), [
             'AUTH_OPENID_KEYCLOAK', 'AUTH_OPENID_SERVER_URL', 'AUTH_OPENID_REALM_NAME',
             'AUTH_OPENID_PROVIDER_ENDPOINT', 'AUTH_OPENID_PROVIDER_AUTHORIZATION_ENDPOINT',
             'AUTH_OPENID_PROVIDER_TOKEN_ENDPOINT', 'AUTH_OPENID_PROVIDER_JWKS_ENDPOINT',
@@ -35,7 +36,13 @@ export default {
             'AUTH_OPENID_PKCE', 'AUTH_OPENID_CODE_CHALLENGE_METHOD',
             'AUTH_OPENID_SCOPES', 'AUTH_OPENID_ID_TOKEN_MAX_AGE', 'AUTH_OPENID_ID_TOKEN_INCLUDE_CLAIMS',
             'AUTH_OPENID_USE_STATE', 'AUTH_OPENID_USE_NONCE', 'AUTH_OPENID_ALWAYS_UPDATE_USER',
-            'AUTH_OPENID_IGNORE_SSL_VERIFICATION', 'AUTH_OPENID_SHARE_SESSION', 'AUTH_OPENID_USER_ATTR_MAP'
+            'AUTH_OPENID_IGNORE_SSL_VERIFICATION', 'AUTH_OPENID_SHARE_SESSION'
+          ]],
+          [this.$t('Search'), [
+            'AUTH_OPENID_USER_ATTR_MAP'
+          ]],
+          [this.$t('Other'), [
+            'OPENID_ORG_IDS'
           ]]
         ],
         fieldsMeta: {
@@ -118,9 +125,9 @@ export default {
           },
           'AUTH_OPENID_USER_ATTR_MAP': {
             component: JsonEditor,
-            label: this.$t('setting.authLdapUserAttrMap'),
             rules: [JsonRequired]
-          }
+          },
+          OPENID_ORG_IDS: getOrgSelect2Meta()
         },
         submitMethod: () => 'patch',
         afterGetFormValue(obj) {

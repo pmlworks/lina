@@ -1,5 +1,5 @@
 <script type="text/jsx">
-import { toSafeLocalDateStr } from '@/utils/common'
+import { toSafeLocalDateStr } from '@/utils/time'
 
 export default {
   name: 'ItemValue',
@@ -16,6 +16,9 @@ export default {
       type: Function,
       default: null
     }
+  },
+  data() {
+    return {}
   },
   computed: {
     displayValue() {
@@ -44,9 +47,9 @@ export default {
   methods: {
     toChoicesDisplay(value) {
       if (!value) {
-        return this.$t('common.No')
+        return this.$t('No')
       }
-      return this.$t('common.Yes')
+      return this.$t('Yes')
     },
     isDatetime(value) {
       if (typeof value !== 'string') {
@@ -64,8 +67,19 @@ export default {
     }
   },
   render(h) {
+    let formatterData = ''
     if (typeof this.formatter === 'function') {
-      return this.formatter(this.item, this.value)
+      const data = this.formatter(this.item, this.value)
+      if (data instanceof Promise) {
+        data.then(res => {
+          formatterData = res
+        })
+      } else {
+        formatterData = data
+      }
+      return (
+        <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.2' }}>{formatterData}</span>
+      )
     }
     if (this.value instanceof Array) {
       const newArr = this.value || []
@@ -78,7 +92,7 @@ export default {
       )
     }
     return (
-      <span>{this.displayValue}</span>
+      <span style='white-space: pre-wrap;' title={this.displayValue}>{this.displayValue}</span>
     )
   }
 }

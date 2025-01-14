@@ -1,9 +1,10 @@
 <template>
   <el-button
     ref="deleteButton"
+    :disabled="iDisabled"
+    :title="$t('Remove')"
     size="mini"
     type="danger"
-    :disabled="iDisabled"
     @click="onDelete(col, row, cellValue, reload)"
   >
     <i class="fa fa-minus" />
@@ -16,9 +17,18 @@ import BaseFormatter from './base.vue'
 export default {
   name: 'DeleteActionFormatter',
   extends: BaseFormatter,
+  data() {
+    const formatterArgs = Object.assign(this.formatterArgsDefault, this.col.formatterArgs)
+    return {
+      formatterArgs: formatterArgs
+    }
+  },
   computed: {
     iDisabled() {
       // 禁用
+      if (this.formatterArgs.disabled !== undefined) {
+        return this.formatterArgs.disabled
+      }
       return (this.disabled() || this.$store.getters.currentOrgIsRoot)
     }
   },
@@ -26,10 +36,10 @@ export default {
     defaultOnDelete(col, row, cellValue, reload) {
       const url = col.deleteUrl + cellValue
       this.$axios.delete(url).then(res => {
-        this.$message.success(this.$tc('common.deleteSuccessMsg'))
+        this.$message.success(this.$tc('DeleteSuccessMsg'))
         reload()
       }).catch(error => {
-        this.$message.error(this.$tc('common.deleteErrorMsg') + ' ' + error)
+        this.$message.error(this.$tc('DeleteErrorMsg') + ' ' + error)
       })
     },
     onDelete(col, row, cellValue, reload) {

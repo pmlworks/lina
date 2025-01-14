@@ -3,20 +3,18 @@
     <el-button
       v-if="hasButton"
       :disabled="!canSetting"
-      size="small"
-      class="setting"
       :icon="icon"
+      class="proto-setting"
+      size="small"
       type="primary"
       @click="onSetting"
     />
     <Dialog
-      v-if="isVisible"
-      width="60%"
-      :visible.sync="isVisible"
-      :title="title"
       :show-cancel="false"
       :show-confirm="false"
-      :destroy-on-close="true"
+      :title="title"
+      :visible.sync="isVisible"
+      width="60%"
       @close="onDialogClose"
     >
       <AutoDataForm
@@ -24,17 +22,17 @@
         :form="form"
         class="data-form"
         v-bind="config"
-        v-on="$listeners"
         @submit="onSubmit"
+        v-on="$listeners"
       />
     </Dialog>
   </div>
 </template>
 
 <script>
-import Dialog from '../../../components/Dialog'
-import AutoDataForm from '../../../components/Form/AutoDataForm'
-import { DynamicInput } from '../../../components/Form/FormFields'
+import Dialog from '@/components/Dialog'
+import AutoDataForm from '@/components/Form/AutoDataForm'
+import { DynamicInput, Switcher } from '@/components/Form/FormFields'
 
 export default {
   components: {
@@ -49,7 +47,7 @@ export default {
     title: {
       type: String,
       default: function() {
-        return this.$t('assets.PushParams')
+        return this.$t('PushParams')
       }
     },
     btnText: {
@@ -69,6 +67,10 @@ export default {
     method: {
       type: String,
       default: ''
+    },
+    pushAccountParams: {
+      type: Object,
+      default: () => ({})
     },
     visible: {
       type: Boolean,
@@ -120,7 +122,7 @@ export default {
     },
     onCanSetting() {
       const filterField = Object.keys(this.remoteMeta)
-      this.canSetting = filterField.includes(this.method)
+      this.canSetting = filterField.includes(this.method) && this.$hasPerm('assets.change_platform')
       this.$emit('canSetting', this.canSetting)
       return this.canSetting
     },
@@ -135,6 +137,7 @@ export default {
         fieldsMeta: {}
       }
 
+      const param = this.pushAccountParams[method]
       if (Object.keys(filterField?.children || {}).length > 0) {
         for (const [k, v] of Object.entries(filterField.children)) {
           let component = 'el-input'
@@ -142,6 +145,13 @@ export default {
             case 'list':
               component = DynamicInput
               break
+            case 'boolean':
+              component = Switcher
+              break
+          }
+
+          if (param) {
+            v.default = param[k] || v.default
           }
           const item = { ...v, component: component }
           fieldsMeta[method].fields.push(k)
@@ -168,8 +178,9 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.setting {
-  height: 34px;
-  padding-top: 10px;
+.proto-setting {
+  margin-top: 1px;
+  height: 30px;
+  vertical-align: super;
 }
 </style>

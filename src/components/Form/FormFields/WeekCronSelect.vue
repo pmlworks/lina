@@ -5,7 +5,7 @@
     <table :class="{'c-min-table': colspan < 2}" class="c-weektime-table">
       <thead class="c-weektime-head">
         <tr>
-          <th class="week-td" rowspan="8">{{ this.$t('common.WeekCronSelect.WeekOrTime') }}</th>
+          <th class="week-td" rowspan="8">{{ this.$t('WeekOrTime') }}</th>
           <th :colspan="12 * colspan">00:00 - 12:00</th>
           <th :colspan="12 * colspan">12:00 - 24:00</th>
         </tr>
@@ -31,9 +31,9 @@
         <tr>
           <td class="c-weektime-preview" colspan="49">
             <div class="g-clearfix c-weektime-con">
-              <span class="g-pull-left">{{ this.$t('common.WeekCronSelect.CanDragSelect') }}</span>
-              <a class="g-pull-right" @click.prevent="clearWeektime">{{ this.$t('common.WeekCronSelect.ClearSelection') }}</a>
-              <a class="g-pull-right g-pull-margin" @click.prevent="selectAll">{{ this.$t('common.WeekCronSelect.SelectAll') }}</a>
+              <span class="g-pull-left">{{ this.$t('CanDragSelect') }}</span>
+              <a class="g-pull-right" @click.prevent="clearWeektime">{{ this.$t('ClearSelection') }}</a>
+              <a class="g-pull-right g-pull-margin" @click.prevent="selectAll">{{ this.$t('SelectAll') }}</a>
             </div>
           </td>
         </tr>
@@ -92,13 +92,13 @@ export default {
       col: 0,
       theadArr: [],
       weekArr: [
-        this.$t('common.WeekCronSelect.Monday'),
-        this.$t('common.WeekCronSelect.Tuesday'),
-        this.$t('common.WeekCronSelect.Wednesday'),
-        this.$t('common.WeekCronSelect.Thursday'),
-        this.$t('common.WeekCronSelect.Friday'),
-        this.$t('common.WeekCronSelect.Saturday'),
-        this.$t('common.WeekCronSelect.Sunday')
+        this.$t('Monday'),
+        this.$t('Tuesday'),
+        this.$t('Wednesday'),
+        this.$t('Thursday'),
+        this.$t('Friday'),
+        this.$t('Saturday'),
+        this.$t('Sunday')
       ],
       weektimeData: [],
       timeRange: [] // 格式化之后数据
@@ -204,7 +204,12 @@ export default {
     },
     formatWeektime(col) {
       const timeStamp = 1542384000000 // '2018-11-17 00:00:00'
-      const beginStamp = timeStamp + col * 1800000 // col * 30 * 60 * 1000
+      const timezone = 8
+      const offsetGMT = new Date().getTimezoneOffset() // 本地时间和格林威治的时间差，单位为分钟
+      const nowDate = new Date(timeStamp).getTime()
+      const targetStamp = new Date(nowDate + offsetGMT * 60 * 1000 + timezone * 60 * 60 * 1000).getTime()
+
+      const beginStamp = targetStamp + col * 1800000 // col * 30 * 60 * 1000
       const endStamp = beginStamp + 1800000
 
       const begin = this.formatDate(new Date(beginStamp), 'hh:mm')

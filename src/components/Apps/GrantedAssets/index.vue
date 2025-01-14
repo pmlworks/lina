@@ -1,15 +1,21 @@
 <template>
-  <TreeTable :header-actions="headerActions" :table-config="tableConfig" :tree-setting="treeSetting" />
+  <AssetTreeTable
+    ref="AssetTreeTable"
+    :header-actions="headerActions"
+    :table-config="tableConfig"
+    :tree-setting="treeSetting"
+  />
 </template>
 
 <script type="text/jsx">
-import TreeTable from '../../Table/TreeTable/index.vue'
-import { DetailFormatter } from '@/components/Table/TableFormatters'
+import AssetTreeTable from '@/components/Apps/AssetTreeTable'
+import { AccountInfoFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
+import { connectivityMeta } from '@/components/Apps/AccountListTable/const'
 
 export default {
   name: 'GrantedAssets',
   components: {
-    TreeTable
+    AssetTreeTable
   },
   props: {
     treeUrl: {
@@ -32,11 +38,29 @@ export default {
         vm.tableConfig.url = url
       }
     },
+    actions: {
+      type: Object,
+      default: null
+    },
     getShowUrl: {
       type: Function,
       default({ row, col }) {
         return this.tableUrl.replace('/assets/', `/assets/${row.id}/accounts/`)
       }
+    },
+    name: {
+      type: Object,
+      default: () => ({
+        formatter: DetailFormatter,
+        formatterArgs: {
+          route: 'AssetDetail',
+          can: true
+        }
+      })
+    },
+    comment: {
+      type: Object,
+      default: () => ({})
     }
   },
   data() {
@@ -46,9 +70,11 @@ export default {
         showMenu: false,
         showRefresh: true,
         showAssets: false,
+        showSearch: false,
         url: this.tableUrl,
         // ?assets=0不显示资产. =1显示资产
         treeUrl: this.treeUrl,
+        notShowBuiltinTree: true,
         callback: {
           onSelected: (event, node) => vm.onSelected(node, vm),
           refresh: vm.refreshObjectAssetPermission
@@ -57,20 +83,35 @@ export default {
       tableConfig: {
         url: this.tableUrl,
         hasTree: true,
+        columnsExtra: ['view_account'],
         columnsExclude: ['spec_info'],
-        columnShow: {
+        columnsShow: {
           min: ['name', 'address', 'accounts'],
-          default: ['name', 'address', 'accounts', 'actions']
+          default: ['name', 'address', 'platform', 'connectivity', 'view_account', 'actions']
         },
         columnsMeta: {
           name: {
-            formatter: DetailFormatter,
+            ...this.name
+          },
+          labels: {
             formatterArgs: {
-              route: 'AssetDetail'
+              showEditBtn: false
             }
           },
           actions: {
-            has: false
+            ...this.actions
+          },
+          view_account: {
+            label: this.$t('Accounts'),
+            formatter: AccountInfoFormatter,
+            width: '100px'
+          },
+          connectivity: connectivityMeta,
+          comment: { ...this.comment }
+        },
+        tableAttrs: {
+          rowClassName({ row }) {
+            return !row.is_active ? 'row_disabled' : ''
           }
         }
       },
@@ -94,4 +135,8 @@ export default {
 </script>
 
 <style scoped>
+.row_disabled, .row_disabled:hover, .row_disabled:hover > td {
+  cursor: not-allowed;
+  background-color: rgba(192, 196, 204, 0.28) !important;
+}
 </style>

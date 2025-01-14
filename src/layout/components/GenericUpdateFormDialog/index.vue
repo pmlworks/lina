@@ -3,7 +3,7 @@
     v-if="iVisible"
     :show-cancel="false"
     :show-confirm="false"
-    :title="$tc('common.updateSelected')"
+    :title="$tc('UpdateSelected')"
     :visible.sync="iVisible"
     top="1vh"
     width="70%"
@@ -72,7 +72,7 @@ export default {
   data: function() {
     return {
       internalKey: 0,
-      selectPropertiesLabel: this.$t('common.SelectProperties'),
+      selectPropertiesLabel: this.$t('SelectProperties'),
       checkedFields: [],
       iFormSetting: {}
     }
@@ -89,7 +89,7 @@ export default {
   },
   mounted() {
     const defaultFormSetting = this.getDefaultFormSetting()
-    this.iFormSetting = Object.assign({}, this.formSetting, defaultFormSetting)
+    this.iFormSetting = Object.assign({}, defaultFormSetting, this.formSetting)
   },
   methods: {
     handleCheckedFieldsChange(values) {
@@ -107,6 +107,7 @@ export default {
       return {
         needGetObjectDetail: false,
         submitMethod: () => 'patch',
+        cleanOtherFormValue: (formValue) => formValue,
         cleanFormValue: (value) => {
           const filterValue = {}
           Object.keys(value)
@@ -114,11 +115,14 @@ export default {
             .forEach((key) => {
               filterValue[key] = value[key]
             })
-          const formValue = []
+          let formValue = []
           let object = {}
           for (const row of vm.selectedRows) {
             object = Object.assign({}, filterValue, { id: row.id })
             formValue.push(object)
+          }
+          if (typeof this.iFormSetting.cleanOtherFormValue === 'function') {
+            formValue = this.iFormSetting.cleanOtherFormValue(formValue)
           }
           return formValue
         },

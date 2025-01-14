@@ -2,6 +2,7 @@
   <div>
     <img v-if="icon" :src="icon" alt="icon" class="icon">
     <el-link
+      :class="{ 'clicked': linkClicked }"
       :disabled="disabled"
       :type="col.type || 'info'"
       class="detail"
@@ -30,6 +31,7 @@ export default {
           routeQuery: null,
           can: true,
           openInNewPage: false,
+          removeColorOnClick: false,
           getTitle({ col, row, cellValue }) {
             return cellValue
           },
@@ -43,6 +45,7 @@ export default {
   data() {
     const formatterArgs = Object.assign(this.formatterArgsDefault, this.col.formatterArgs)
     return {
+      linkClicked: false,
       formatterArgs: formatterArgs
     }
   },
@@ -67,8 +70,10 @@ export default {
         row: this.row,
         cellValue: this.cellValue
       })
-    },
-    detailRoute() {
+    }
+  },
+  methods: {
+    getDetailRoute() {
       // const defaultRoute = this.$route.name.replace('List', 'Detail')
       let route = this.formatterArgs.route
       if (this.formatterArgs.getRoute && typeof this.formatterArgs.getRoute === 'function') {
@@ -82,7 +87,9 @@ export default {
         console.error('No route found')
         return
       }
+
       let detailRoute = { replace: true }
+
       if (typeof route === 'string') {
         detailRoute.name = route
         detailRoute.params = { id: this.row.id }
@@ -95,15 +102,16 @@ export default {
         detailRoute.query = this.formatterArgs.routeQuery
       }
       return detailRoute
-    }
-  },
-  methods: {
+    },
     goDetail() {
+      const detailRoute = this.getDetailRoute()
+
       if (this.formatterArgs.openInNewPage) {
-        const { href } = this.$router.resolve(this.detailRoute)
+        this.linkClicked = this.formatterArgs.removeColorOnClick
+        const { href } = this.$router.resolve(detailRoute)
         window.open(href, '_blank')
       } else {
-        this.$router.push(this.detailRoute)
+        this.$router.push(detailRoute)
       }
     }
   }
@@ -123,6 +131,11 @@ export default {
 .detail {
   line-height: 25px;
   font-size: 13px;
+}
+
+.clicked,
+.el-link.el-link--info.clicked {
+  color: inherit !important;
 }
 
 .icon {

@@ -1,8 +1,8 @@
 /* eslint-disable */
 <template>
   <div>
-    <el-tabs type="border-card">
-      <el-tab-pane v-if="shouldHide('min')" :label="$tc('common.CronTab.min')">
+    <el-tabs class="tab-content">
+      <el-tab-pane v-if="shouldHide('min')" :label="$tc('Min')" class="crontab-panel">
         <CrontabMin
           ref="cronmin"
           :check="checkNumber"
@@ -11,7 +11,7 @@
         />
       </el-tab-pane>
 
-      <el-tab-pane v-if="shouldHide('hour')" :label="$tc('common.CronTab.hour')">
+      <el-tab-pane v-if="shouldHide('hour')" :label="$tc('Hour')">
         <CrontabHour
           ref="cronhour"
           :check="checkNumber"
@@ -20,7 +20,7 @@
         />
       </el-tab-pane>
 
-      <el-tab-pane v-if="shouldHide('day')" :label="$tc('common.CronTab.day')">
+      <el-tab-pane v-if="shouldHide('day')" :label="$tc('Day')">
         <CrontabDay
           ref="cronday"
           :check="checkNumber"
@@ -29,7 +29,7 @@
         />
       </el-tab-pane>
 
-      <el-tab-pane v-if="shouldHide('month')" :label="$tc('common.CronTab.month')">
+      <el-tab-pane v-if="shouldHide('month')" :label="$tc('Month')">
         <CrontabMonth
           ref="cronmonth"
           :check="checkNumber"
@@ -38,7 +38,7 @@
         />
       </el-tab-pane>
 
-      <el-tab-pane v-if="shouldHide('week')" :label="$tc('common.CronTab.week')">
+      <el-tab-pane v-if="shouldHide('week')" :label="$tc('Week')">
         <CrontabWeek
           ref="cronweek"
           :check="checkNumber"
@@ -50,7 +50,7 @@
 
     <div class="popup-main">
       <div class="popup-result">
-        <p class="title">{{ this.$t('common.CronTab.timeExpression') }}</p>
+        <p class="title">{{ this.$t('TimeExpression') }}</p>
         <table>
           <thead>
             <th v-for="item of tabTitles" :key="item" width="40">{{ item }}</th>
@@ -59,62 +59,58 @@
             <td>
               <el-input
                 v-model.trim="contabValueObj.min"
-                min="0"
                 max="5"
-                size="small"
+                min="0"
                 onkeyup="value=value.replace(/[^\0-9\-\*\,]/g,'')"
+                size="mini"
               />
             </td>
             <td>
               <el-input
                 v-model.trim="contabValueObj.hour"
-                size="small"
                 onkeyup="value=value.replace(/[^\0-9\-\*\,]/g,'')"
+                size="mini"
               />
             </td>
             <td>
               <el-input
                 v-model.trim="contabValueObj.day"
-                size="small"
                 onkeyup="value=value.replace(/[^\0-9\\-\*\,]/g,'')"
+                size="mini"
               />
             </td>
             <td>
               <el-input
                 v-model.trim="contabValueObj.month"
-                size="small"
                 onkeyup="value=value.replace(/[^\0-9\-\*\,]/g,'')"
+                size="mini"
               />
             </td>
             <td>
               <el-input
                 v-model.trim="contabValueObj.week"
-                size="small"
                 onkeyup="value=value.replace(/[^\0-9\-\*\,]/g,'')"
+                size="mini"
               />
             </td>
           </tbody>
         </table>
-        <div style="margin: 0 auto; text-align: center">
-          <div style="font-size: 13px;">{{ this.$t('common.CronTab.cronExpression') }}</div>
-          <div style="font-size: 13px;">{{ contabValueString }}</div>
-        </div>
+        <CrontabResult :ex="contabValueString" @crontabDiffChange="crontabDiffChangeHandle" />
       </div>
-      <CrontabResult :ex="contabValueString" />
 
       <div class="pop_btn">
         <el-button
           size="small"
           @click="clearCron"
         >
-          {{ this.$t('common.Reset') }}
+          {{ this.$t('Reset') }}
         </el-button>
         <el-button
           size="small"
           type="primary"
           @click="submitFill"
         >
-          {{ this.$t('common.Confirm') }}
+          {{ this.$t('Confirm') }}
         </el-button>
       </div>
     </div>
@@ -130,7 +126,7 @@ import CrontabWeek from './components/Crontab-Week.vue'
 import CrontabResult from './components/Crontab-Result.vue'
 
 export default {
-  name: 'Vcrontab',
+  name: 'VCrontab',
   components: {
     CrontabMin,
     CrontabHour,
@@ -155,7 +151,7 @@ export default {
   },
   data() {
     return {
-      tabTitles: [this.$t('common.CronTab.min'), this.$t('common.CronTab.hour'), this.$t('common.CronTab.day'), this.$t('common.CronTab.month'), this.$t('common.CronTab.week')],
+      tabTitles: [this.$t('Min'), this.$t('Hour'), this.$t('Day'), this.$t('Month'), this.$t('Week')],
       tabActive: 0,
       myindex: 0,
       contabValueObj: {
@@ -167,7 +163,8 @@ export default {
         week: '*'
         // year: "",
       },
-      newContabValueString: ''
+      newContabValueString: '',
+      crontabDiff: 0
     }
   },
   computed: {
@@ -364,6 +361,12 @@ export default {
     },
     // 填充表达式
     submitFill() {
+      const crontabDiffMin = this.crontabDiff / 1000 / 60
+      if (crontabDiffMin > 0 && crontabDiffMin < 10) {
+        const msg = this.$tc('CrontabDiffError')
+        this.$message.error(msg)
+        return
+      }
       this.$emit('fill', this.contabValueString)
       this.hidePopup()
     },
@@ -381,14 +384,17 @@ export default {
       for (const j in this.contabValueObj) {
         this.changeRadio(j, this.contabValueObj[j])
       }
+    },
+    crontabDiffChangeHandle(diff) {
+      this.crontabDiff = diff
     }
   }
 }
 </script>
-<style scoped>
+<style lang='scss' scoped>
 .pop_btn {
-  text-align: center;
-  margin-top: 20px;
+  float: right;
+  margin-top: 10px;
 }
 
 .popup-main {
@@ -414,7 +420,6 @@ export default {
   margin: 17px auto;
   padding: 10px 10px 10px;
   border: 1px solid #dcdfe6;
-  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 12%), 0 0 6px 0 rgb(0 0 0 / 4%);
 }
 
 .popup-result .title {
@@ -438,12 +443,10 @@ export default {
 .popup-result table span {
   display: block;
   width: 100%;
-  font-family: arial;
   line-height: 30px;
   height: 30px;
   white-space: nowrap;
   overflow: hidden;
-  border: 1px solid #e8e8e8;
 }
 
 .popup-result-scroll {
@@ -453,8 +456,70 @@ export default {
   overflow-y: auto;
 }
 
-.el-form-item--mini.el-form-item,
-.el-form-item--small.el-form-item {
-  margin-bottom: 10px;
+::v-deep {
+  .el-form-item--mini.el-form-item,
+  .el-form-item--small.el-form-item {
+    margin-bottom: 5px;
+  }
+
+  .el-input-number {
+    margin: 0 5px
+  }
+}
+
+.tab-content {
+  position: relative;
+  box-sizing: border-box;
+  line-height: 24px;
+  margin: 0 auto;
+  padding: 10px 10px 10px;
+  border: 1px solid #dcdfe6;
+}
+
+::v-deep .el-tabs__header {
+  background-color: white;
+  margin-top: -10px;
+  padding: 0 30px;
+  margin-bottom: 5px;
+
+  .el-tabs__item {
+    i.pre-icon {
+      opacity: 0.6;
+    }
+  }
+
+  .el-tabs__nav-next {
+    right: 10px;
+  }
+
+  .el-tabs__nav-prev {
+    left: 10px;
+  }
+}
+
+.tab-page {
+  ::v-deep .page-heading {
+    border-bottom: none;
+  }
+
+  ::v-deep .page-content {
+    overflow-y: hidden;
+    padding: 0;
+  }
+
+  .tab-page-content {
+    padding: 10px 30px 22px;
+    overflow-y: auto;
+    height: calc(100% - 50px);
+
+    .el-alert {
+      margin-top: 0;
+      margin-bottom: 5px;
+    }
+  }
+}
+
+::v-deep .el-tabs__nav-wrap {
+  position: static;
 }
 </style>

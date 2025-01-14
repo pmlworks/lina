@@ -3,7 +3,7 @@
     <div class="head">
       <Title :config="config" />
     </div>
-    <LineChart v-bind="lineChartConfig" />
+    <LineChart v-if="loading" v-bind="lineChartConfig" />
   </div>
 </template>
 
@@ -16,25 +16,29 @@ export default {
     Title,
     LineChart
   },
-  props: {
-  },
+  props: {},
   data() {
     return {
+      loading: false,
       config: {
-        title: this.$t('dashboard.UserAssetActivity'),
-        tip: this.$t('dashboard.UserAssetActivity')
+        title: this.$t('UserAssetActivity'),
+        tip: this.$t('UserAssetActivity')
       },
       lineChartConfig: {
         datesMetrics: [],
-        primaryData: [0],
-        primaryName: this.$t('dashboard.LoginUsers'),
-        secondaryData: [0],
-        secondaryName: this.$t('dashboard.LoginAssets')
+        primaryData: [1],
+        primaryName: this.$t('ActiveUsers'),
+        secondaryData: [1],
+        secondaryName: this.$t('LoginAssets')
       }
     }
   },
   mounted() {
-    this.getMetricData()
+    try {
+      this.getMetricData()
+    } finally {
+      this.loading = true
+    }
   },
   methods: {
     async getMetricData() {
@@ -43,10 +47,10 @@ export default {
       const activeUsers = data?.dates_metrics_total_count_active_users
       const activeAssets = data?.dates_metrics_total_count_active_assets
       this.lineChartConfig.datesMetrics = data.dates_metrics_date
-      if (activeUsers.length > 1) {
+      if (activeUsers.length > 0) {
         this.lineChartConfig.primaryData = activeUsers
       }
-      if (activeAssets.length > 1) {
+      if (activeAssets.length > 0) {
         this.lineChartConfig.secondaryData = activeAssets
       }
     }
@@ -59,6 +63,7 @@ export default {
   margin-top: 16px;
   padding: 20px;
   background: #fff;
+
   .head {
     display: flex;
     justify-content: space-between;

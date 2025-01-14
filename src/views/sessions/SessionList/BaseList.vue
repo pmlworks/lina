@@ -4,8 +4,8 @@
 
 <script type="text/jsx">
 import ListTable from '@/components/Table/ListTable'
-import { timeOffset } from '@/utils/common'
-import { ActionsFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
+import { timeOffset } from '@/utils/time'
+import { ActionsFormatter, ChoicesFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   name: 'BaseList',
@@ -20,31 +20,43 @@ export default {
     extraActions: {
       type: Array,
       default: () => []
+    },
+    columnsShow: {
+      type: Object,
+      default: () => {
+        return {
+          min: ['id', 'actions'],
+          default: [
+            'id', 'user', 'asset', 'account', 'protocol',
+            'date_start', 'actions'
+          ]
+        }
+      }
+    },
+    columnsMeta: {
+      type: Object,
+      default: () => {}
+    },
+    columnsExclude: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
     return {
       tableConfig: {
         url: this.url,
-        columnsExtra: ['index', 'duration'],
-        columnsExclude: ['terminal'],
-        columnsShow: {
-          min: ['id', 'actions'],
-          default: [
-            'id', 'user', 'asset', 'account', 'remote_addr', 'protocol',
-            'command_amount', 'date_start', 'duration', 'actions'
-          ]
-        },
+        columnsExclude: ['terminal', ...this.columnsExclude],
+        columnsShow: this.columnsShow,
         columnsMeta: {
           id: {
             prop: 'id',
-            label: this.$t('common.Number'),
+            label: this.$t('Number'),
             align: 'center',
-            width: '80px',
             formatter: function(row, column, cellValue, index) {
               const label = index + 1
               const route = { to: { name: 'SessionDetail', params: { id: row.id }}}
-              return <router-link {...{ attrs: route }} class='link'>{ label }</router-link>
+              return <router-link {...{ attrs: route }} class='link'>{label}</router-link>
             }
           },
           user: {
@@ -81,7 +93,6 @@ export default {
             }
           },
           is_finished: {
-            width: '86px',
             formatterArgs: {
               showFalse: false
             }
@@ -92,7 +103,7 @@ export default {
             }
           },
           asset: {
-            label: this.$t('sessions.target'),
+            label: this.$t('Target'),
             formatter: DetailFormatter,
             formatterArgs: {
               getRoute: ({ row }) => {
@@ -105,38 +116,27 @@ export default {
               }
             }
           },
-          command_amount: {
-            width: '90px'
-          },
-          login_from: {
-            width: '115px'
-          },
-          remote_addr: {
-            width: '140px'
-          },
           protocol: {
-            label: this.$t('sessions.protocol'),
-            width: '80px',
             sortable: false,
             formatter: null
           },
-          date_start: {
-            width: '150px'
-          },
-          date_end: {
-            width: '150px'
-          },
           duration: {
-            label: this.$t('sessions.duration'),
+            label: this.$t('Duration'),
             formatter: function(row) {
               return timeOffset(row.date_start, row.date_end)
-            },
-            width: '80px'
+            }
+          },
+          is_locked: {
+            label: this.$t('IsLocked'),
+            formatter: ChoicesFormatter,
+            formatterArgs: {
+              showFalse: true
+            }
           },
           actions: {
             prop: 'actions',
-            label: this.$t('common.Actions'),
-            width: '160px',
+            label: this.$t('Actions'),
+            width: '130px',
             formatter: ActionsFormatter,
             formatterArgs: {
               hasEdit: false,
@@ -145,7 +145,8 @@ export default {
               hasUpdate: false,
               extraActions: this.extraActions
             }
-          }
+          },
+          ...this.columnsMeta
         }
       },
       headerActions: {
@@ -158,14 +159,12 @@ export default {
         }
       }
     }
-  },
-  methods: {
   }
 }
 </script>
 
 <style scoped>
-  .link {
-    color: var(--color-info);
-  }
+.link {
+  color: var(--color-info);
+}
 </style>

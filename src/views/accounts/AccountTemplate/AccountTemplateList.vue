@@ -6,6 +6,7 @@
       :account="account"
       :show-password-record="false"
       :url="secretUrl"
+      type="template"
       :visible.sync="showViewSecretDialog"
     />
   </div>
@@ -31,7 +32,7 @@ export default {
       tableConfig: {
         url: '/api/v1/accounts/account-templates/',
         columns: null,
-        columnsExclude: ['spec_info'],
+        columnsExclude: ['spec_info', 'password_rules', 'push_params'],
         columnsShow: {
           min: ['name', 'actions'],
           default: ['name', 'username', 'secret_type', 'has_secret', 'privileged', 'actions']
@@ -44,11 +45,7 @@ export default {
               showFalse: false
             }
           },
-          secret_type: {
-            width: '120px'
-          },
           has_secret: {
-            width: '120px',
             formatterArgs: {
               showFalse: false,
               showText: false
@@ -60,11 +57,11 @@ export default {
               hasUpdate: true,
               hasDelete: true,
               hasClone: this.hasClone,
-              moreActionsTitle: this.$t('common.More'),
+              moreActionsTitle: this.$t('More'),
               extraActions: [
                 {
                   name: 'View',
-                  title: this.$t('common.View'),
+                  title: this.$t('View'),
                   can: this.$hasPerm('accounts.view_accounttemplatesecret'),
                   type: 'primary',
                   callback: ({ row }) => {
@@ -83,9 +80,14 @@ export default {
       },
       headerActions: {
         hasRefresh: true,
-        hasExport: false,
-        hasImport: false,
+        hasExport: this.$hasPerm('accounts.view_accounttemplatesecret'),
         hasMoreActions: false,
+        hasLabelSearch: true,
+        exportOptions: {
+          url: '/api/v1/accounts/account-template-secrets/',
+          mfaVerifyRequired: true,
+          tips: this.$t('AccountExportTips')
+        },
         createRoute: () => {
           return {
             name: 'AccountTemplateCreate'
@@ -96,7 +98,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

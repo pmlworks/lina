@@ -2,13 +2,13 @@
   <div>
     <input ref="upLoadFile" :accept="accept" style="display: none" type="file" @change="Onchange">
     <el-button size="mini" @click.native.stop="onUpLoad">
-      {{ this.$t('common.SelectFile') }}
+      {{ this.$t('SelectFile') }}
     </el-button>
     <span>{{ fileName }}</span>
     <div v-if="tip !== ''" class="help-block">{{ tip }}</div>
     <input v-model="value" hidden type="text" v-on="$listeners">
     <div>
-      <img :src="preview" v-bind="$attrs">
+      <img :class="showBG ? 'show-bg' : ''" :src="preview" v-bind="$attrs">
     </div>
   </div>
 </template>
@@ -27,6 +27,10 @@ export default {
     accept: {
       type: String,
       default: '*'
+    },
+    showBG: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -74,6 +78,8 @@ export default {
 }
 </script>
 
-<style scoped>
-
+<style lang="scss" scoped>
+.show-bg {
+  background-color: var(--banner-bg);
+}
 </style>

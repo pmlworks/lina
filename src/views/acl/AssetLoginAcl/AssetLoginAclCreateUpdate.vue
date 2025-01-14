@@ -24,13 +24,13 @@ export default {
         }
       },
       fields: [
-        [this.$t('common.Basic'), ['name', 'priority']],
-        [this.$t('users.Users'), ['users']],
-        [this.$t('assets.Asset'), ['assets']],
-        [this.$t('accounts.Accounts'), ['accounts']],
-        [this.$t('acl.Rules'), ['rules']],
-        [this.$t('common.Action'), ['action', 'reviewers']],
-        [this.$t('common.Other'), ['is_active', 'comment']]
+        [this.$t('Basic'), ['name', 'priority']],
+        [this.$t('Users'), ['users']],
+        [this.$t('Asset'), ['assets']],
+        [this.$t('Accounts'), ['accounts']],
+        [this.$t('Rules'), ['rules']],
+        [this.$t('Action'), ['action', 'reviewers']],
+        [this.$t('Other'), ['is_active', 'comment']]
       ],
       fieldsMeta: {
         priority: {
@@ -43,11 +43,9 @@ export default {
           ],
           fieldsMeta: {
             ip_group: {
-              label: this.$t('acl.LoginIP'),
-              helpText: this.$t('acl.ipGroupHelpText')
+              helpText: this.$t('IpGroupHelpText')
             },
             time_period: {
-              label: this.$t('common.timePeriod'),
               component: WeekCronSelect
             }
           }
@@ -67,7 +65,9 @@ export default {
           }
         },
         reviewers: {
-          hidden: (item) => item.action !== 'review',
+          hidden: (formValue) => {
+            return !['review', 'notice'].includes(formValue.action)
+          },
           rules: [rules.RequiredChange],
           el: {
             value: [],
@@ -80,7 +80,16 @@ export default {
           }
         }
       },
-      url: '/api/v1/acls/login-asset-acls/'
+      url: '/api/v1/acls/login-asset-acls/',
+      cleanFormValue(value) {
+        if (!Array.isArray(value.rules.ip_group)) {
+          value.rules.ip_group = value.rules.ip_group ? value.rules.ip_group.split(',') : []
+        }
+        if (!['review', 'notice'].includes(value.action)) {
+          value.reviewers = []
+        }
+        return value
+      }
     }
   },
   methods: {}

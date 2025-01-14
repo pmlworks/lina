@@ -8,11 +8,16 @@ export const GLOBAL_ORG_ID = '00000000-0000-0000-0000-000000000000'
 
 function getPropOrg() {
   const orgs = store.getters.usingOrgs
+  const preOrg = store.getters.preOrg || {}
+  const preFound = orgs.find((item) => item.id === preOrg.id)
+  if (preFound) {
+    return preFound
+  }
   const defaultOrg = orgs.find((item) => item.is_default)
   if (defaultOrg) {
     return defaultOrg
   }
-  return orgs.filter(item => !item['is_root'] && item.id !== SYSTEM_ORG_ID)[0]
+  return orgs.filter(item => !item['is_root'] && !item['is_system'])[0]
 }
 
 async function change2PropOrg() {
@@ -62,7 +67,7 @@ async function changeOrg(org, reload = true, vm = null) {
     }
   }
   location.hash = '#' + path
-  setTimeout(() => location.reload(), 400)
+  setTimeout(() => location.reload(), 500)
 }
 
 function hasCurrentOrgPermission() {

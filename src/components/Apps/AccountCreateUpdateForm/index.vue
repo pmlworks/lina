@@ -2,6 +2,8 @@
   <AutoDataForm
     v-if="!loading"
     ref="AutoDataForm"
+    :class="addTemplate? '': 'account-add'"
+    :submit-btn-text="submitBtnText"
     v-bind="$data"
     @submit="confirm"
   />
@@ -9,12 +11,8 @@
 
 <script>
 import AutoDataForm from '@/components/Form/AutoDataForm/index.vue'
-import { UpdateToken, UploadSecret } from '@/components/Form/FormFields'
-import Select2 from '@/components/Form/FormFields/Select2.vue'
-import AssetSelect from '@/components/Apps/AssetSelect/index.vue'
 import { encryptPassword } from '@/utils/crypto'
-import { Required, RequiredChange } from '@/components/Form/DataForm/rules'
-import AutomationParamsForm from '@/views/assets/Platform/AutomationParamsSetting.vue'
+import { accountFieldsMeta } from '@/components/Apps/AccountCreateUpdateForm/const'
 
 export default {
   name: 'AccountCreateForm',
@@ -48,7 +46,7 @@ export default {
     return {
       loading: true,
       usernameChanged: false,
-      defaultPrivilegedAccounts: ['root', 'administrator'],
+      submitBtnText: this.$t('Confirm'),
       iPlatform: {
         automation: {},
         su_enabled: false,
@@ -63,187 +61,15 @@ export default {
       form: Object.assign({ 'on_invalid': 'error' }, this.account || {}),
       encryptedFields: ['secret'],
       fields: [
-        [this.$t('assets.Asset'), ['assets']],
-        [this.$t('accounts.AccountTemplate'), ['template']],
-        [this.$t('common.Basic'), ['name', 'username', 'privileged', 'su_from', 'su_from_username']],
-        [this.$t('assets.Secret'), [
+        [this.$t('AccountTemplate'), ['template']],
+        [this.$t('Basic'), ['assets', 'name', 'username', 'privileged', 'su_from', 'su_from_username']],
+        [this.$t('Secret'), [
           'secret_type', 'password', 'ssh_key', 'token',
           'access_key', 'passphrase', 'api_key'
         ]],
-        [this.$t('common.Other'), ['push_now', 'params', 'on_invalid', 'is_active', 'comment']]
+        [this.$t('Other'), ['push_now', 'params', 'on_invalid', 'is_active', 'comment']]
       ],
-      fieldsMeta: {
-        assets: {
-          rules: [Required],
-          component: AssetSelect,
-          label: this.$t('assets.Asset'),
-          el: {
-            multiple: false
-          },
-          hidden: () => {
-            return this.platform || this.asset
-          }
-        },
-        template: {
-          component: Select2,
-          rules: [Required],
-          el: {
-            multiple: false,
-            ajax: {
-              url: '/api/v1/accounts/account-templates/',
-              transformOption: (item) => {
-                return { label: item.name, value: item.id }
-              }
-            }
-          },
-          hidden: () => {
-            return this.platform || this.asset || !this.addTemplate
-          }
-        },
-        on_invalid: {
-          rules: [Required],
-          label: this.$t('accounts.AccountPolicy'),
-          helpText: this.$t('accounts.BulkCreateStrategy'),
-          hidden: () => {
-            return this.platform || this.asset
-          }
-        },
-        name: {
-          rules: [RequiredChange],
-          on: {
-            input: ([value], updateForm) => {
-              if (!this.usernameChanged) {
-                if (!this.account?.name) {
-                  updateForm({ username: value })
-                }
-                const maybePrivileged = this.defaultPrivilegedAccounts.includes(value)
-                if (maybePrivileged) {
-                  updateForm({ privileged: true })
-                }
-              }
-            }
-          },
-          hidden: () => {
-            return this.addTemplate
-          }
-        },
-        username: {
-          el: {
-            disabled: !!this.account?.name
-          },
-          on: {
-            input: ([value], updateForm) => {
-              this.usernameChanged = true
-            },
-            change: ([value], updateForm) => {
-              const maybePrivileged = this.defaultPrivilegedAccounts.includes(value)
-              if (maybePrivileged) {
-                updateForm({ privileged: true })
-              }
-            }
-          },
-          hidden: () => {
-            return this.addTemplate
-          }
-        },
-        privileged: {
-          hidden: () => {
-            return this.addTemplate
-          }
-        },
-        su_from: {
-          component: Select2,
-          hidden: (formValue) => {
-            return !this.asset?.id || !this.iPlatform.su_enabled
-          },
-          el: {
-            multiple: false,
-            clearable: true,
-            ajax: {
-              url: `/api/v1/accounts/accounts/su-from-accounts/?account=${this.account?.id || ''}&asset=${this.asset?.id || ''}`,
-              transformOption: (item) => {
-                return { label: `${item.name}(${item.username})`, value: item.id }
-              }
-            }
-          }
-        },
-        su_from_username: {
-          label: this.$t('assets.UserSwitchFrom'),
-          hidden: (formValue) => {
-            return this.platform || this.asset || this.addTemplate
-          }
-        },
-        password: {
-          label: this.$t('assets.Password'),
-          component: UpdateToken,
-          hidden: (formValue) => formValue.secret_type !== 'password' || this.addTemplate
-        },
-        ssh_key: {
-          label: this.$t('assets.PrivateKey'),
-          component: UploadSecret,
-          hidden: (formValue) => formValue.secret_type !== 'ssh_key' || this.addTemplate
-        },
-        passphrase: {
-          label: this.$t('assets.Passphrase'),
-          component: UpdateToken,
-          hidden: (formValue) => formValue.secret_type !== 'ssh_key' || this.addTemplate
-        },
-        token: {
-          label: this.$t('assets.Token'),
-          component: UploadSecret,
-          hidden: (formValue) => formValue.secret_type !== 'token' || this.addTemplate
-        },
-        access_key: {
-          id: 'access_key',
-          label: this.$t('assets.AccessKey'),
-          component: UploadSecret,
-          hidden: (formValue) => formValue.secret_type !== 'access_key' || this.addTemplate
-        },
-        api_key: {
-          id: 'api_key',
-          label: this.$t('assets.ApiKey'),
-          component: UploadSecret,
-          hidden: (formValue) => formValue.secret_type !== 'api_key' || this.addTemplate
-        },
-        secret_type: {
-          type: 'radio-group',
-          options: [],
-          hidden: () => {
-            return this.addTemplate
-          }
-        },
-        push_now: {
-          helpText: this.$t('accounts.AccountPush.WindowsPushHelpText'),
-          hidden: (formValue) => {
-            const automation = this.iPlatform.automation || {}
-            return !automation.push_account_enabled ||
-              !automation.ansible_enabled ||
-              !this.$hasPerm('accounts.push_account') ||
-              (formValue.secret_type === 'ssh_key' && this.iPlatform.type.value === 'windows') ||
-              this.addTemplate
-          }
-        },
-        params: {
-          label: this.$t('assets.PushParams'),
-          component: AutomationParamsForm,
-          el: {
-            method: this.asset?.auto_config?.push_account_method
-          },
-          hidden: (formValue) => {
-            const automation = this.iPlatform.automation || {}
-            return !formValue.push_now ||
-              !automation.push_account_enabled ||
-              !automation.ansible_enabled ||
-              !this.$hasPerm('accounts.push_account') ||
-              this.addTemplate
-          }
-        },
-        comment: {
-          hidden: () => {
-            return this.addTemplate
-          }
-        }
-      },
+      fieldsMeta: accountFieldsMeta(this),
       hasSaveContinue: false
     }
   },
@@ -251,11 +77,18 @@ export default {
     try {
       await this.getPlatform()
       this.setSecretTypeOptions()
+      this.getDefaultAssets()
     } finally {
       this.loading = false
     }
   },
   methods: {
+    async getDefaultAssets() {
+      const assetId = this.$route.query.asset_id
+      if (assetId && !this.form.name) {
+        this.form.assets = [assetId]
+      }
+    },
     async getPlatform() {
       if (this.platform) {
         this.iPlatform = this.platform
@@ -269,23 +102,23 @@ export default {
     setSecretTypeOptions() {
       const choices = [
         {
-          label: this.$t('assets.Password'),
+          label: this.$t('Password'),
           value: 'password'
         },
         {
-          label: this.$t('assets.SSHKey'),
+          label: this.$t('SSHKey'),
           value: 'ssh_key'
         },
         {
-          label: this.$t('assets.Token'),
+          label: this.$t('Token'),
           value: 'token'
         },
         {
-          label: this.$t('assets.AccessKey'),
+          label: this.$t('AccessKey'),
           value: 'access_key'
         },
         {
-          label: this.$t('assets.ApiKey'),
+          label: this.$t('ApiKey'),
           value: 'api_key'
         }
       ]
@@ -321,5 +154,24 @@ export default {
 }
 </script>
 
-<style scoped>
+<style lang='scss' scoped>
+.account-add {
+  ::v-deep .el-form-item {
+    margin-bottom: 5px;
+
+    .help-block {
+      margin-bottom: 5px;
+    }
+  }
+
+  ::v-deep .form-group-header {
+    .hr-line-dashed {
+      margin: 5px 0;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+    }
+  }
+}
 </style>

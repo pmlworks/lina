@@ -7,6 +7,7 @@
 <script>
 import { GenericCreateUpdateForm } from '@/layout/components'
 import { IBox } from '@/components'
+import MarkDown from '@/components/Widgets/MarkDown'
 
 export default {
   name: 'Announcement',
@@ -22,7 +23,7 @@ export default {
   },
   data() {
     return {
-      title: this.$t('common.Announcement'),
+      title: this.$t('Announcement'),
       visible: false,
       enableField: 'ANNOUNCEMENT_ENABLED',
       config: {
@@ -32,11 +33,13 @@ export default {
         fieldsMeta: {
           ANNOUNCEMENT: {
             fields: [
-              'SUBJECT', 'CONTENT', 'LINK'
+              'SUBJECT', 'CONTENT', 'DATE_START', 'DATE_END', 'LINK'
             ],
             fieldsMeta: {
               CONTENT: {
+                component: MarkDown,
                 el: {
+                  preview: true,
                   rows: 5
                 }
               }
@@ -60,7 +63,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

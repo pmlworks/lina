@@ -3,15 +3,15 @@
     <el-row :gutter="20">
       <el-col :md="24" :sm="24">
         <el-alert type="success">
-          {{ $t('accounts.AccountTemplateUpdateSecretHelpText') }}
+          {{ $t('AccountTemplateUpdateSecretHelpText') }}
         </el-alert>
       </el-col>
     </el-row>
     <el-row :gutter="20">
-      <el-col :md="14" :sm="24">
+      <el-col :md="15" :sm="24">
         <GenericListTable ref="listTable" :header-actions="headerActions" :table-config="tableConfig" />
       </el-col>
-      <el-col :md="10" :sm="24">
+      <el-col :md="9" :sm="24">
         <QuickActions :actions="quickActions" type="primary" />
       </el-col>
       <ViewSecret
@@ -20,10 +20,6 @@
         :url="secretUrl"
         :visible.sync="showViewSecretDialog"
       />
-      <AccountTemplateChangeSecretDialog
-        :object="object"
-        :visible.sync="visible"
-      />
     </el-row>
   </div>
 </template>
@@ -31,17 +27,16 @@
 <script>
 import GenericListTable from '@/layout/components/GenericListTable'
 import QuickActions from '@/components/QuickActions'
-import AccountTemplateChangeSecretDialog from './AccountTemplateChangeSecretDialog'
 import { ActionsFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
 import ViewSecret from '@/components/Apps/AccountListTable/ViewSecret'
+import { openTaskPage } from '@/utils/jms'
 
 export default {
   name: 'AccountTemplateChangeSecret',
   components: {
     ViewSecret,
     QuickActions,
-    GenericListTable,
-    AccountTemplateChangeSecretDialog
+    GenericListTable
   },
   props: {
     object: {
@@ -58,14 +53,18 @@ export default {
       showViewSecretDialog: false,
       quickActions: [
         {
-          title: this.$t('accounts.UpdateSecret'),
+          title: this.$t('SyncUpdateAccountInfo'),
           attrs: {
             type: 'primary',
-            label: this.$t('common.Update')
+            label: this.$t('Sync')
           },
           callbacks: Object.freeze({
             click: () => {
-              vm.visible = true
+              this.$axios.patch(
+                `/api/v1/accounts/account-templates/${this.object.id}/sync-related-accounts/`
+              ).then(res => {
+                openTaskPage(res['task'])
+              })
             }
           })
         }
@@ -84,7 +83,7 @@ export default {
             }
           },
           asset: {
-            label: this.$t('assets.Asset'),
+            label: this.$t('Asset'),
             formatter: function(row) {
               const to = {
                 name: 'AssetDetail',
@@ -103,11 +102,11 @@ export default {
               hasUpdate: false,
               hasDelete: false,
               hasClone: false,
-              moreActionsTitle: this.$t('common.More'),
+              moreActionsTitle: this.$t('More'),
               extraActions: [
                 {
                   name: 'View',
-                  title: this.$t('common.View'),
+                  title: this.$t('View'),
                   can: this.$hasPerm('accounts.view_accountsecret'),
                   type: 'primary',
                   callback: ({ row }) => {

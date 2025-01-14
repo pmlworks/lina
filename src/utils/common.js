@@ -2,102 +2,6 @@ import i18n from '@/i18n/i18n'
 import { message } from '@/utils/message'
 
 const _ = require('lodash')
-const moment = require('moment')
-
-function getTimeUnits(u) {
-  const units = {
-    'd': '天',
-    'h': '时',
-    'm': '分',
-    's': '秒'
-  }
-  if (getUserLang() === 'zh-CN') {
-    return units[u]
-  }
-  return u
-}
-
-export function timeOffset(a, b) {
-  const start = safeDate(a)
-  const end = safeDate(b)
-  const offset = (end - start) / 1000
-  return readableSecond(offset)
-}
-
-function readableSecond(offset) {
-  const days = offset / 3600 / 24
-  const hours = offset / 3600
-  const minutes = offset / 60
-  const seconds = offset
-
-  if (days > 1) {
-    return days.toFixed(1) + ' ' + getTimeUnits('d')
-  } else if (hours > 1) {
-    return hours.toFixed(1) + ' ' + getTimeUnits('h')
-  } else if (minutes > 1) {
-    return minutes.toFixed(1) + ' ' + getTimeUnits('m')
-  } else if (seconds >= 0) {
-    return seconds.toFixed(1) + ' ' + getTimeUnits('s')
-  }
-  return ''
-}
-
-function getUserLang() {
-  const userLangEN = document.cookie.indexOf('django_language=en')
-  if (userLangEN === -1) {
-    return 'zh-CN'
-  } else {
-    return 'en-US'
-  }
-}
-
-function safeDate(s) {
-  s = cleanDateStr(s)
-  return new Date(s)
-}
-
-function cleanDateStr(d) {
-  for (let i = 0; i < 3; i++) {
-    if (!isNaN(Date.parse(d))) {
-      return d
-    }
-    if (!isNaN(Number(d)) || !d) {
-      return d
-    }
-    switch (i) {
-      case 0:
-        d = d.split('/').join('-')
-        break
-      case 1:
-        d = d.split('+')[0].trimRight()
-        break
-      case 2:
-        d = d.replace(/-/g, '/')
-    }
-  }
-  return d
-}
-
-export function toSafeLocalDateStr(d) {
-  if ([null, undefined, ''].includes(d)) {
-    return '-'
-  }
-  const date = safeDate(d)
-  return moment(date).format('L LTS')
-}
-
-export function forMatAction(vm, d) {
-  d.forEach(function(item, index, arr) {
-    if ([
-      vm.$t('perms.clipboardCopyPaste'),
-      vm.$t('perms.upDownload'),
-      vm.$t('perms.all')
-    ].includes(item)) {
-      arr.splice(index, 1)
-    }
-  })
-  return d.join(', ')
-}
 
 export function getApiPath(that) {
   let pagePath = that.$route.path
@@ -138,23 +42,6 @@ export function confirm({ msg, title, perform, success, failed, type = 'warning'
   })
 }
 
-export function formatDate(inputTime) {
-  const date = new Date(inputTime)
-  const y = date.getFullYear()
-  let m = date.getMonth() + 1
-  m = m < 10 ? ('0' + m) : m
-  let d = date.getDate()
-  d = d < 10 ? ('0' + d) : d
-  let h = date.getHours()
-  h = h < 10 ? ('0' + h) : h
-  let minute = date.getMinutes()
-  let second = date.getSeconds()
-  minute = minute < 10 ? ('0' + minute) : minute
-  second = second < 10 ? ('0' + second) : second
-  // return y + '-' + m + '-' + d + ' ' + h + ':' + minute + ':' + second
-  return y + '-' + m + '-' + d + 'T' + h + ':' + minute + ':' + second
-}
-
 const uuidPattern = /[0-9a-zA-Z\-]{36}/
 const uuidRegex = /\/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12})\//
 
@@ -186,28 +73,6 @@ export function replaceAllUUID(string, replacement = '*') {
     string = string.replace(/[0-9a-zA-Z\-]{36}/g, replacement)
   }
   return string
-}
-
-export function getDaysAgo(days, now) {
-  if (!now) {
-    now = new Date()
-  }
-  return new Date(now.getTime() - 3600 * 1000 * 24 * days)
-}
-
-export function getDaysFuture(days, now) {
-  if (!now) {
-    now = new Date()
-  }
-  return new Date(now.getTime() + 3600 * 1000 * 24 * days)
-}
-
-export function getDayEnd(now) {
-  if (!now) {
-    now = new Date()
-  }
-  const zoneTime = moment(now).utc().endOf('day').format('YYYY-MM-DD HH:mm:ss')
-  return moment(zoneTime).utc().toDate()
 }
 
 export function setUrlParam(url, name, value) {
@@ -245,18 +110,11 @@ export function setRouterQuery(vm, url = '') {
   })
 }
 
-export function getDayFuture(days, now) {
-  if (!now) {
-    now = new Date()
-  }
-  return new Date(now.getTime() + 3600 * 1000 * 24 * days)
-}
-
 export function getErrorResponseMsg(error) {
   let msg = ''
   let data = ''
   if (error?.response?.status === 500) {
-    data = i18n.t('common.ServerError')
+    data = i18n.t('ServerError')
   } else {
     data = error?.response && error?.response.data || error
   }
@@ -270,12 +128,10 @@ export function getErrorResponseMsg(error) {
     }).filter(i => i).join('; ')
   } else if (typeof data === 'string') {
     return data
+  } else {
+    msg = error.toString()
   }
   return msg
-}
-
-export function sleep(time) {
-  return new Promise((resolve) => setTimeout(resolve, time))
 }
 
 function customizer(objValue, srcValue) {
@@ -363,13 +219,35 @@ export function downloadText(content, filename) {
 }
 
 export function download(downloadUrl, filename) {
-  const a = document.createElement('a')
-  a.href = downloadUrl
+  const iframe = document.createElement('iframe')
+  iframe.style.display = 'none'
+  document.body.appendChild(iframe)
+  const timeout = 1000 * 60 * 30
+
   if (filename) {
-    a.download = filename
+    fetch(downloadUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob)
+        const a = iframe.contentWindow.document.createElement('a')
+        a.href = url
+        a.download = filename
+        iframe.contentWindow.document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          URL.revokeObjectURL(url)
+          document.body.removeChild(iframe)
+        }, timeout) // If you can't download it in half an hour, don't download it.
+      })
+      .catch(() => {
+        document.body.removeChild(iframe)
+      })
+  } else {
+    iframe.src = downloadUrl
+    setTimeout(() => {
+      document.body.removeChild(iframe)
+    }, timeout) // If you can't download it in half an hour, don't download it.
   }
-  a.click()
-  window.URL.revokeObjectURL(downloadUrl)
 }
 
 export function diffObject(object, base) {
@@ -388,7 +266,7 @@ export const copy = _.throttle(function(value) {
   inputDom.select()
   document?.execCommand('copy')
   message({
-    message: i18n.t('common.CopySuccess'),
+    message: i18n.t('CopySuccess'),
     type: 'success',
     duration: 1000
   })
@@ -400,4 +278,76 @@ export function getQueryFromPath(path) {
   return Object.fromEntries(url.searchParams)
 }
 
+export const pageScroll = _.throttle((id) => {
+  const dom = document.getElementById(id)
+  if (dom) {
+    dom.scrollTop = dom?.scrollHeight
+  }
+}, 200)
+
+export function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const notUppercase = ['to', 'a', 'from', 'by']
+
+export function toTitleCase(string) {
+  if (!string) return string
+  return string.trim().split(' ').map(item => {
+    if (notUppercase.includes(item.toLowerCase())) {
+      return item
+    }
+    return item[0].toUpperCase() + item.slice(1)
+  }).join(' ')
+}
+
+export function toSentenceCase(string) {
+  if (!string) return string
+  if (string.indexOf('/') > 0) return string
+  const s = string.trim().split(' ').map((item, index) => {
+    if (item.length === 0) return ''
+    if (item.length === 1) return item.toLowerCase()
+
+    // 如果首字母大写，且第二个字母也大写，不处理
+    if (item[0] === item[0].toUpperCase() && item[1] === item[1].toUpperCase()) {
+      return item
+    }
+
+    if (index === 0) {
+      return item[0].toUpperCase() + item.slice(1)
+    }
+    // 仅处理首字母大写，别的是小写的情况
+    if (item[0] !== item[0].toLowerCase() && item.slice(1) === item.slice(1).toLowerCase()) {
+      return item[0].toLowerCase() + item.slice(1)
+    }
+    return item
+  }).join(' ')
+  return s[0].toUpperCase() + s.slice(1)
+}
+
 export { BASE_URL }
+
+export function openNewWindow(url) {
+  let count
+  let top = 50
+  count = parseInt(window.sessionStorage.getItem('newWindowCount'), 10)
+  if (isNaN(count)) {
+    count = 0
+  }
+  let left = 100 + count * 100
+  top = 50 + count * 50
+  if (left + screen.width / 3 > screen.width) {
+    // 支持两排足以
+    top = screen.height / 3
+    count = 1
+    left = 100
+  }
+  let params = 'toolbar=yes,scrollbars=yes,resizable=yes'
+  params = params + `,top=${top},left=${left},width=${screen.width / 3},height=${screen.height / 3}`
+  window.sessionStorage.setItem('newWindowCount', `${count + 1}`)
+  window.open(url, '_blank', params)
+}

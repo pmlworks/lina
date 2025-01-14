@@ -1,8 +1,8 @@
 <template>
   <GenericCreateUpdatePage
-    v-bind="$data"
     :create-success-next-route="successUrl"
     :update-success-next-route="successUrl"
+    v-bind="$data"
   />
 </template>
 
@@ -19,21 +19,21 @@ export default {
       url: '/api/v1/terminal/endpoints/',
       successUrl: { name: 'TerminalSetting', params: { activeMenu: 'EndpointList' }},
       fields: [
-        [this.$t('common.Basic'), ['name', 'host']],
+        [this.$t('Basic'), ['name', 'host']],
         [
-          this.$t('terminal.BasePort'),
+          this.$t('Port'),
           [
-            'http_port', 'https_port', 'ssh_port', 'rdp_port'
+            'http_port', 'https_port', 'ssh_port', 'rdp_port', 'vnc_port'
           ]
         ],
         [
-          this.$t('terminal.DatabasePort'),
+          '',
           [
             'mysql_port', 'mariadb_port', 'postgresql_port',
-            'redis_port', 'oracle_port_range'
+            'redis_port', 'sqlserver_port', 'oracle_port_range'
           ]
         ],
-        [this.$t('common.Other'), ['comment']]
+        [this.$t('Other'), ['is_active', 'comment']]
       ],
       fieldsMeta: {
         host: {
@@ -41,13 +41,17 @@ export default {
         },
         oracle_port_range: {
           disabled: true
+        },
+        is_active: {
+          disabled: this.$route.params.id === '00000000-0000-0000-0000-000000000001'
         }
       },
       hasDetailInMsg: false
     }
   },
   computed: {},
-  created() {},
+  created() {
+  },
   methods: {}
 }
 </script>

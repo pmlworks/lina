@@ -16,6 +16,7 @@ export default {
     GenericListTable
   },
   data() {
+    const currentUserID = this.$store.state.users.profile.id
     return {
       createDialogVisible: false,
       uploadDialogVisible: false,
@@ -23,7 +24,7 @@ export default {
         url: '/api/v1/ops/playbooks/',
         columnsShow: {
           min: ['name', 'actions'],
-          default: ['name', 'comment', 'date_created', 'actions']
+          default: ['name', 'comment', 'scope', 'date_created', 'actions', 'created_by']
         },
         columnsMeta: {
           name: {
@@ -36,11 +37,16 @@ export default {
             formatter: ActionsFormatter,
             formatterArgs: {
               hasUpdate: true,
-              canUpdate: this.$hasPerm('ops.change_playbook'),
+              canUpdate: ({ row }) => {
+                return this.$hasPerm('ops.change_playbook') && row.creator === currentUserID
+              },
               updateRoute: 'PlaybookUpdate',
               hasDelete: true,
-              canDelete: this.$hasPerm('ops.delete_playbook'),
-              hasClone: false
+              canDelete: ({ row }) => {
+                return this.$hasPerm('ops.delete_playbook') && row.creator === currentUserID
+              },
+              hasClone: true,
+              cloneRoute: 'PlaybookCreate'
             }
           }
         }
@@ -65,12 +71,12 @@ export default {
           dropdown: [
             {
               name: 'create',
-              title: this.$t('common.Create') + ' playbook',
+              title: this.$t('Create') + ' playbook',
               has: true
             },
             {
               name: 'upload',
-              title: this.$t('common.Upload') + ' playbook',
+              title: this.$t('Upload') + ' playbook',
               has: true
             }
           ]

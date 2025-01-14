@@ -1,5 +1,5 @@
 <template>
-  <GenericDetailPage :object.sync="execution" :active-menu.sync="config.activeMenu" v-bind="config" v-on="$listeners">
+  <GenericDetailPage :active-menu.sync="config.activeMenu" :object.sync="execution" v-bind="config" v-on="$listeners">
     <keep-alive>
       <component :is="config.activeMenu" :object="execution" />
     </keep-alive>
@@ -29,9 +29,14 @@ export default {
         },
         submenu: [
           {
-            title: this.$t('common.BasicInfo'),
+            title: this.$t('Basic'),
             name: 'AccountPushExecutionInfo',
             hidden: () => !this.$hasPerm('accounts.view_pushaccountexecution')
+          },
+          {
+            title: this.$t('TaskList'),
+            name: 'AccountPushExecutionTaskList',
+            hidden: () => !this.$hasPerm('accounts.view_changesecretrecord')
           }
         ],
         getTitle: this.getExecutionTitle

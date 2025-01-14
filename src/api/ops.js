@@ -52,3 +52,29 @@ export function createJob(form) {
     data: form
   })
 }
+
+export function stopJob(form) {
+  return request({
+    url: '/api/v1/ops/job-executions/stop/',
+    method: 'post',
+    data: form
+  })
+}
+
+export function JobUploadFile(form) {
+  return request({
+    url: '/api/v1/ops/jobs/upload/',
+    method: 'post',
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60 * 60 * 1000,
+    data: form
+  })
+}
+
+export function auditUpdateJob(id, form) {
+  return request({
+    url: `/api/v1/audits/jobs/${id}/`,
+    method: 'patch',
+    data: form
+  })
+}

@@ -10,15 +10,19 @@ export default {
   components: {
     ListTable
   },
-  computed: {
-  },
-  created() {
+  activated() {
+
   },
   methods: {
+    reloadTable() {
+      this.$refs.ListTable.reloadTable()
+    }
   }
 }
 </script>
 
-<style scoped>
-
+<style scoped lang="scss">
+.list-table {
+  margin-bottom: 20px;
+}
 </style>

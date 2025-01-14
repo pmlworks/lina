@@ -9,40 +9,49 @@
 <script>
 import TabPage from '@/layout/components/TabPage/index.vue'
 import Announcement from './Announcement.vue'
-import Vault from './Vault.vue'
+import Vault from './Vault/index.vue'
 import Ticket from './Ticket.vue'
 import Ops from './Ops.vue'
+import Chat from './Chat.vue'
+import VirtualApp from './VirtualApp.vue'
 
 export default {
   name: 'Feature',
-  components: { TabPage, Announcement, Vault, Ticket, Ops },
+  components: { TabPage, Announcement, Vault, Ticket, Ops, Chat, VirtualApp },
   data() {
     return {
-      activeMenu: 'Basic',
+      activeMenu: 'Announcement',
       submenu: [
         {
-          title: this.$t('setting.Announcement'),
+          title: this.$t('Announcement'),
           name: 'Announcement'
         },
         {
-          title: this.$t('setting.Ticket'),
-          name: 'Ticket'
+          title: this.$t('Ticket'),
+          name: 'Ticket',
+          hidden: !this.$store.getters.hasValidLicense
         },
         {
-          title: this.$t('setting.AppOps'),
+          title: this.$t('JobCenter'),
           name: 'Ops'
         },
         {
-          title: this.$t('setting.AccountStorage'),
+          title: this.$t('AccountStorage'),
           name: 'Vault',
-          hidden: !this.$hasPerm('settings.change_vault') || !this.$store.getters.hasValidLicense
+          hidden: !this.$store.getters.hasValidLicense
+        },
+        {
+          title: this.$t('ChatAI'),
+          name: 'Chat',
+          hidden: !this.$hasPerm('settings.change_vault')
+        },
+        {
+          title: this.$t('VirtualApps'),
+          name: 'VirtualApp',
+          hidden: !this.$hasPerm('settings.change_virtualapp') || !this.$store.getters.hasValidLicense
         }
       ]
     }
   }
 }
 </script>
-
-<style lang='scss' scoped>
-
-</style>

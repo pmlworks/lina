@@ -1,12 +1,5 @@
 <template>
   <div>
-    <div v-if="mfaDialogVisible">
-      <UserConfirmDialog
-        :url="url"
-        @UserConfirmCancel="exit"
-        @UserConfirmDone="getAuthInfo"
-      />
-    </div>
     <Dialog
       :destroy-on-close="true"
       :show-cancel="false"
@@ -17,11 +10,11 @@
       @confirm="accountConfirmHandle"
       v-on="$listeners"
     >
-      <el-form :model="secretInfo" class="password-form" label-position="right" label-width="100px">
-        <el-form-item :label="$tc('assets.Name')">
+      <el-form :model="secretInfo" class="password-form" label-position="right" label-width="130px">
+        <el-form-item :label="$tc('Name')">
           <span>{{ account['name'] }}</span>
         </el-form-item>
-        <el-form-item :label="$tc('assets.Username')">
+        <el-form-item :label="$tc('Username')">
           <span>{{ account['username'] }}</span>
         </el-form-item>
         <el-form-item :label="secretTypeLabel">
@@ -34,16 +27,16 @@
             @input="onShowKeyCopyFormatterChange"
           />
         </el-form-item>
-        <el-form-item v-if="secretType === 'ssh_key'" :label="$tc('assets.sshKeyFingerprint')">
+        <el-form-item v-if="secretType === 'ssh_key'" :label="$tc('SshKeyFingerprint')">
           <span>{{ sshKeyFingerprint }}</span>
         </el-form-item>
-        <el-form-item :label="$tc('common.DateCreated')">
+        <el-form-item :label="$tc('DateCreated')">
           <span>{{ account['date_created'] | date }}</span>
         </el-form-item>
-        <el-form-item :label="$tc('common.DateUpdated')">
+        <el-form-item :label="$tc('DateUpdated')">
           <span>{{ account['date_updated'] | date }}</span>
         </el-form-item>
-        <el-form-item v-if="showPasswordRecord" v-perms="'accounts.view_accountsecret'" :label="$tc('accounts.PasswordRecord')">
+        <el-form-item v-if="showPasswordRecord" v-perms="'accounts.view_accountsecret'" :label="$tc('PasswordRecord')">
           <el-link
             :underline="false"
             type="success"
@@ -67,7 +60,6 @@
 <script>
 import Dialog from '@/components/Dialog/index.vue'
 import PasswordHistoryDialog from './PasswordHistoryDialog.vue'
-import UserConfirmDialog from '@/components/Apps/UserConfirmDialog/index.vue'
 import { ShowKeyCopyFormatter } from '@/components/Table/TableFormatters'
 import { encryptPassword } from '@/utils/crypto'
 
@@ -76,7 +68,6 @@ export default {
   components: {
     Dialog,
     PasswordHistoryDialog,
-    UserConfirmDialog,
     ShowKeyCopyFormatter
   },
   props: {
@@ -92,10 +83,14 @@ export default {
       type: String,
       default: ''
     },
+    type: {
+      type: String,
+      default: 'account'
+    },
     title: {
       type: String,
       default: function() {
-        return this.$tc('assets.AccountDetail')
+        return this.$tc('Detail')
       }
     },
     showPasswordRecord: {
@@ -128,7 +123,10 @@ export default {
       const url = `/api/v1/accounts/account-secrets/${this.account.id}/histories/?limit=1`
       this.$axios.get(url, { disableFlashErrorMsg: true }).then(resp => {
         this.versions = resp.count
+        this.showSecretDialog()
       })
+    } else {
+      this.showSecretDialog()
     }
   },
   methods: {
@@ -142,14 +140,15 @@ export default {
         name: this.secretInfo.name,
         secret: encryptPassword(this.modifiedSecret)
       }
-      this.$axios.patch(`/api/v1/accounts/accounts/${this.account.id}/`, params).then(() => {
-        this.$message.success(this.$tc('common.updateSuccessMsg'))
+      const url = this.type === 'account' ? `/api/v1/accounts/accounts` : `/api/v1/accounts/account-templates`
+      this.$axios.patch(`${url}/${this.account.id}/`, params).then(() => {
+        this.$message.success(this.$tc('UpdateSuccessMsg'))
       })
     },
-    getAuthInfo() {
-      this.$axios.get(this.url, { disableFlashErrorMsg: true }).then(resp => {
-        this.secretInfo = resp
-        this.sshKeyFingerprint = resp?.spec_info?.ssh_key_fingerprint || '-'
+    showSecretDialog() {
+      return this.$axios.get(this.url, { disableFlashErrorMsg: true }).then((res) => {
+        this.secretInfo = res
+        this.sshKeyFingerprint = res?.spec_info?.ssh_key_fingerprint || '-'
         this.showSecret = true
       })
     },
@@ -168,7 +167,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .item-textarea >>> .el-textarea__inner {
+  .item-textarea ::v-deep .el-textarea__inner {
     height: 110px;
   }
 
@@ -181,12 +180,18 @@ export default {
       border-bottom: none;
     }
 
-    >>> .el-form-item__label {
+    ::v-deep .el-form-item__label {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
       padding-right: 20px;
       line-height: 30px;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      white-space: normal;
     }
 
-    >>> .el-form-item__content {
+    ::v-deep .el-form-item__content {
       line-height: 30px;
 
       pre {

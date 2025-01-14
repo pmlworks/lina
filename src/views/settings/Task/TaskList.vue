@@ -3,11 +3,12 @@
 </template>
 
 <script type="text/jsx">
-import { ChoicesFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
+import { ChoicesFormatter, DetailFormatter, SwitchFormatter } from '@/components/Table/TableFormatters'
 import { BASE_URL } from '@/utils/common'
 import ListTable from '@/components/Table/ListTable/index.vue'
 
 export default {
+  name: 'TaskList',
   components: {
     ListTable
   },
@@ -16,7 +17,7 @@ export default {
       tableConfig: {
         url: '/api/v1/ops/tasks/',
         columns: [
-          'name', 'queue', 'count', 'state', 'date_last_publish'
+          'name', 'queue', 'count', 'state', 'date_last_publish', 'exec_cycle', 'next_exec_time', 'enabled'
         ],
         columnsMeta: {
           name: {
@@ -32,33 +33,40 @@ export default {
               }
             }
           },
-          actions: {
-            has: false
-          },
           queue: {
+            label: this.$t('Queue'),
             width: '120px',
-            label: this.$t('ops.Queue'),
             formatter: (row) => {
               return row.meta.queue
             }
           },
           comment: {
             width: '300px',
-            label: this.$t('common.Comment'),
             formatter: row => {
               return row.meta.comment ? row.meta.comment : '-'
             }
           },
           last_published_time: {
-            label: this.$t('ops.LastPublishedTime'),
             width: '210px',
             formatter: (row) => {
               return row.last_published_time != null ? row.last_published_time : '-'
             }
           },
+          exec_cycle: {
+            width: '120px',
+            formatter: (row) => {
+              return row.exec_cycle ? row.exec_cycle : '-'
+            }
+          },
+          next_exec_time: {
+            width: '210px',
+            formatter: (row) => {
+              return row.next_exec_time ? row.next_exec_time : '-'
+            }
+          },
           count: {
-            width: '80px',
-            label: `${this.$t('ops.success')}/${this.$t('ops.total')}`,
+            width: '130px',
+            label: `${this.$t('Success')}/${this.$t('Total')}`,
             formatter: (row) => {
               return <div>
                 <span Class='text-primary'>{row.summary.success}</span>/
@@ -67,7 +75,7 @@ export default {
             }
           },
           state: {
-            label: this.$t('ops.State'),
+            label: this.$t('State'),
             width: '60px',
             align: 'center',
             formatter: ChoicesFormatter,
@@ -85,11 +93,32 @@ export default {
               getTips: ({ cellValue }) => {
                 switch (cellValue) {
                   case 'green':
-                    return this.$t('ops.StatusGreen')
+                    return this.$t('StatusGreen')
                   case 'yellow':
-                    return this.$t('ops.StatusYellow')
+                    return this.$t('StatusYellow')
                   default:
-                    return this.$t('ops.StatusRed')
+                    return this.$t('StatusRed')
+                }
+              }
+            }
+          },
+          actions: {
+            has: false
+          },
+          enabled: {
+            width: '120px',
+            label: `${this.$t('Enable')}/${this.$t('Disable')}`,
+            formatter: SwitchFormatter,
+            formatterArgs: {
+              isDisplay(row) {
+                return row.exec_cycle !== undefined
+              },
+              getPatchUrl(row) {
+                return `/api/v1/ops/celery/period-tasks/${row.name}/`
+              },
+              getPatchData(row) {
+                return {
+                  enabled: !row.enabled
                 }
               }
             }
@@ -101,8 +130,9 @@ export default {
         hasMoreActions: false,
         extraActions: [
           {
-            title: this.$t('route.TaskMonitor'),
+            title: this.$t('TaskMonitor'),
             type: 'primary',
+            can: this.$hasPerm('ops.view_taskmonitor'),
             callback: () => {
               window.open(`${BASE_URL}/core/flower/?_=${Date.now()}`,)
             }
@@ -110,8 +140,7 @@ export default {
         ]
       }
     }
-  },
-  methods: {}
+  }
 }
 </script>
 

@@ -10,14 +10,14 @@
     <el-tag
       v-for="(v, k) in filterTags"
       :key="k"
+      :disable-transitions="true"
       :name="k"
+      class="filter-tag"
       closable
       size="small"
-      class="filter-tag"
       type="info"
-      :disable-transitions="true"
-      @close="handleTagClose(k)"
       @click="handleTagClick(v,k)"
+      @close.stop="handleTagClose(k)"
     >
       <strong v-if="v.label">{{ v.label + ':' }}</strong>
       <span v-if="v.valueLabel">{{ v.valueLabel }}</span>
@@ -27,16 +27,18 @@
     <el-input
       ref="SearchInput"
       v-model="filterValue"
-      :placeholder="placeholder"
       class="search-input"
-      :class="options.length < 1 ? 'search-input2': ''"
+      :class="options.length > 0 ? '' : 'no-options'"
+      :placeholder="placeholder"
+      :suffix-icon="suffixIcon"
       :validate-event="false"
-      suffix-icon="el-icon-search"
-      @blur="focus = false"
-      @focus="focus = true"
+      @blur="handleBlur"
       @change="handleConfirm"
+      @focus="handleFocus"
       @keyup.enter.native="handleConfirm"
+      @keyup.delete.native="handleDelete"
     />
+    <span :class="isFocus ? 'is-focus ' : ''" class="keydown-focus">/</span>
   </div>
 
 </template>
@@ -47,7 +49,8 @@ export default {
   props: {
     config: {
       type: Object,
-      default: () => {}
+      default: () => {
+      }
     },
     options: {
       type: Array,
@@ -55,7 +58,7 @@ export default {
     },
     getUrlQuery: {
       type: Boolean,
-      default: () => true
+      default: () => false
     },
     default: {
       type: Object,
@@ -67,8 +70,12 @@ export default {
       filterKey: '',
       filterValue: '',
       valueLabel: '',
+      suffixIcon: '',
+      emptyCount: 0,
       filterTags: this.default || {},
-      focus: false
+      focus: false,
+      showCascade: true,
+      isFocus: false
     }
   },
   computed: {
@@ -98,35 +105,71 @@ export default {
     },
     placeholder() {
       if (this.focus && this.filterKey) {
-        return this.$t('common.EnterForSearch')
+        return this.$t('EnterForSearch')
       }
-      return this.$t('common.Search')
+      return this.$t('Search')
     }
   },
   watch: {
     options: {
-      handler(val) {
-        if (val && val.length > 0) {
-          const routeFilter = this.checkInTableColumns()
+      handler(newVal, oldVal) {
+        if (newVal && newVal.length > 0) {
+          const routeFilter = this.checkInTableColumns(newVal)
+          if (oldVal.length > 0 && newVal.length !== oldVal.length) {
+            const beforeRouteFilter = this.checkInTableColumns(oldVal)
+            // 如果2次过滤的参数相同就不在重复请求
+            if (_.isEqual(routeFilter, beforeRouteFilter)) {
+              return
+            }
+          }
           this.filterTagSearch(routeFilter)
         }
       },
       deep: true
+    },
+    filterTags: {
+      handler(newValue) {
+        this.$emit('tag-search', this.filterMaps)
+      },
+      deep: true
+    },
+    filterValue(newValue, oldValue) {
+      if (newValue === '' && oldValue !== '') {
+        this.emptyCount = 1
+      }
+    },
+    '$route'(to, from) {
+      if (from.query !== to.query) {
+        this.filterTags = {}
+        if (to.query && Object.keys(to.query).length) {
+          const routeFilter = this.checkInTableColumns(this.options)
+          this.filterTagSearch(routeFilter)
+        }
+      }
     }
   },
   mounted() {
-    setTimeout(() => {
-      if (Object.keys(this.filterMaps).length > 0) {
-        return this.$emit('tagSearch', this.filterMaps)
-      }
-    }, 400)
-    // this.$nextTick(() => this.$emit('tagSearch', this.filterMaps))
+    document.addEventListener('keyup', this.handleKeyUp)
+  },
+  beforeDestroy() {
+    document.removeEventListener('keyup', this.handleKeyUp)
   },
   methods: {
+    handleFocus() {
+      this.focus = true
+      this.isFocus = true
+      this.suffixIcon = 'el-icon-search'
+    },
+    handleBlur() {
+      this.focus = false
+      this.isFocus = false
+      this.suffixIcon = ''
+      this.$emit('blur')
+    },
     // 获取url中的查询条件，判断是不是包含在当前查询条件里
-    checkInTableColumns() {
+    checkInTableColumns(options) {
       const searchFieldOptions = {}
-      const queryInfoValues = this.options.map((i) => i.value)
+      const queryInfoValues = options.map((i) => i.value)
       const routeQuery = this.getUrlQuery ? this.$route?.query : {}
       const routeQueryKeysLength = Object.keys(routeQuery).length
       if (routeQueryKeysLength < 1) return searchFieldOptions
@@ -168,9 +211,10 @@ export default {
             label: current.label,
             value: valueDecode
           }
+
           if (curChildren.length > 0) {
             for (const item of curChildren) {
-              if (valueDecode === item.value) {
+              if (valueDecode === String(item.value)) {
                 searchFieldOption.valueLabel = item.label
                 break
               }
@@ -203,11 +247,6 @@ export default {
       this.filterTags = {
         ...asFilterTags,
         ...routeFilter
-      }
-      if (Object.keys(routeFilter).length > 0) {
-        setTimeout(() => {
-          return this.$emit('tagSearch', this.filterMaps)
-        }, 490)
       }
     },
     getValueLabel(key, value) {
@@ -243,9 +282,21 @@ export default {
     },
     handleTagClose(evt) {
       this.$delete(this.filterTags, evt)
-      this.checkUrlFilds(evt)
-      this.$emit('tagSearch', this.filterMaps)
+      if (this.getUrlQuery) {
+        this.checkUrlFields(evt)
+      }
+      // this.$emit('tagSearch', this.filterMaps)
       return true
+    },
+    handleDelete() {
+      const filterTags = Object.keys(this.filterTags)
+      if (this.filterValue === '' && filterTags.length > 0) {
+        if (this.emptyCount === 2) {
+          this.handleTagClose(filterTags[filterTags.length - 1])
+        } else {
+          this.emptyCount++
+        }
+      }
     },
     handleConfirm() {
       if (this.filterValue === '') {
@@ -256,6 +307,9 @@ export default {
       if (this.filterValue && !this.filterKey) {
         this.filterKey = 'search' + '_' + this.filterValue
       }
+      setTimeout(() => {
+        this.emptyCount = 2
+      }, 10)
       const tag = {
         key: this.filterKey,
         label: this.keyLabel,
@@ -263,7 +317,7 @@ export default {
         valueLabel: this.valueLabel
       }
       this.$set(this.filterTags, this.filterKey, tag)
-      this.$emit('tagSearch', this.filterMaps)
+      // this.$emit('tagSearch', this.filterMaps)
 
       // 修改查询参数时改变url中保存的参数
       if (this.getUrlQuery) {
@@ -279,6 +333,8 @@ export default {
       this.filterKey = ''
       this.filterValue = ''
       this.valueLabel = ''
+
+      this.$refs.SearchInput.blur()
     },
     handleTagClick(v, k) {
       let unableChange = false
@@ -303,8 +359,17 @@ export default {
       this.filterValue = v.value
       this.$refs.SearchInput.focus()
     },
+    handleKeyUp(event) {
+      // 当目标对象为一个 length 为 0 的伪数组时表明此时是在全局情况下调用
+      // 若存在遮罩层等组件在调用时，其 length 将会为 1
+      if (event.target.classList.length === 0 && event.key === '/') {
+        this.$refs.SearchInput.focus()
+        this.suffixIcon = 'el-icon-search'
+        this.isFocus = true
+      }
+    },
     // 删除查询条件时改变url
-    checkUrlFilds(evt) {
+    checkUrlFields(evt) {
       let newQuery = _.omit(this.$route.query, evt)
       if (this.getUrlQuery && evt.startsWith('search')) {
         if (newQuery.search) delete newQuery.search
@@ -321,31 +386,37 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .filter-field {
-    display: flex;
-    align-items:  center;
-    min-width: 198px;
-    border: 1px solid #dcdee2;
-    border-radius: 3px;
-    background-color:#fff;
+$borderColor-neutral-muted: #afb8c133;
+$bgColor-muted: #f6f8fa;
+$origin-white-color: #ffffff;
 
-  }
-  .search-input  >>> .el-input__suffix {
-    cursor: pointer;
-  }
-  .search-input2 >>> .el-input__inner {
-    text-indent: 5px;
-  }
-  .search-input >>> .el-input__inner {
-    /*max-width:inherit !important;*/
+.filter-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 210px;
+  background-color: $origin-white-color;
 
-    max-width: 200px;
-    border: none;
-    padding-left: 5px;
-  }
-  .el-input >>> .el-input__inner{
-    border: none !important;
-    font-size: 13px;
+  .el-cascader {
+    height: 28px;
+    line-height: 28px;
+
+    ::v-deep .el-input.el-input--suffix {
+      .el-input__inner {
+        width: 0;
+        height: 28px;
+        padding-right: 20px;
+        border: none;
+      }
+    }
+
+    ::v-deep .el-input__suffix {
+      color: var(--color-icon-primary) !important;
+
+      .el-input__suffix-inner .el-input__icon {
+        line-height: 30px;
+      }
+    }
   }
 
   .filterTitle {
@@ -355,36 +426,72 @@ export default {
     flex-shrink: 0;
     border-collapse: separate;
     box-sizing: border-box;
-    color: rgb(96, 98, 102);
+    color: var(--el-text-icon);
     display: inline;
     font-size: 13px;
     height: auto;
   }
-  .filter-tag{
+
+  .filter-tag {
     margin: 2px 4px 2px 0;
   }
-  .el-icon--right{
-    margin-left: 5px;
-    margin-right: 5px;
-  }
-  a {
-    color: #000;
+
+  .search-input {
+    height: 28px;
+
+    ::v-deep .el-input__suffix {
+      cursor: pointer;
+
+      i {
+        line-height: 30px;
+        font-weight: 500;
+        color: var(--color-icon-primary);
+      }
+    }
+
+    ::v-deep .el-input__inner {
+      height: 28px;
+      max-width: 200px;
+      border: none;
+      padding-left: 1px;
+      font-size: 13px;
+    }
+
+    &.no-options {
+      padding-left: 15px;
+    }
   }
 
-  .filter-field >>> .el-cascader .el-input--suffix .el-input__inner {
-    padding-right: 20px;
-  }
+  .keydown-focus {
+    position: absolute;
+    right: 0;
+    display: inline-block;
+    margin-right: 10px;
+    padding: 3px 5px;
+    font-size: 11px;
+    color: var(--color-text-primary);
+    border: solid 1px $borderColor-neutral-muted;
+    border-radius: 6px;
+    line-height: 10px;
+    background-color: var(--bgColor-muted);
+    box-shadow: inset 0 -1px 0 $borderColor-neutral-muted;
 
-  .filter-field >>> .el-cascader .el-input input {
-    width: 0;
-    border: none;
+    &.is-focus {
+      display: none;
+    }
   }
+}
 
-  .filter-field >>> .el-input__inner {
-    height: 30px;
-  }
+.search-input2 ::v-deep .el-input__inner {
+  text-indent: 5px;
+}
 
-  .el-cascader-menu__wrap {
-    height: inherit;
-  }
+.el-icon--right {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+a {
+  color: #000;
+}
 </style>
