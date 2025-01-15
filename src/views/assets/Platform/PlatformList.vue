@@ -2,11 +2,12 @@
   <TabPage
     v-if="!loading"
     :active-menu.sync="tab.activeMenu"
+    :help-tip="platformPageHelpMsg"
     :submenu="tab.submenu"
     @tab-click="changeMoreCreates"
   >
     <keep-alive>
-      <GenericListTable :header-actions="headerActions" :table-config="tableConfig" />
+      <GenericListTable ref="genericListTable" :header-actions="headerActions" :table-config="tableConfig" />
     </keep-alive>
   </TabPage>
 </template>
@@ -14,6 +15,7 @@
 <script>
 import { GenericListTable, TabPage } from '@/layout/components'
 import { ChoicesFormatter, ProtocolsFormatter } from '../../../components/Table/TableFormatters'
+import AmountFormatter from '@/components/Table/TableFormatters/AmountFormatter.vue'
 
 export default {
   components: {
@@ -24,6 +26,7 @@ export default {
     const vm = this
     return {
       loading: true,
+      platformPageHelpMsg: this.$t('PlatformPageHelpMsg'),
       tab: {
         submenu: [],
         activeMenu: 'host'
@@ -33,9 +36,28 @@ export default {
         columnsExclude: ['automation'],
         columnsShow: {
           min: ['name', 'actions'],
-          default: ['name', 'category', 'type', 'actions']
+          default: ['name', 'assets_amount', 'category', 'type', 'actions']
         },
         columnsMeta: {
+          assets_amount: {
+            width: '160px',
+            formatter: AmountFormatter,
+            formatterArgs: {
+              async: true,
+              permissions: 'assets.view_asset',
+              getRoute({ row }) {
+                return {
+                  name: 'PlatformDetail',
+                  params: {
+                    id: row.id
+                  },
+                  query: {
+                    tab: 'Assets'
+                  }
+                }
+              }
+            }
+          },
           type: {
             formatter: ChoicesFormatter
           },
@@ -48,9 +70,18 @@ export default {
             }
           },
           su_enabled: {
-            width: '100px',
+            width: '200px',
             formatterArgs: {
               showFalse: false
+            }
+          },
+          su_method: {
+            width: '200px',
+            formatter: (row) => {
+              if (!row.su_enabled) {
+                return '-'
+              }
+              return row?.su_method?.label || '-'
             }
           },
           protocols: {
@@ -59,6 +90,12 @@ export default {
           },
           base: {
             width: '140px'
+          },
+          internal: {
+            width: '100px',
+            formatterArgs: {
+              showFalse: false
+            }
           },
           actions: {
             formatterArgs: {
@@ -111,13 +148,23 @@ export default {
           },
           dropdown: []
         }
-      }
+      },
+      lastTab: ''
     }
   },
   computed: {
     url() {
       return `/api/v1/assets/platforms/?category=${this.tab.activeMenu}`
     }
+  },
+  deactivated() {
+    window.localStorage.setItem('lastTab', this.tab.activeMenu)
+  },
+  activated() {
+    setTimeout(() => {
+      this.tab.activeMenu = window.localStorage.getItem('lastTab') || 'host'
+      this.$refs.genericListTable.reloadTable()
+    }, 300)
   },
   async mounted() {
     try {
@@ -146,7 +193,7 @@ export default {
         cloud: 'fa-cloud',
         web: 'fa-globe',
         gpt: 'fa-comment',
-        custom: 'fa-th'
+        custom: 'fa-cube'
       }
       const state = await this.$store.dispatch('assets/getAssetCategories')
       for (const item of state.assetCategories) {
@@ -160,7 +207,3 @@ export default {
   }
 }
 </script>
-
-<style lang="scss" scoped>
-
-</style>

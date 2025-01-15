@@ -1,5 +1,5 @@
 <template>
-  <div v-if="!loading" :class="showSetting ? 'show-setting' : 'hide-setting'">
+  <div :class="showSetting ? 'show-setting' : 'hide-setting'">
     <div v-for="(item, index) in items" :key="item.name" class="protocol-item">
       <el-input
         v-model="item.port"
@@ -114,8 +114,7 @@ export default {
       name: '',
       items: [],
       currentProtocol: {},
-      showDialog: false,
-      loading: false
+      showDialog: false
     }
   },
   computed: {
@@ -129,9 +128,9 @@ export default {
     },
     portPlaceholder() {
       if (this.settingReadonly) {
-        return this.$t('applications.port')
+        return this.$t('Port')
       } else {
-        return this.$t('assets.DefaultPort')
+        return this.$t('DefaultPort')
       }
     },
     iChoices() {
@@ -144,13 +143,8 @@ export default {
   watch: {
     choices: {
       handler(value, oldValue) {
-        if (value?.length === oldValue?.length) {
-          return
-        }
-        this.loading = true
         setTimeout(() => {
           this.setDefaultItems(value)
-          this.loading = false
         },)
       },
       deep: true,
@@ -327,7 +321,7 @@ export default {
 }
 </script>
 <style lang="scss" scoped>
-.el-select >>> .el-input__inner {
+.el-select ::v-deep .el-input__inner {
   width: 120px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -345,10 +339,14 @@ export default {
 .protocol-item {
   display: flex;
   margin: 5px 0;
+
+  &:first-of-type {
+    margin-top: 0;
+  }
 }
 
 .input-button {
-  margin-top: 4px;
+  margin-top: 2px;
   display: flex;
   margin-left: 20px
 }

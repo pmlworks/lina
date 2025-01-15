@@ -15,13 +15,14 @@
 
 <script>
 import TreeTable from '@/components/Table/TreeTable/index.vue'
-import { getDayEnd, getDaysAgo, toSafeLocalDateStr } from '@/utils/common'
+import { getDayEnd, getDaysAgo, toSafeLocalDateStr } from '@/utils/time'
 import { OutputExpandFormatter } from '../formatters'
 import { DetailFormatter } from '@/components/Table/TableFormatters'
 import isFalsey from '@/components/Table/DataTable/compenents/el-data-table/utils/is-falsey'
 import deepmerge from 'deepmerge'
 import * as queryUtil from '@/components/Table/DataTable/compenents/el-data-table/utils/query'
 import { createSourceIdCache } from '@/api/common'
+import { download } from '@/utils/common'
 
 export default {
   name: 'CommandList',
@@ -51,7 +52,7 @@ export default {
           }
         },
         columns: [
-          'expandCol', 'input', 'risk_level', 'user', 'remote_addr',
+          'expandCol', 'input', 'risk_level', 'user',
           'asset', 'account', 'session', 'timestamp'
         ],
         extraQuery: {
@@ -66,8 +67,6 @@ export default {
             formatter: OutputExpandFormatter
           },
           risk_level: {
-            label: this.$t('sessions.riskLevel'),
-            width: '105px',
             formatter: (row, col, cellValue) => {
               const display = row['risk_level'].label
               if (cellValue?.value === 0) {
@@ -80,21 +79,14 @@ export default {
           actions: {
             has: false
           },
-          asset: {
-            width: '140px'
-          },
-          user: {
-            width: '140px'
-          },
           session: {
-            label: this.$t('sessions.session'),
             formatter: DetailFormatter,
-            width: '80px',
             formatterArgs: {
               openInNewPage: true,
+              removeColorOnClick: true,
               can: this.$hasPerm('terminal.view_session'),
               getTitle() {
-                return vm.$t('sessions.goto')
+                return vm.$t('Goto')
               },
               getRoute({ cellValue }) {
                 return {
@@ -105,8 +97,8 @@ export default {
             }
           },
           timestamp: {
-            label: this.$t('sessions.date'),
-            width: '150px',
+            label: this.$t('Datetime'),
+            width: 180,
             sortable: 'custom',
             formatter: function(row) {
               return toSafeLocalDateStr(row.timestamp * 1000)
@@ -143,10 +135,7 @@ export default {
               queryUtil.stringify(query, '=', '&')
             url = url + queryStr
             this.$log.debug('Export url: ', this.url, '=>', url)
-            const a = document.createElement('a')
-            a.href = url
-            a.click()
-            window.URL.revokeObjectURL(url + queryStr)
+            download(url + queryStr)
           }
         }
       },
@@ -172,7 +161,7 @@ export default {
               return
             }
             if (!treeNode.valid) {
-              this.$message.error(this.$tc('sessions.EsDisabled'))
+              this.$message.error(this.$tc('EsDisabled'))
               return
             }
             this.tableConfig.url = `/api/v1/terminal/commands/?command_storage_id=${treeNode.id}&order=-timestamp`
@@ -239,7 +228,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.command-list-table > > > .risk-command {
+.command-list-table ::v-deep .risk-command {
   background-color: oldlace;
 
   tr {

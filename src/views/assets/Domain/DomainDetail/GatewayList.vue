@@ -2,6 +2,7 @@
   <div>
     <el-col :md="24" :sm="24">
       <GenericListTable
+        ref="ListTable"
         :header-actions="headerActions"
         :table-config="tableConfig"
       />
@@ -10,6 +11,7 @@
         :port="port"
         :visible.sync="visible"
       />
+      <AddGatewayDialog :object="object" :setting="AddGatewaySetting" @close="handleAddGatewayDialogClose" />
     </el-col>
   </div>
 </template>
@@ -19,11 +21,13 @@ import GenericListTable from '@/layout/components/GenericListTable/index'
 import GatewayDialog from '@/components/Apps/GatewayDialog'
 import { connectivityMeta } from '@/components/Apps/AccountListTable/const'
 import { ArrayFormatter, ChoicesFormatter, DetailFormatter, TagsFormatter } from '@/components/Table/TableFormatters'
+import AddGatewayDialog from '@/views/assets/Domain/components/AddGatewayDialog'
 
 export default {
   components: {
     GenericListTable,
-    GatewayDialog
+    GatewayDialog,
+    AddGatewayDialog
   },
   props: {
     object: {
@@ -42,8 +46,8 @@ export default {
         columnsShow: {
           min: ['name', 'actions'],
           default: [
-            'name', 'address', 'protocols', 'nodes_display',
-            'connectivity', 'comment', 'actions'
+            'name', 'address', 'protocols',
+            'connectivity', 'actions'
           ]
         },
         columnsMeta: {
@@ -89,7 +93,10 @@ export default {
           connectivity: connectivityMeta,
           actions: {
             formatterArgs: {
-              updateRoute: { name: 'GatewayUpdate', query: { domain: this.object.id, platform_type: 'linux', 'category': 'host' }},
+              updateRoute: {
+                name: 'GatewayUpdate',
+                query: { domain: this.object.id, platform_type: 'linux', 'category': 'host' }
+              },
               performDelete: ({ row }) => {
                 const id = row.id
                 const url = `/api/v1/assets/gateways/${id}/`
@@ -97,14 +104,23 @@ export default {
               },
               extraActions: [
                 {
+                  name: 'RemoveGateWay',
+                  order: 10,
+                  can: this.$hasPerm('assets.test_assetconnectivity') && !this.$store.getters.currentOrgIsRoot,
+                  title: this.$t('Remove'),
+                  callback: function(val) {
+                    this.removeGateway(val)
+                  }.bind(this)
+                },
+                {
                   name: 'TestConnection',
                   can: this.$hasPerm('assets.test_assetconnectivity') && !this.$store.getters.currentOrgIsRoot,
-                  title: this.$t('assets.TestConnection'),
+                  title: this.$t('TestConnection'),
                   callback: function(val) {
                     this.visible = true
                     const port = val.row.protocols.find(item => item.name === 'ssh').port
                     if (!port) {
-                      return this.$message.error(this.$tc('common.BadRequestErrorMsg'))
+                      return this.$message.error(this.$tc('BadRequestErrorMsg'))
                     } else {
                       this.port = port
                       this.cell = val.row.id
@@ -131,6 +147,20 @@ export default {
       headerActions: {
         hasBulkUpdate: false,
         hasSearch: true,
+        extraMoreActions: [
+          {
+            name: this.$t('RemoveSelected'),
+            title: this.$t('RemoveSelected'),
+            type: 'primary',
+            icon: 'fa fa-minus',
+            can({ selectedRows }) {
+              return selectedRows.length > 0
+            },
+            callback: function(rows) {
+              this.removeGateway(rows)
+            }.bind(this)
+          }
+        ],
         createRoute: {
           name: 'GatewayCreate',
           query: {
@@ -138,14 +168,62 @@ export default {
             platform_type: 'linux',
             category: 'host'
           }
-        }
+        },
+        extraActions: [
+          {
+            name: 'GatewayAdd',
+            title: this.$t('Add'),
+            callback: function() {
+              this.AddGatewaySetting.addGatewayDialogVisible = true
+            }.bind(this)
+          }
+        ]
       },
       port: 0,
       cell: '',
-      visible: false
+      visible: false,
+      AddGatewaySetting: {
+        addGatewayDialogVisible: false
+      }
     }
   },
-  methods: {}
+  methods: {
+    reloadTable() {
+      this.$refs.ListTable.$refs.ListTable.reloadTable()
+    },
+    removeGateway(rows) {
+      let patch_data
+      let msg
+      if (rows.hasOwnProperty('selectedRows')) {
+        patch_data = rows.selectedRows.map(row => {
+          return {
+            id: row.id,
+            domain: null
+          }
+        })
+        msg = patch_data.length + ' ' + this.$t('Rows')
+      } else {
+        patch_data = [{
+          id: rows.row.id,
+          domain: null
+        }]
+        msg = rows.row.name
+      }
+      this.$confirm(this.$t('RemoveWarningMsg') + ' ' + msg + ' ?', {
+        type: 'warning'
+      }).then(() => {
+        this.$axios.patch(`/api/v1/assets/gateways/`, patch_data).then(() => {
+          this.reloadTable()
+          this.$message.success(this.$t('RemoveSuccessMsg'))
+        })
+      }).catch(() => {
+      })
+    },
+    handleAddGatewayDialogClose() {
+      this.reloadTable()
+    }
+
+  }
 }
 </script>
 

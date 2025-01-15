@@ -9,10 +9,12 @@
 import { GenericCreateUpdatePage } from '@/layout/components'
 import AssetSelect from '@/components/Apps/AssetSelect'
 import CodeEditor from '@/components/Form/FormFields/CodeEditor'
-import { CronTab } from '@/components'
 import i18n from '@/i18n/i18n'
-import VariableHelpDialog from '@/views/ops/Job/VariableHelpDialog'
+import VariableHelpDialog from '@/views/ops/Adhoc/VariableHelpDialog.vue'
 import { Required } from '@/components/Form/DataForm/rules'
+import { crontab, interval } from '@/views/accounts/const'
+import LoadTemplateLink from '@/views/ops/Job/components/LoadTemplateLink.vue'
+import Variable from '@/views/ops/Template/components/Variable'
 
 export default {
   components: {
@@ -26,11 +28,11 @@ export default {
       instantTask: false,
       url: '/api/v1/ops/jobs/',
       fields: [
-        [this.$t('common.Basic'), ['name', 'type', 'instant']],
-        [this.$t('common.Task'), ['module', 'args', 'playbook', 'chdir', 'timeout']],
-        [this.$t('ops.Asset'), ['assets', 'runas', 'runas_policy']],
-        [this.$t('ops.Plan'), ['run_after_save', 'is_periodic', 'crontab']],
-        [this.$t('common.Other'), ['comment']]
+        [this.$t('Basic'), ['name', 'type', 'instant']],
+        [this.$t('Asset'), ['assets', 'nodes', 'runas', 'runas_policy']],
+        [this.$t('Task'), ['module', 'argsLoadFromTemplate', 'args', 'playbook', 'variable', 'chdir', 'timeout', 'parameters']],
+        [this.$t('Plan'), ['run_after_save', 'is_periodic', 'interval', 'crontab']],
+        [this.$t('Other'), ['comment']]
       ],
       initial: {
         type: 'adhoc',
@@ -45,7 +47,7 @@ export default {
       },
       fieldsMeta: {
         runas_policy: {
-          helpText: this.$tc('ops.RunasPolicyHelpText')
+          helpText: this.$tc('RunasPolicyHelpText')
         },
         name: {
           rules: [Required],
@@ -64,7 +66,7 @@ export default {
           }
         },
         module: {
-          label: this.$t('ops.Module'),
+          label: this.$t('Module'),
           hidden: (formValue) => {
             return formValue.type !== 'adhoc'
           },
@@ -83,22 +85,69 @@ export default {
             multiple: false,
             value: [],
             ajax: {
-              url: '/api/v1/ops/playbooks/',
+              url: `/api/v1/ops/playbooks/?only_mine=true`,
               transformOption: (item) => {
                 return { label: item.name, value: item.id }
               }
+            }
+          },
+          on: {
+            change: ([event], updateForm) => {
+              this.queryParam = `playbook=${event.pk}`
+              this.$axios.get(`/api/v1/ops/playbooks/${event.pk}/`,
+              ).then(data => {
+                data?.variable.map(item => {
+                  delete item.job
+                  delete item.playbook
+                  delete item.id
+                  return item
+                })
+                updateForm({ variable: data.variable })
+              })
             }
           }
         },
         assets: {
           type: 'assetSelect',
           component: AssetSelect,
-          label: this.$t('perms.Asset'),
-          rules: [Required],
+          label: this.$t('Asset'),
           el: {
             baseUrl: '/api/v1/perms/users/self/assets/',
             baseNodeUrl: '/api/v1/perms/users/self/nodes/',
+            typeUrl: '/api/v1/perms/users/self/nodes/children-with-assets/category/tree',
             value: []
+          }
+        },
+        nodes: {
+          el: {
+            value: [],
+            ajax: {
+              url: '/api/v1/perms/users/self/nodes/',
+              filterOption: (item) => {
+                if (item.value !== 'favorite') {
+                  return item
+                }
+              },
+              transformOption: (item) => {
+                return { label: item.full_value || item.name, value: item.id }
+              }
+            }
+          }
+        },
+        argsLoadFromTemplate: {
+          label: this.$t('Templates'),
+          hidden: (formValue) => {
+            return formValue.type !== 'adhoc'
+          },
+          component: LoadTemplateLink,
+          on: {
+            change: ([event], updateForm) => {
+              updateForm({
+                args: event.args,
+                module: event.module.value,
+                variable: event.variable
+              })
+            }
           }
         },
         args: {
@@ -115,7 +164,7 @@ export default {
               {
                 type: 'button',
                 icon: 'fa-question-circle',
-                tip: this.$t('ops.SaveCommand'),
+                tip: this.$t('SaveCommand'),
                 align: 'right',
                 callback: () => {
                   this.showHelpDialog = true
@@ -124,8 +173,11 @@ export default {
             ]
           }
         },
+        variable: {
+          component: Variable
+        },
         timeout: {
-          helpText: i18n.t('ops.TimeoutHelpText')
+          helpText: i18n.t('TimeoutHelpText')
         },
         instant: {
           hidden: () => {
@@ -133,7 +185,7 @@ export default {
           }
         },
         chdir: {
-          helpText: i18n.t('ops.ChdirHelpText'),
+          helpText: i18n.t('ChdirHelpText'),
           hidden: (formValue) => {
             return formValue.type !== 'adhoc'
           }
@@ -141,7 +193,7 @@ export default {
         run_after_save: {
           type: 'checkbox',
           hidden: (formValue) => {
-            return this.instantTask
+            return true
           }
         },
         is_periodic: {
@@ -150,16 +202,34 @@ export default {
             return this.instantTask
           }
         },
-        crontab: {
-          type: 'cronTab',
-          component: CronTab,
-          label: i18n.t('xpack.RegularlyPerform'),
-          hidden: (formValue) => {
-            return formValue.is_periodic === false
-          },
-          helpText: i18n.t('xpack.HelpText.CrontabOfCreateUpdatePage')
+        parameters: {
+          hidden: () => {
+            return true
+          }
+        },
+        interval,
+        crontab
+      },
+      createSuccessNextRoute: { name: 'JobManagement' },
+      updateSuccessNextRoute: { name: 'JobManagement' },
+      cleanFormValue: (data) => {
+        Object.assign(data, { periodic_variable: this.periodicVariableValue })
+        return data
+      },
+      moreButtons: [
+        {
+          title: this.$t('ExecuteAfterSaving'),
+          callback: (value, form, btn) => {
+            form.value.run_after_save = true
+            const parameters = form.value.variable.reduce((acc, item) => {
+              acc[item.var_name] = item.default_value || ''
+              return acc
+            }, {})
+            form.value['parameters'] = parameters
+            this.submitForm(form, btn)
+          }
         }
-      }
+      ]
     }
   },
   mounted() {
@@ -196,7 +266,16 @@ export default {
       this.ready = true
     }
   },
-  methods: {}
+  methods: {
+    submitForm(form, btn) {
+      form.validate((valid) => {
+        if (valid) {
+          btn.loading = true
+        }
+      })
+      this.$refs.form.$refs.createUpdateForm.$refs.form.$refs.dataForm.submitForm('form', false)
+    }
+  }
 }
 
 </script>

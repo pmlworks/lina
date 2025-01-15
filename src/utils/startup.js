@@ -2,67 +2,51 @@
 import store from '@/store'
 import router, { resetRouter } from '@/router'
 import Vue from 'vue'
-import VueCookie from 'vue-cookie'
 import { message } from '@/utils/message'
 import orgUtil from '@/utils/org'
 import orgs from '@/api/orgs'
 import { getPropView, isViewHasOrgs } from '@/utils/jms'
-import request from '@/utils/request'
 
 const whiteList = ['/login', process.env.VUE_APP_LOGIN_PATH] // no redirect whitelist
+const autoEnterOrgs = [
+  '00000000-0000-0000-0000-000000000004',
+  '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000000'
+]
 
 function reject(msg) {
   return new Promise((resolve, reject) => reject(msg))
 }
 
-function isRenewalExpired(renewalTime) {
-  const currentTimeStamp = Math.floor(new Date().getTime() / 1000)
-  const sessionExpireTimestamp = VueCookie.get('jms_session_expire_timestamp')
-
-  if (!sessionExpireTimestamp) {
-    return false
+async function beforeGoToLogin() {
+  // remove currentOrg: System org item
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (!key.startsWith('currentOrg:')) {
+      continue
+    }
+    let value = localStorage.getItem(key)
+    value = JSON.parse(value)
+    if (!value.is_system) {
+      continue
+    }
+    localStorage.removeItem(key)
   }
-  const timeDifferenceInSeconds = currentTimeStamp - parseInt(sessionExpireTimestamp, 10)
-  return timeDifferenceInSeconds > renewalTime
+  if (store.getters.currentOrg.autoEnter) {
+    await store.dispatch('users/setCurrentOrg', store.getters.preOrg)
+  }
 }
 
 async function checkLogin({ to, from, next }) {
   if (whiteList.indexOf(to.path) !== -1) {
     next()
   }
-  // Determine whether the user has logged in
-  const sessionExpire = VueCookie.get('jms_session_expire')
-  if (!sessionExpire) {
-    request.get(process.env['VUE_APP_LOGOUT_PATH']).finally(() => {
-      window.location = process.env.VUE_APP_LOGIN_PATH
-    })
-    return reject('No session mark found in cookie')
-  } else if (sessionExpire === 'close') {
-    let startTime = new Date().getTime()
-    const intervalId = setInterval(() => {
-      const endTime = new Date().getTime()
-      const delta = (endTime - startTime)
-      startTime = endTime
-      Vue.$log.debug('Set session expire: ', delta)
-      if (!isRenewalExpired(120)) {
-        VueCookie.set('jms_session_expire', 'close', { expires: '2m' })
-      } else {
-        clearInterval(intervalId)
-      }
-    }, 10 * 1000)
-  } else if (sessionExpire === 'age') {
-    Vue.$log.debug('Session expire on age')
-  }
+
   try {
     return await store.dispatch('users/getProfile')
   } catch (e) {
     Vue.$log.error(e)
-    const status = e.response.status
-    if (status === 401 || status === 403) {
-      setTimeout(() => {
-        window.location = process.env.VUE_APP_LOGIN_PATH
-      }, 100)
-    }
+    await beforeGoToLogin()
     return reject('No profile get: ' + e)
   }
 }
@@ -70,13 +54,17 @@ async function checkLogin({ to, from, next }) {
 async function getPublicSetting({ to, from, next }, isOpen) {
   // 获取Public settings
   const publicSettings = store.getters.publicSettings
-  if (!publicSettings || !isOpen) {
+  if (!publicSettings || Object.keys(publicSettings).length === 0 || !isOpen) {
     await store.dispatch('settings/getPublicSettings', isOpen)
   }
 }
 
 async function refreshCurrentOrg() {
-  orgs.getCurrentOrg().then(org => {
+  return orgs.getCurrentOrg().then(org => {
+    // Root 就不刷新本地的了, 会影响 autoEnter
+    if (autoEnterOrgs.indexOf(org.id) !== -1) {
+      return
+    }
     store.dispatch('users/setCurrentOrg', org)
   })
 }
@@ -95,9 +83,16 @@ async function changeCurrentOrgIfNeed({ to, from, next }) {
     Vue.$log.error('Current org is null or not a object: ', currentOrg)
     await orgUtil.change2PropOrg({ to, from, next })
   }
-  if (currentOrg.name === 'SystemSetting') {
-    const preOrg = store.getters.preOrg
-    await orgUtil.changeOrg(preOrg)
+  const globalOrgPath = [
+    '/console/perms/login-acls/', '/console/users/roles/',
+    '/console/perms/connect-method-acls/', '/settings/'
+  ]
+  if (autoEnterOrgs.indexOf(currentOrg.id) !== -1 && currentOrg.autoEnter) {
+    const delta = new Date().getTime() - currentOrg.autoEnter
+    const notNeedChange = globalOrgPath.find(path => to.path.indexOf(path) === 0)
+    if (!notNeedChange && delta > 3000) {
+      await orgUtil.change2PropOrg({ to, from, next })
+    }
     return
   }
   if (!orgUtil.hasCurrentOrgPermission()) {
@@ -146,6 +141,11 @@ export async function checkUserFirstLogin({ to, from, next }) {
   if (store.state.users.profile.is_first_login) {
     next('/profile/improvement')
   }
+  const nextRoute = localStorage.getItem('next')
+  if (nextRoute) {
+    localStorage.setItem('next', '')
+    next(nextRoute.replace('#', ''))
+  }
 }
 
 export async function changeCurrentViewIfNeed({ to, from, next }) {
@@ -169,23 +169,45 @@ export async function changeCurrentViewIfNeed({ to, from, next }) {
   return new Promise((resolve, reject) => reject(''))
 }
 
+function onI18nLoaded() {
+  return new Promise(resolve => {
+    const load = store.state.app.i18nLoaded
+    if (load) {
+      resolve()
+    }
+    const itv = setInterval(() => {
+      const load = store.state.app.i18nLoaded
+      if (load) {
+        clearInterval(itv)
+        resolve()
+      }
+    }, 100)
+  })
+}
+
 export async function startup({ to, from, next }) {
   // if (store.getters.inited) { return true }
   if (store.getters.inited) {
     return true
   }
-  await store.dispatch('app/init')
 
-  // set page title
-  // await getOpenPublicSetting({ to, from, next })
-  await getPublicSetting({ to, from, next }, true)
-  await checkLogin({ to, from, next })
-  await getPublicSetting({ to, from, next }, false)
-  await changeCurrentViewIfNeed({ to, from, next })
-  await changeCurrentOrgIfNeed({ to, from, next })
-  await generatePageRoutes({ to, from, next })
-  await checkUserFirstLogin({ to, from, next })
-  await store.dispatch('assets/getAssetCategories')
+  try {
+    await store.dispatch('app/init')
+
+    // set page title
+    // await getOpenPublicSetting({ to, from, next })
+    await getPublicSetting({ to, from, next }, true)
+    await checkLogin({ to, from, next })
+    await onI18nLoaded()
+    await getPublicSetting({ to, from, next }, false)
+    await changeCurrentViewIfNeed({ to, from, next })
+    await changeCurrentOrgIfNeed({ to, from, next })
+    await generatePageRoutes({ to, from, next })
+    await checkUserFirstLogin({ to, from, next })
+    await store.dispatch('assets/getAssetCategories')
+  } catch (e) {
+    Vue.$log.error('Startup error: ', e)
+  }
   return true
 }
 

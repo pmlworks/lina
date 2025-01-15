@@ -11,11 +11,15 @@
     />
     <Dialog
       v-if="showTransfer"
+      :close-on-click-modal="false"
       :title="label"
       :visible.sync="showTransfer"
+      :disabled-status="!isLoaded"
+      class="the-dialog"
       width="730px"
       @cancel="handleTransCancel"
       @confirm="handleTransConfirm"
+      v-on="$listeners"
     >
       <krryPaging v-if="selectInitialized" ref="pageTransfer" class="transfer" v-bind="pagingTransfer" />
     </Dialog>
@@ -75,13 +79,16 @@ export default {
       if (keyword) {
         params['search'] = keyword
       }
+      this.isLoaded = false
       const data = await this.$axios.get(url, { params })
+      this.isLoaded = true
       return data['results'].map(item => {
         const n = transformOption(item)
         return { id: n.value, label: n.label }
       })
     }
     return {
+      isLoaded: false,
       showTransfer: false,
       selectInitialized: false,
       select2: {
@@ -99,6 +106,7 @@ export default {
         filterable: true,
         async: true,
         dataList: [],
+        transferOnCheck: true,
         getPageData: function(pageIndex, pageSize) {
           return getPageData({ pageIndex, pageSize })
         },
@@ -125,13 +133,17 @@ export default {
         return _.uniq(value)
       },
       set(val) {
-        this.$emit('input', val)
+        this.emit(val)
       }
     }
   },
   methods: {
+    emit(val) {
+      const value = _.uniq(val)
+      this.$emit('input', value)
+    },
     onInputChange(val) {
-      this.$emit('input', val)
+      this.emit(val)
     },
     handleFocus() {
       this.$refs.select2.selectRef.blur()
@@ -149,18 +161,14 @@ export default {
       this.showTransfer = false
     },
     handleTransConfirm() {
-      const selectedData = this.$refs.pageTransfer.checkedData
+      const selectedData = this.$refs.pageTransfer.selectListCheck
       const options = selectedData.map(item => {
         return { value: item.id, label: item.label }
       })
       this.select2.options = options
-      this.$emit('input', options.map(item => item.value))
+      this.emit(options.map(item => item.value))
       this.showTransfer = false
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

@@ -4,8 +4,8 @@
 
 <script>
 import { GenericCreateUpdatePage } from '@/layout/components'
-import { CronTab } from '@/components'
 import i18n from '@/i18n/i18n'
+import { crontab, interval, is_periodic } from '@/views/accounts/const'
 
 export default {
   components: {
@@ -14,34 +14,34 @@ export default {
   data() {
     return {
       fields: [
-        [this.$t('common.Basic'), ['name', 'nodes']],
-        [this.$t('xpack.Timer'), ['is_periodic', 'crontab', 'interval']],
-        [this.$t('common.Other'), ['is_sync_account', 'is_active', 'recipients', 'comment']]
+        [this.$t('Basic'), ['name', 'nodes', 'assets']],
+        [this.$t('Periodic'), ['is_periodic', 'crontab', 'interval']],
+        [this.$t('Other'), ['is_sync_account', 'is_active', 'recipients', 'comment']]
       ],
       url: '/api/v1/accounts/gather-account-automations/',
       hasDetailInMsg: false,
       fieldsMeta: {
         is_sync_account: {
           type: 'switch',
-          label: this.$t('accounts.AccountGather.IsSyncAccountLabel'),
-          helpText: this.$t('accounts.AccountGather.IsSyncAccountHelpText')
+          label: this.$t('IsSyncAccountLabel'),
+          helpText: this.$t('IsSyncAccountHelpText')
         },
-        crontab: {
-          component: CronTab,
-          hidden: (formValue) => {
-            return !formValue.is_periodic
-          },
-          helpText: this.$t('accounts.AccountChangeSecret.HelpText.CrontabOfCreateUpdatePage')
-        },
-        interval: {
-          label: this.$t('accounts.AccountChangeSecret.CyclePerform'),
-          helpText: this.$t('accounts.AccountChangeSecret.HelpText.IntervalOfCreateUpdatePage'),
-          hidden: (formValue) => {
-            return !formValue.is_periodic
+        is_periodic,
+        crontab,
+        interval,
+        assets: {
+          el: {
+            multiple: true,
+            value: [],
+            ajax: {
+              transformOption: (item) => {
+                return { label: item.name + '(' + item.address + ')', value: item.id }
+              },
+              url: '/api/v1/assets/assets/?gather_accounts_enabled=true'
+            }
           }
         },
         nodes: {
-          label: this.$tc('assets.Node'),
           el: {
             multiple: true,
             value: [],
@@ -53,12 +53,9 @@ export default {
             }
           }
         },
-        is_periodic: {
-          type: 'switch'
-        },
         recipients: {
-          label: i18n.t('accounts.AccountChangeSecret.Addressee'),
-          helpText: i18n.t('accounts.AccountChangeSecret.OnlyMailSend'),
+          label: i18n.t('Recipient'),
+          helpText: i18n.t('OnlyMailSend'),
           el: {
             value: [],
             ajax: {
@@ -81,6 +78,3 @@ export default {
 }
 
 </script>
-
-<style lang="less" scoped>
-</style>

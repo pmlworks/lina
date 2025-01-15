@@ -2,8 +2,8 @@
   <div>
     <echarts
       ref="echarts"
-      :options="options"
       :autoresize="true"
+      :options="options"
     />
   </div>
 </template>
@@ -12,35 +12,53 @@
 import 'echarts/lib/chart/line'
 import 'echarts/lib/component/legend'
 
-export default {
-  components: {
+import Decimal from 'decimal.js'
 
-  },
+export default {
   props: {
     config: {
       type: Object,
       default: () => {}
     }
   },
-  data() {
-    return {
-    }
-  },
   computed: {
     options() {
-      const { total, active = 0, title, color } = this.config
-      const percentage = active === 0 ? 0 : ((active / total) * 100).toFixed(0)
+      const { total = 0, active = 0, title, color } = this.config
+      const activeDecimal = new Decimal(active)
+      const totalDecimal = new Decimal(total)
+
+      let percentage = activeDecimal.dividedBy(totalDecimal).times(100)
+      percentage = isNaN(percentage) ? 0 : percentage
+      percentage = percentage.toFixed(2)
+
+      const formatTitle = (text) => {
+        if (!text) return ''
+        const maxLength = 23
+        const lines = []
+        for (let i = 0; i < text.length; i += maxLength) {
+          lines.push(text.slice(i, i + maxLength))
+        }
+        return lines.join('\n')
+      }
+
       return {
         title: [
           {
-            text: this.config.chartTitle,
+            text: formatTitle(this.config.chartTitle),
             textStyle: {
               color: '#646A73',
-              fontSize: 12
+              fontSize: 12,
+              lineHeight: 16,
+              rich: {
+                width: 100,
+                overflow: 'break'
+              }
             },
             textAlign: 'center',
             left: '48%',
-            top: '32%'
+            top: '32%',
+            width: 100,
+            overflow: 'break'
           },
           {
             left: '48%',
@@ -49,9 +67,9 @@ export default {
             text: active,
             textStyle: {
               fontSize: 24,
-              color: '#646A73'
+              color: '#1F2329'
             },
-            subtext: this.$t('dashboard.Proportion') + ' ' + percentage + '%',
+            subtext: this.$t('Proportion') + ' ' + percentage + '%',
             subtextStyle: {
               fontSize: 12,
               color: '#646A73'
@@ -100,6 +118,3 @@ export default {
   }
 }
 </script>
-
-<style lang="scss" scoped>
-</style>

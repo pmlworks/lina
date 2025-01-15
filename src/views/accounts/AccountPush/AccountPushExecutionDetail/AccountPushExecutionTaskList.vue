@@ -1,15 +1,24 @@
 <template>
-  <GenericListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <div>
+    <RecordViewSecret
+      v-if="showViewSecretDialog"
+      :url="secretUrl"
+      :visible.sync="showViewSecretDialog"
+    />
+    <GenericListTable :header-actions="headerActions" :table-config="tableConfig" />
+  </div>
 </template>
 
 <script>
 import GenericListTable from '@/layout/components/GenericListTable'
 import { ActionsFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
 import { openTaskPage } from '@/utils/jms'
+import RecordViewSecret from '@/components/Apps/ChangeSecret/RecordViewSecret.vue'
 
 export default {
   name: 'AccountPushExecutionTaskList',
   components: {
+    RecordViewSecret,
     GenericListTable
   },
   props: {
@@ -20,7 +29,10 @@ export default {
     }
   },
   data() {
+    const vm = this
     return {
+      secretUrl: '',
+      showViewSecretDialog: false,
       tableConfig: {
         url: `/api/v1/accounts/push-account-records/?execution_id=${this.object.id}`,
         columns: [
@@ -28,7 +40,7 @@ export default {
         ],
         columnsMeta: {
           asset: {
-            label: this.$t('accounts.AccountChangeSecret.Asset'),
+            label: this.$t('Asset'),
             formatter: DetailFormatter,
             formatterArgs: {
               can: this.$hasPerm('assets.view_asset'),
@@ -44,12 +56,12 @@ export default {
             }
           },
           account: {
-            label: this.$t('users.Username'),
+            label: this.$t('Username'),
             formatter: DetailFormatter,
             formatterArgs: {
               can: this.$hasPerm('accounts.view_account'),
               getTitle({ row }) {
-                return row.account.name
+                return row.account.username
               },
               getRoute({ row }) {
                 return {
@@ -60,7 +72,7 @@ export default {
             }
           },
           is_success: {
-            label: this.$t('accounts.AccountChangeSecret.Success'),
+            label: this.$t('Success'),
             formatter: (row) => {
               if (row.status === 'pending') {
                 return <i Class='fa  fa fa-spinner fa-spin'/>
@@ -77,17 +89,30 @@ export default {
               hasUpdate: false,
               hasDelete: false,
               hasClone: false,
-              moreActionsTitle: this.$t('common.More'),
+              moreActionsTitle: this.$t('More'),
               extraActions: [
                 {
+                  name: 'View',
+                  title: this.$t('View'),
+                  type: 'primary',
+                  callback: ({ row }) => {
+                    // debugger
+                    vm.secretUrl = `/api/v1/accounts/change-secret-records/${row.id}/secret/`
+                    vm.showViewSecretDialog = false
+                    setTimeout(() => {
+                      vm.showViewSecretDialog = true
+                    })
+                  }
+                },
+                {
                   name: 'Retry',
-                  title: this.$t('accounts.AccountChangeSecret.Retry'),
+                  title: this.$t('Retry'),
                   can: this.$hasPerm('accounts.add_changesecretexecution'),
                   type: 'primary',
                   callback: ({ row }) => {
                     this.$axios.post(
                       '/api/v1/accounts/push-account-records/execute/',
-                      { record_id: row.id }
+                      { record_ids: [row.id] }
                     ).then(res => {
                       openTaskPage(res['task'])
                     })
@@ -107,7 +132,57 @@ export default {
         hasImport: false,
         hasCreate: false,
         hasBulkDelete: false,
-        hasBulkUpdate: false
+        hasBulkUpdate: false,
+        searchConfig: {
+          exclude: ['id', 'status', 'execution'],
+          options: [
+            {
+              label: this.$t('Asset'),
+              value: 'asset_name'
+            },
+            {
+              label: this.$t('Accounts'),
+              value: 'account_username'
+            },
+            {
+              value: 'status',
+              label: this.$t('Status'),
+              type: 'choice',
+              children: [
+                {
+                  default: true,
+                  value: 'success',
+                  label: this.$t('Success')
+                },
+                {
+                  value: 'failed',
+                  label: this.$t('Failed')
+                }
+              ]
+            }
+          ]
+        },
+        extraMoreActions: [
+          {
+            name: 'RetrySelected',
+            title: this.$t('RetrySelected'),
+            type: 'primary',
+            fa: 'fa-retweet',
+            can: ({ selectedRows }) => {
+              return selectedRows.length > 0 && vm.$hasPerm('accounts.add_changesecretexecution')
+            },
+            callback: function({ selectedRows }) {
+              const ids = selectedRows.map(v => {
+                return v.id
+              })
+              this.$axios.post(
+                '/api/v1/accounts/change-secret-records/execute/',
+                { record_ids: ids }).then(res => {
+                openTaskPage(res['task'])
+              })
+            }.bind(this)
+          }
+        ]
       }
     }
   }

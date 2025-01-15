@@ -28,7 +28,6 @@
 <script>
 import Select2 from '@/components/Form/FormFields/Select2.vue'
 import AssetSelectDialog from './dialog.vue'
-import { b } from 'css-color-function/lib/adjusters'
 
 export default {
   componentName: 'AssetSelect',
@@ -37,6 +36,10 @@ export default {
     baseUrl: {
       type: String,
       default: '/api/v1/assets/assets/'
+    },
+    defaultPageSize: {
+      type: Number,
+      default: 10
     },
     baseNodeUrl: {
       type: String,
@@ -71,6 +74,7 @@ export default {
         value: iValue,
         multiple: true,
         clearable: true,
+        defaultPageSize: this.defaultPageSize,
         ajax: {
           url: this.baseUrl,
           transformOption: (item) => {
@@ -81,7 +85,6 @@ export default {
     }
   },
   methods: {
-    b,
     handleFocus() {
       this.$refs.select2.selectRef.blur()
       this.dialogVisible = true
@@ -136,16 +139,22 @@ export default {
 
   .tree-table {
     .left {
-      padding: 5px;
+      padding: 5px 0;
 
       .ztree {
-        min-height: 500px;
-        height: inherit !important;
+        height: 100%;
+      }
+    }
+
+    .right {
+      .transition-box {
+        padding-left: 0;
       }
     }
 
     .mini {
       padding-top: 8px;
+      width: 1px;
     }
 
     .transition-box {

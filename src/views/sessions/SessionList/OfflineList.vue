@@ -1,5 +1,5 @@
 <template>
-  <BaseList :url="url" :extra-actions="extraActions" />
+  <BaseList :extra-actions="extraActions" :url="url" :columns-meta="columnsMeta" :columns-exclude="columnsExclude" />
 </template>
 
 <script>
@@ -23,7 +23,7 @@ export default {
       extraActions: [
         {
           name: 'replay',
-          title: this.$t('sessions.replay'),
+          title: this.$t('Replay'),
           type: 'warning',
           can: ({ row }) => vm.hasPerms(row, 'view'),
           callback: function({ row, tableData }) {
@@ -34,7 +34,7 @@ export default {
         },
         {
           name: 'download',
-          title: this.$t('sessions.download'),
+          title: this.$t('Download'),
           type: 'primary',
           can: ({ row }) => vm.hasPerms(row, 'download'),
           callback: function({ row, tableData }) {
@@ -42,7 +42,13 @@ export default {
             download(`/api/v1/terminal/sessions/${row.id}/replay/download/`)
           }
         }
-      ]
+      ],
+      columnsExclude: ['has_command'],
+      columnsMeta: {
+        command_amount: {
+          label: this.$t('CommandsTotal')
+        }
+      }
     }
   },
   methods: {

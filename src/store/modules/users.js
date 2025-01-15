@@ -1,5 +1,7 @@
 import { getProfile as apiGetProfile, logout } from '@/api/users'
-import { getCurrentOrgLocal, getPreOrgLocal, getTokenFromCookie, saveCurrentOrgLocal, setPreOrgLocal } from '@/utils/auth'
+import {
+  getCurrentOrgLocal, getPreOrgLocal, getTokenFromCookie, saveCurrentOrgLocal, setPreOrgLocal
+} from '@/utils/auth'
 import orgUtil from '@/utils/org'
 import { resetRouter } from '@/router'
 import Vue from 'vue'
@@ -69,10 +71,11 @@ const mutations = {
     state.consoleOrgs = state.consoleOrgs.filter(i => i.id !== org.id)
   },
   SET_CURRENT_ORG(state, org) {
-    // 系统组织和全局组织不设置成 Pre org
-    if (!state.currentOrg?.autoEnter) {
-      state.preOrg = state.currentOrg
-      setPreOrgLocal(state.username, state.currentOrg)
+    // 系统组织不设置成 Pre org
+    const currentOrg = state.currentOrg
+    if (currentOrg && !currentOrg.autoEnter && !currentOrg.is_system) {
+      state.preOrg = currentOrg
+      setPreOrgLocal(state.username, currentOrg)
     }
     state.currentOrg = org
     saveCurrentOrgLocal(state.username, org)
@@ -142,7 +145,8 @@ const actions = {
     const systemOrg = {
       id: orgUtil.SYSTEM_ORG_ID,
       name: 'SystemSetting',
-      autoEnter: true
+      is_system: true,
+      autoEnter: new Date().getTime()
     }
     commit('SET_CURRENT_ORG', systemOrg)
   },
@@ -157,7 +161,8 @@ const actions = {
     const globalOrg = {
       id: orgUtil.GLOBAL_ORG_ID,
       name: 'Global',
-      autoEnter: true
+      is_root: true,
+      autoEnter: new Date().getTime()
     }
     commit('SET_CURRENT_ORG', globalOrg)
   },

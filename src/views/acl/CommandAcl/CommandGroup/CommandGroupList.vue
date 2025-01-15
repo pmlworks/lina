@@ -7,6 +7,7 @@ import { ListTable } from '@/components'
 import { DetailFormatter } from '@/components/Table/TableFormatters'
 
 export default {
+  name: 'CommandGroupList',
   components: {
     ListTable
   },
@@ -52,12 +53,6 @@ export default {
         }
       }
     }
-  },
-  computed: {
   }
 }
 </script>
-
-<style>
-
-</style>

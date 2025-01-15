@@ -2,23 +2,23 @@
   <div>
     <NewNodeDialog v-if="createDialogVisible" :visible.sync="createDialogVisible" @confirm="doCreate" />
     <TreeTable ref="TreeTable" :tree-setting="treeSetting">
-      <template slot="rMenu">
+      <template v-if="!disableEdit" slot="rMenu">
         <li id="m_create_file" class="rmenu" tabindex="-1" @click="onCreate('file')">
-          {{ $tc('ops.NewFile') }}
+          {{ $tc('NewFile') }}
         </li>
         <li id="m_create_directory" class="rmenu" tabindex="-1" @click="onCreate('directory')">
-          {{ $tc('ops.NewDirectory') }}
+          {{ $tc('NewDirectory') }}
         </li>
         <li id="m_rename" class="rmenu" tabindex="-1" @click="onRename">
-          {{ $tc('ops.Rename') }}
+          {{ $tc('Rename') }}
         </li>
         <li id="m_delete" class="rmenu" tabindex="-1" @click="onDelete">
-          {{ $tc('ops.Delete') }}
+          {{ $tc('Delete') }}
         </li>
       </template>
       <template slot="table">
         <div class="transition-box" style="width: calc(100% - 17px);">
-          <el-tabs v-model="activeEditorId" :closable="true" @tab-remove="onCloseEditor">
+          <el-tabs v-model="activeEditorId" :closable="true" class="workspace-tab" @tab-remove="onCloseEditor">
             <el-tab-pane
               v-for="(editor,key) in openedEditor"
               :key="key"
@@ -34,6 +34,13 @@
             </el-tab-pane>
           </el-tabs>
           <div style="display: flex;margin-top:10px;justify-content: space-between" />
+          <el-form ref="form" label-position="left" label-width="30px">
+            <div class="form-content">
+              <el-form-item label="" prop="variable">
+                <Variable :value.sync="variables" :disable-edit.sync="disableEdit" @input="setVariable" />
+              </el-form-item>
+            </div>
+          </el-form>
         </div>
       </template>
     </TreeTable>
@@ -46,13 +53,15 @@ import CodeEditor from '@/components/Form/FormFields/CodeEditor'
 import item from '@/layout/components/NavLeft/Item'
 import NewNodeDialog from '@/views/ops/Template/Playbook/PlaybookDetail/Editor/NewNodeDialog.vue'
 import { renameFile } from '@/api/ops'
+import Variable from '@/views/ops/Template/components/Variable'
 
 export default {
   name: 'CommandExecution',
   components: {
     NewNodeDialog,
     TreeTable,
-    CodeEditor
+    CodeEditor,
+    Variable
   },
   props: {
     object: {
@@ -62,7 +71,9 @@ export default {
     }
   },
   data() {
+    const disableEdit = this.object.creator !== this.$store.state.users.profile.id
     return {
+      disableEdit: disableEdit,
       newNode: {},
       createDialogVisible: false,
       createType: 'directory',
@@ -70,7 +81,8 @@ export default {
       closing: false,
       DataZTree: 0,
       cmOptions: {
-        mode: 'yaml'
+        mode: 'yaml',
+        readOnly: disableEdit
       },
       toolbar: {
         left: {
@@ -78,10 +90,11 @@ export default {
             type: 'button',
             align: 'left',
             icon: 'fa fa-save',
-            tip: this.$tc('ops.Save'),
+            tip: this.$tc('Save'),
             el: {
               type: 'primary'
             },
+            isVisible: disableEdit,
             callback: () => {
               this.onSave()
             }
@@ -90,10 +103,11 @@ export default {
             type: 'button',
             align: 'left',
             icon: 'fa fa-undo',
-            tip: this.$tc('ops.Reset'),
+            tip: this.$tc('Reset'),
             el: {
               type: 'primary'
             },
+            isVisible: disableEdit,
             callback: () => {
               this.onReset()
             }
@@ -141,7 +155,8 @@ export default {
       },
       iShowTree: true,
       activeEditorId: '',
-      openedEditor: {}
+      openedEditor: {},
+      variables: []
     }
   },
   computed: {
@@ -162,6 +177,7 @@ export default {
     }
   },
   mounted() {
+    this.variables = this.object?.variable
     this.onOpenEditor({ id: 'main.yml', name: 'main.yml' })
   },
   methods: {
@@ -180,7 +196,7 @@ export default {
         if (this.closing) {
           this.remoteTab(editor.key)
         }
-        this.$message.success(this.$tc('ops.SaveSuccess'))
+        this.$message.success(this.$tc('SaveSuccess'))
       })
     },
     onCreate(type) {
@@ -209,9 +225,9 @@ export default {
       if (!node) {
         return
       }
-      this.$confirm(this.$tc('ops.DeleteConfirmMessage'), this.$tc('ops.Delete'), {
-        confirmButtonText: this.$tc('ops.Confirm'),
-        cancelButtonText: this.$tc('ops.Cancel'),
+      this.$confirm(this.$tc('DeleteConfirmMessage'), this.$tc('Delete'), {
+        confirmButtonText: this.$tc('Confirm'),
+        cancelButtonText: this.$tc('Cancel'),
         type: 'warning'
       }).then(() => {
         this.$axios.delete(`/api/v1/ops/playbook/${this.object.id}/file/?key=${node.id}`).then(() => {
@@ -221,7 +237,7 @@ export default {
           this.refreshTree()
           this.$message({
             type: 'success',
-            message: this.$tc('ops.DeleteSuccess')
+            message: this.$tc('DeleteSuccess')
           })
         })
       })
@@ -244,14 +260,14 @@ export default {
       const editor = this.openedEditor[key]
       let text = ''
       if (this.hasChange(editor)) {
-        text = this.$tc('ops.CloseConfirmMessage')
+        text = this.$tc('CloseConfirmMessage')
       } else {
         this.remoteTab(key)
         return
       }
-      this.$confirm(text, this.$tc('ops.CloseConfirm'), {
-        confirmButtonText: this.$tc('ops.Confirm'),
-        cancelButtonText: this.$tc('ops.Cancel'),
+      this.$confirm(text, this.$tc('CloseConfirm'), {
+        confirmButtonText: this.$tc('Confirm'),
+        cancelButtonText: this.$tc('Cancel'),
         type: 'warning'
       }).then(() => {
         this.closing = true
@@ -281,6 +297,15 @@ export default {
     },
     hasChange(editor) {
       return editor.value !== editor.originValue
+    },
+    setVariable(variables) {
+      if (this.disableEdit) {
+        return
+      }
+      this.$axios.patch(`/api/v1/ops/playbooks/${this.object.id}/`,
+        { variable: variables }).catch(err => {
+        this.$message.error(this.$tc('UpdateErrorMsg') + ' ' + err)
+      })
     }
   }
 }
@@ -295,7 +320,13 @@ export default {
   background-color: var(--color-primary);
   border-color: var(--color-primary);
   color: #FFFFFF;
-  border-radius: 3px;
+  border-radius: 2px;
+}
+
+.workspace-tab {
+  ::v-deep .el-tabs__header {
+    margin: 0 0 15px 30px !important;
+  }
 }
 
 .el-tree {

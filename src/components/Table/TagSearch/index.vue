@@ -17,7 +17,7 @@
       size="small"
       type="info"
       @click="handleTagClick(v,k)"
-      @close="handleTagClose(k)"
+      @close.stop="handleTagClose(k)"
     >
       <strong v-if="v.label">{{ v.label + ':' }}</strong>
       <span v-if="v.valueLabel">{{ v.valueLabel }}</span>
@@ -27,17 +27,18 @@
     <el-input
       ref="SearchInput"
       v-model="filterValue"
-      :class="options.length < 1 ? 'search-input2': ''"
-      :placeholder="placeholder"
-      :validate-event="false"
       class="search-input"
-      suffix-icon="el-icon-search"
-      @blur="focus = false"
+      :class="options.length > 0 ? '' : 'no-options'"
+      :placeholder="placeholder"
+      :suffix-icon="suffixIcon"
+      :validate-event="false"
+      @blur="handleBlur"
       @change="handleConfirm"
-      @focus="focus = true"
+      @focus="handleFocus"
       @keyup.enter.native="handleConfirm"
       @keyup.delete.native="handleDelete"
     />
+    <span :class="isFocus ? 'is-focus ' : ''" class="keydown-focus">/</span>
   </div>
 
 </template>
@@ -48,7 +49,8 @@ export default {
   props: {
     config: {
       type: Object,
-      default: () => {}
+      default: () => {
+      }
     },
     options: {
       type: Array,
@@ -56,7 +58,7 @@ export default {
     },
     getUrlQuery: {
       type: Boolean,
-      default: () => true
+      default: () => false
     },
     default: {
       type: Object,
@@ -68,9 +70,12 @@ export default {
       filterKey: '',
       filterValue: '',
       valueLabel: '',
+      suffixIcon: '',
       emptyCount: 0,
       filterTags: this.default || {},
-      focus: false
+      focus: false,
+      showCascade: true,
+      isFocus: false
     }
   },
   computed: {
@@ -100,9 +105,9 @@ export default {
     },
     placeholder() {
       if (this.focus && this.filterKey) {
-        return this.$t('common.EnterForSearch')
+        return this.$t('EnterForSearch')
       }
-      return this.$t('common.Search')
+      return this.$t('Search')
     }
   },
   watch: {
@@ -123,7 +128,7 @@ export default {
       deep: true
     },
     filterTags: {
-      handler() {
+      handler(newValue) {
         this.$emit('tag-search', this.filterMaps)
       },
       deep: true
@@ -132,9 +137,35 @@ export default {
       if (newValue === '' && oldValue !== '') {
         this.emptyCount = 1
       }
+    },
+    '$route'(to, from) {
+      if (from.query !== to.query) {
+        this.filterTags = {}
+        if (to.query && Object.keys(to.query).length) {
+          const routeFilter = this.checkInTableColumns(this.options)
+          this.filterTagSearch(routeFilter)
+        }
+      }
     }
   },
+  mounted() {
+    document.addEventListener('keyup', this.handleKeyUp)
+  },
+  beforeDestroy() {
+    document.removeEventListener('keyup', this.handleKeyUp)
+  },
   methods: {
+    handleFocus() {
+      this.focus = true
+      this.isFocus = true
+      this.suffixIcon = 'el-icon-search'
+    },
+    handleBlur() {
+      this.focus = false
+      this.isFocus = false
+      this.suffixIcon = ''
+      this.$emit('blur')
+    },
     // 获取url中的查询条件，判断是不是包含在当前查询条件里
     checkInTableColumns(options) {
       const searchFieldOptions = {}
@@ -180,9 +211,10 @@ export default {
             label: current.label,
             value: valueDecode
           }
+
           if (curChildren.length > 0) {
             for (const item of curChildren) {
-              if (valueDecode === item.value) {
+              if (valueDecode === String(item.value)) {
                 searchFieldOption.valueLabel = item.label
                 break
               }
@@ -212,10 +244,12 @@ export default {
         delete routeFilter.search
       }
       const asFilterTags = _.cloneDeep(this.filterTags)
-      this.filterTags = {
-        ...asFilterTags,
-        ...routeFilter
-      }
+      setTimeout(() => {
+        this.filterTags = {
+          ...asFilterTags,
+          ...routeFilter
+        }
+      }, 100)
     },
     getValueLabel(key, value) {
       for (const field of this.options) {
@@ -301,6 +335,8 @@ export default {
       this.filterKey = ''
       this.filterValue = ''
       this.valueLabel = ''
+
+      this.$refs.SearchInput.blur()
     },
     handleTagClick(v, k) {
       let unableChange = false
@@ -325,6 +361,15 @@ export default {
       this.filterValue = v.value
       this.$refs.SearchInput.focus()
     },
+    handleKeyUp(event) {
+      // 当目标对象为一个 length 为 0 的伪数组时表明此时是在全局情况下调用
+      // 若存在遮罩层等组件在调用时，其 length 将会为 1
+      if (event.target.classList.length === 0 && event.key === '/') {
+        this.$refs.SearchInput.focus()
+        this.suffixIcon = 'el-icon-search'
+        this.isFocus = true
+      }
+    },
     // 删除查询条件时改变url
     checkUrlFields(evt) {
       let newQuery = _.omit(this.$route.query, evt)
@@ -343,31 +388,37 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .filter-field {
-    display: flex;
-    align-items:  center;
-    min-width: 198px;
-    border: 1px solid #dcdee2;
-    border-radius: 3px;
-    background-color:#fff;
+$borderColor-neutral-muted: #afb8c133;
+$bgColor-muted: #f6f8fa;
+$origin-white-color: #ffffff;
 
-  }
-  .search-input  >>> .el-input__suffix {
-    cursor: pointer;
-  }
-  .search-input2 >>> .el-input__inner {
-    text-indent: 5px;
-  }
-  .search-input >>> .el-input__inner {
-    /*max-width:inherit !important;*/
+.filter-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 210px;
+  background-color: $origin-white-color;
 
-    max-width: 200px;
-    border: none;
-    padding-left: 5px;
-  }
-  .el-input >>> .el-input__inner{
-    border: none !important;
-    font-size: 13px;
+  .el-cascader {
+    height: 28px;
+    line-height: 28px;
+
+    ::v-deep .el-input.el-input--suffix {
+      .el-input__inner {
+        width: 0;
+        height: 28px;
+        padding-right: 20px;
+        border: none;
+      }
+    }
+
+    ::v-deep .el-input__suffix {
+      color: var(--color-icon-primary) !important;
+
+      .el-input__suffix-inner .el-input__icon {
+        line-height: 30px;
+      }
+    }
   }
 
   .filterTitle {
@@ -377,36 +428,72 @@ export default {
     flex-shrink: 0;
     border-collapse: separate;
     box-sizing: border-box;
-    color: rgb(96, 98, 102);
+    color: var(--el-text-icon);
     display: inline;
     font-size: 13px;
     height: auto;
   }
-  .filter-tag{
+
+  .filter-tag {
     margin: 2px 4px 2px 0;
   }
-  .el-icon--right{
-    margin-left: 5px;
-    margin-right: 5px;
-  }
-  a {
-    color: #000;
+
+  .search-input {
+    height: 28px;
+
+    ::v-deep .el-input__suffix {
+      cursor: pointer;
+
+      i {
+        line-height: 30px;
+        font-weight: 500;
+        color: var(--color-icon-primary);
+      }
+    }
+
+    ::v-deep .el-input__inner {
+      height: 28px;
+      max-width: 200px;
+      border: none;
+      padding-left: 1px;
+      font-size: 13px;
+    }
+
+    &.no-options {
+      padding-left: 15px;
+    }
   }
 
-  .filter-field >>> .el-cascader .el-input--suffix .el-input__inner {
-    padding-right: 20px;
-  }
+  .keydown-focus {
+    position: absolute;
+    right: 0;
+    display: inline-block;
+    margin-right: 10px;
+    padding: 3px 5px;
+    font-size: 11px;
+    color: var(--color-text-primary);
+    border: solid 1px $borderColor-neutral-muted;
+    border-radius: 6px;
+    line-height: 10px;
+    background-color: var(--bgColor-muted);
+    box-shadow: inset 0 -1px 0 $borderColor-neutral-muted;
 
-  .filter-field >>> .el-cascader .el-input input {
-    width: 0;
-    border: none;
+    &.is-focus {
+      display: none;
+    }
   }
+}
 
-  .filter-field >>> .el-input__inner {
-    height: 30px;
-  }
+.search-input2 ::v-deep .el-input__inner {
+  text-indent: 5px;
+}
 
-  .el-cascader-menu__wrap {
-    height: inherit;
-  }
+.el-icon--right {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+a {
+  color: #000;
+}
 </style>

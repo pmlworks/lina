@@ -11,7 +11,6 @@
 <script>
 import { GenericCreateUpdatePage } from '@/layout/components'
 import AssetSelect from '@/components/Apps/AssetSelect'
-import { getDayFuture } from '@/utils/common'
 import AccountFormatter from './components/AccountFormatter'
 import { AllAccount } from '../const'
 import ProtocolsSelect from '@/components/Form/FormFields/AllOrSpec.vue'
@@ -32,21 +31,18 @@ export default {
     }
     return {
       initial: {
-        is_active: true,
-        date_start: new Date().toISOString(),
-        date_expired: getDayFuture(25550, new Date()).toISOString(),
         nodes: nodesInitial,
         assets: assetsInitial,
         accounts: [AllAccount]
       },
       fields: [
-        [this.$t('common.Basic'), ['name']],
-        [this.$t('perms.User'), ['users', 'user_groups']],
-        [this.$t('perms.Asset'), ['assets', 'nodes']],
-        [this.$t('assets.Account'), ['accounts']],
-        [this.$t('assets.Protocol'), ['protocols']],
-        [this.$t('perms.Actions'), ['actions']],
-        [this.$t('common.Other'), ['is_active', 'date_start', 'date_expired', 'comment']]
+        [this.$t('Basic'), ['name']],
+        [this.$t('User'), ['users', 'user_groups']],
+        [this.$t('Asset'), ['assets', 'nodes']],
+        [this.$t('Account'), ['accounts']],
+        [this.$t('Protocol'), ['protocols']],
+        [this.$t('Action'), ['actions']],
+        [this.$t('Other'), ['is_active', 'date_start', 'date_expired', 'comment']]
       ],
       url: '/api/v1/perms/asset-permissions/',
       createSuccessNextRoute: { name: 'AssetPermissionDetail' },
@@ -71,12 +67,13 @@ export default {
         assets: {
           type: 'assetSelect',
           component: AssetSelect,
-          label: this.$t('perms.Asset'),
           rules: [{
             required: false
           }],
           el: {
             value: [],
+            defaultPageSize: 300,
+            baseUrl: '/api/v1/assets/assets/?fields_size=mini',
             treeSetting: {
               showSearch: false,
               showRefresh: false
@@ -96,9 +93,8 @@ export default {
         },
         protocols: {
           component: ProtocolsSelect,
-          label: this.$t('assets.Protocols'),
           el: {
-            resource: this.$t('assets.Protocol'),
+            resource: this.$t('Protocol'),
             select2: {
               url: '/api/v1/assets/protocols/',
               ajax: {
@@ -122,18 +118,12 @@ export default {
           }
         },
         actions: {
-          label: this.$t('perms.Actions'),
-          helpText: this.$t('common.actionsTips')
+          label: this.$t('Action'),
+          helpText: this.$t('ActionsTips')
         },
-        date_start: {
-          label: this.$t('common.DateStart')
-        },
-        date_expired: {
-          label: this.$t('common.dateExpired')
-        },
-        comment: {
-          label: this.$t('common.Comment')
-        },
+        date_start: {},
+        date_expired: {},
+        comment: {},
         is_active: {
           type: 'checkbox'
         }
@@ -150,8 +140,8 @@ export default {
 </script>
 
 <style lang="scss" scoped>
->>> .el-tree {
-  padding: 10px 0;
+::v-deep .el-tree {
+  padding: 5px 0;
 }
 
 </style>

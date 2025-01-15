@@ -6,8 +6,9 @@
         :key="index"
         style="display: inline-block"
       >
-        <el-tooltip :content="item.tip">
+        <el-tooltip :content="item.tip" :open-delay="500">
           <el-button
+            v-if="!item.isScrollButton || showScrollButton"
             size="mini"
             type="default"
             @click="item.callback()"
@@ -25,6 +26,7 @@
 import 'xterm/css/xterm.css'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
+import { downloadText } from '@/utils/common'
 
 export default {
   name: 'Term',
@@ -56,27 +58,40 @@ export default {
       }, this.xtermConfig)),
       toolbar: [
         {
-          tip: this.$tc('ops.ScrollToTop'),
+          tip: this.$tc('ScrollToTop'),
           icon: 'arrow-up',
           callback: () => {
             this.xterm.scrollToTop()
-          }
+          },
+          isScrollButton: true
         },
         {
-          tip: this.$tc('ops.ScrollToBottom'),
+          tip: this.$tc('ScrollToBottom'),
           icon: 'arrow-down',
           callback: () => {
             this.xterm.scrollToBottom()
-          }
+          },
+          isScrollButton: true
         },
         {
-          tip: this.$tc('ops.ClearScreen'),
+          tip: this.$tc('ClearScreen'),
           icon: 'refresh',
           callback: () => {
             this.xterm.reset()
           }
+        },
+        {
+          tip: this.$tc('Export'),
+          icon: 'download',
+          callback: () => {
+            this.xterm.selectAll()
+            const text = this.xterm.getSelection()
+            const filename = `${this.xtermConfig?.type}_${this.xtermConfig?.taskId}.log`
+            downloadText(text, filename)
+          }
         }
-      ]
+      ],
+      showScrollButton: false
     }
   },
   mounted: function() {
@@ -86,6 +101,7 @@ export default {
     this.xterm.open(terminalContainer)
     fitAddon.fit()
     this.xterm.scrollToBottom()
+    this.xterm.onScroll(this.checkScroll)
   },
   beforeDestroy() {
     this.xterm.dispose()
@@ -96,6 +112,9 @@ export default {
     },
     write: function(val) {
       this.xterm.write(val)
+    },
+    checkScroll(position) {
+      this.showScrollButton = position > 0
     }
   }
 }
@@ -104,6 +123,7 @@ export default {
 
 <style scoped>
 .xterm {
+  overflow: auto;
   padding-left: 5px;
   background-color: #FFFFFF;
 }

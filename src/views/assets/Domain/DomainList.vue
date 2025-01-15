@@ -1,10 +1,10 @@
 <template>
-  <GenericListPage :header-actions="headerActions" :help-message="notice" :table-config="tableConfig" />
+  <GenericListPage :header-actions="headerActions" :help-tip="notice" :table-config="tableConfig" />
 </template>
 
 <script>
 import { GenericListPage } from '@/layout/components'
-import { DetailFormatter } from '@/components/Table/TableFormatters'
+import AmountFormatter from '@/components/Table/TableFormatters/AmountFormatter.vue'
 
 export default {
   components: {
@@ -15,28 +15,46 @@ export default {
       tableConfig: {
         url: '/api/v1/assets/domains/',
         columnsExclude: ['gateway'],
-        columnsExtra: ['gateway_count'],
-        columns: ['name', 'assets_amount', 'gateway_count', 'comment', 'actions'],
+        columnsExtra: ['gateways'],
+        columns: ['name', 'assets_amount', 'gateways', 'labels', 'comment', 'actions'],
         columnsShow: {
           min: ['name', 'actions'],
-          default: ['name', 'assets_amount', 'gateway_count', 'comment', 'actions']
+          default: ['name', 'assets_amount', 'gateways', 'comment', 'actions']
         },
         columnsMeta: {
           assets_amount: {
-            label: this.$t('assets.Assets'),
             width: '160px',
-            formatter: DetailFormatter
+            formatter: AmountFormatter,
+            formatterArgs: {
+              async: true,
+              permissions: 'assets.view_asset',
+              getRoute({ row }) {
+                return {
+                  name: 'ZoneDetail',
+                  params: {
+                    id: row.id
+                  },
+                  query: {
+                    tab: 'AssetList'
+                  }
+                }
+              }
+            }
           },
-          gateway_count: {
-            label: this.$t('assets.Gateway'),
-            formatter: DetailFormatter,
+          gateways: {
+            formatter: AmountFormatter,
             formatterArgs: {
               permissions: 'assets.view_gateway',
-              routeQuery: {
-                activeTab: 'GatewayList'
-              },
-              getTitle: function({ row }) {
-                return row.gateways.length
+              getRoute({ row }) {
+                return {
+                  name: 'ZoneDetail',
+                  params: {
+                    id: row.id
+                  },
+                  query: {
+                    tab: 'GatewayList'
+                  }
+                }
               }
             }
           }
@@ -44,14 +62,10 @@ export default {
       },
       headerActions: {
         hasLabelSearch: true,
-        createRoute: 'DomainCreate'
+        createRoute: 'ZoneCreate'
       },
-      notice: this.$t('assets.DomainHelpMessage')
+      notice: this.$t('ZoneHelpMessage')
     }
   }
 }
 </script>
-
-<style>
-
-</style>

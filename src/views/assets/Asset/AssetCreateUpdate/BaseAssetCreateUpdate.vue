@@ -47,6 +47,7 @@ export default {
     return {
       loading: true,
       platform: {},
+      changePlatformID: '',
       defaultConfig: {
         initial: {},
         platform: {},
@@ -56,10 +57,10 @@ export default {
         updateSuccessNextRoute: this.updateSuccessNextRoute,
         hasDetailInMsg: false,
         fields: [
-          [this.$t('common.Basic'), ['name', 'address', 'platform', 'nodes']],
-          [this.$t('assets.Protocol'), ['protocols']],
-          [this.$t('assets.Account'), ['accounts']],
-          [this.$t('common.Other'), ['domain', 'labels', 'is_active', 'comment']]
+          [this.$t('Basic'), ['name', 'address', 'platform', 'nodes']],
+          [this.$t('Protocol'), ['protocols']],
+          [this.$t('Account'), ['accounts']],
+          [this.$t('Other'), ['domain', 'labels', 'is_active', 'comment']]
         ],
         fieldsMeta: assetFieldsMeta(this),
         performSubmit(validValues) {
@@ -131,7 +132,7 @@ export default {
       const { defaultConfig } = this
       const { node, platform } = this.$route?.query || {}
       const nodesInitial = node ? [node] : []
-      const platformId = platform || 1
+      const platformId = this.changePlatformID ? this.changePlatformID : (platform || 'Linux')
       const url = `/api/v1/assets/platforms/${platformId}/`
       this.platform = await this.$axios.get(url)
       const initial = {

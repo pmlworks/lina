@@ -5,13 +5,12 @@ import Switcher from '@/components/Form/FormFields/Switcher.vue'
 import rules from '@/components/Form/DataForm/rules'
 import BasicTree from '@/components/Form/FormFields/BasicTree.vue'
 import JsonEditor from '@/components/Form/FormFields/JsonEditor.vue'
-import { assignIfNot } from '@/utils/common'
+import { assignIfNot, toSentenceCase } from '@/utils/common'
 import TagInput from '@/components/Form/FormFields/TagInput.vue'
-import TransferSelect from '@/components/Form/FormFields/TransferSelect.vue'
+import i18n from '@/i18n/i18n'
 
 export class FormFieldGenerator {
-  constructor(emit) {
-    this.$emite = emit
+  constructor() {
     this.groups = []
   }
 
@@ -103,6 +102,7 @@ export class FormFieldGenerator {
         field.el.filterable = true
       }
     }
+
     field.type = type
     return field
   }
@@ -134,9 +134,6 @@ export class FormFieldGenerator {
       case 'comment':
         field.el.type = 'textarea'
         break
-      case 'users':
-        field.component = TransferSelect
-        field.el.label = field.label
     }
     return field
   }
@@ -158,12 +155,78 @@ export class FormFieldGenerator {
     return field
   }
 
+  setHelpText(field, remoteFieldMeta) {
+    let helpText = toSentenceCase(remoteFieldMeta['help_text'])
+
+    if (!helpText) {
+      return field
+    }
+
+    let helpTextAsTip = field.helpTextAsTip
+    if (helpTextAsTip === undefined && !helpText.startsWith('*')) {
+      helpTextAsTip = true
+    } else {
+      helpText = helpText.replace(/^\*/, '')
+    }
+
+    let helpTextAsPlaceholder = field.helpTextAsPlaceholder
+    const helpTextWordLength = helpText.split(' ').length
+    const placeholderType = ['input', 'select', 'm2m_related_field']
+    const placeholderComponent = [ObjectSelect2]
+
+    const systemLang = document.cookie.django_language
+    if (helpTextAsPlaceholder !== undefined) {
+      helpTextAsPlaceholder = !!helpTextAsPlaceholder
+    } else if (placeholderType.indexOf(field.type) === -1 && placeholderComponent.indexOf(field.component) === -1) {
+      helpTextAsPlaceholder = false
+    } else if ((helpTextWordLength <= 5 || helpText.length <= 10) && systemLang === 'en') {
+      helpTextAsPlaceholder = true
+    }
+
+    if (helpTextAsPlaceholder) {
+      field.placeholder = field.placeholder || helpText
+    } else if (helpTextAsTip) {
+      field.helpTip = field.helpTip || helpText
+    } else {
+      field.helpText = field.helpText || helpText
+    }
+    return field
+  }
+
+  setChoicesTips(field, fieldMeta, fieldRemoteMeta) {
+    // 设置 checkbox 的 tips
+    if (['checkbox-group', 'radio-group'].indexOf(field.type) !== -1) {
+      field.options.map(option => {
+        if (!option.tip && field.tips) {
+          option.tip = field.tips[option.value]
+        }
+        if (!option.tip) {
+          const match = option.label.match(/^(.+?)\s*\((.*?)\)$/)
+          if (match) {
+            option.label = match[1]
+            option.tip = match[2]
+          }
+        }
+      })
+    }
+  }
+
+  afterGenerateField(field) {
+    field.label = toSentenceCase(field.label)
+
+    if (field.placeholder) {
+      field.el.placeholder = field.placeholder
+    }
+
+    this.setChoicesTips(field)
+    return field
+  }
+
   generateField(name, fieldsMeta, remoteFieldsMeta) {
     let field = { id: name, prop: name, el: {}, attrs: {}, rules: [] }
     const remoteFieldMeta = remoteFieldsMeta[name] || {}
     const fieldMeta = fieldsMeta[name] || {}
     field.label = remoteFieldMeta.label
-    field.helpText = remoteFieldMeta['help_text']
     field = this.generateFieldByType(remoteFieldMeta.type, field, fieldMeta, remoteFieldMeta)
     field = this.generateFieldByName(name, field)
     field = this.generateFieldByOther(field, fieldMeta, remoteFieldMeta)
@@ -172,8 +235,27 @@ export class FormFieldGenerator {
     field = Object.assign(field, fieldMeta)
     field.el = el
     field.rules = rules
+    field = this.setHelpText(field, remoteFieldMeta)
+    field = this.setPlaceholder(field, remoteFieldMeta)
+    field = this.afterGenerateField(field)
     _.set(field, 'attrs.error', '')
-    // Vue.$log.debug('Generate field: ', name, field)
+    Vue.$log.debug('Generate field: ', name, field)
+    return field
+  }
+
+  setPlaceholder(field, remoteFieldMeta) {
+    const label = field.label
+    if (!label) {
+      return field
+    }
+    if (field.placeholder || field.el.placeholder) {
+      return field
+    }
+    if (field.type === 'select' || [ObjectSelect2].indexOf(field.component) > -1) {
+      field.el.placeholder = i18n.t('PleaseSelect') + label.toLowerCase()
+    } else if (field.type === 'input') {
+      field.el.placeholder = field.label
+    }
     return field
   }
 

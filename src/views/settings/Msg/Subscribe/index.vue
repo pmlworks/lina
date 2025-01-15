@@ -9,7 +9,7 @@
         default-expand-all
         row-key="id"
       >
-        <el-table-column :label="$tc('notifications.MessageType')" width="230">
+        <el-table-column :label="$tc('MessageType')" width="230">
           <template v-slot="scope">
             <span>{{ scope.row.value }}</span>
           </template>
@@ -26,17 +26,20 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column :label="$tc('notifications.Receivers')" show-overflow-tooltip>
-          <template v-slot="scope">
-            <span v-if="!scope.row.children">
-              {{ scope.row.receivers.map(item => item.name).join(', ') }}
-            </span>
+        <el-table-column :label="$tc('Receivers')">
+          <template slot-scope="scope">
+            <el-popover trigger="hover" placement="top" popper-class="black-theme-popover">
+              <p v-for="item in scope.row.receivers" :key="item.name">{{ item.name }}</p>
+              <span v-if="!scope.row.children" slot="reference" class="name-wrapper">
+                {{ scope.row.receivers.map(item => item.name).join(', ') }}
+              </span>
+            </el-popover>
           </template>
         </el-table-column>
-        <el-table-column :label="$tc('common.Actions')" width="200">
+        <el-table-column :label="$tc('Actions')" width="200">
           <template v-slot="scope">
             <el-button v-if="!scope.row.children" type="small" @click="onOpenDialog(scope.row)">
-              {{ $t('notifications.ChangeReceiver') }}
+              {{ $t('EditRecipient') }}
             </el-button>
           </template>
         </el-table-column>
@@ -45,7 +48,7 @@
       <SelectDialog
         v-if="dialogVisible"
         :selected-users="dialogSelectedUsers"
-        :title="$tc('notifications.ChangeReceiver')"
+        :title="$tc('EditRecipient')"
         :visible.sync="dialogVisible"
         @cancel="dialogVisible=false"
         @submit="onDialogSelectSubmit"
@@ -185,5 +188,26 @@ export default {
   margin-right: 0;
   margin-bottom: 0;
   width: 50%;
+}
+
+::v-deep .el-table .cell {
+  display: flex;
+
+  .name-wrapper {
+    display: inline-block;
+    max-height: 55px;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+}
+
+::v-deep .black-theme-popover .el-popover__inner {
+  background-color: #000 !important;
+  color: #fff !important;
+  border-color: #000 !important;
 }
 </style>

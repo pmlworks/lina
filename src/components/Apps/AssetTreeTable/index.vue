@@ -2,9 +2,10 @@
   <TreeTable
     ref="TreeList"
     :active-menu.sync="treeTableConfig.activeMenu"
+    :component="treeComponent"
     :table-config="tableConfig"
     :tree-tab-config="treeTableConfig"
-    component="TabTree"
+    :tree-width="treeWidth"
     v-bind="$attrs"
     v-on="$listeners"
   >
@@ -30,6 +31,10 @@ export default {
     url: {
       type: String,
       default: '/api/v1/assets/assets/'
+    },
+    typeUrl: {
+      type: String,
+      default: '/api/v1/assets/nodes/category/tree/'
     },
     nodeUrl: {
       type: String,
@@ -63,12 +68,14 @@ export default {
     const vm = this
 
     return {
+      treeComponent: 'TabTree',
       treeTabConfig: {
         activeMenu: 'CustomTree',
         submenu: [
           {
-            title: this.$t('assets.AssetTree'),
+            title: this.$t('AssetTree'),
             name: 'CustomTree',
+            icon: 'fa-tree',
             treeSetting: {
               showAssets,
               showMenu: false,
@@ -94,16 +101,17 @@ export default {
             }
           },
           {
-            title: this.$t('assets.BuiltinTree'),
+            title: this.$t('TypeTree'),
+            icon: 'fa-list-ul',
             name: 'BuiltinTree',
             treeSetting: {
               showRefresh: true,
               showAssets: false,
               showSearch: false,
-              customTreeHeaderName: this.$t('assets.BuiltinTree'),
-              url: '/api/v1/assets/nodes/category/tree/',
+              customTreeHeaderName: this.$t('TypeTree'),
+              url: this.typeUrl,
               nodeUrl: this.treeSetting?.nodeUrl || this.nodeUrl,
-              treeUrl: `/api/v1/assets/nodes/category/tree/?assets=${showAssets ? '1' : '0'}&count_resource=${this.treeSetting.countResource || 'asset'}`,
+              treeUrl: `${this.typeUrl}?assets=${showAssets ? '1' : '0'}&count_resource=${this.treeSetting.countResource || 'asset'}`,
               callback: {
                 onSelected: (event, treeNode) => this.getAssetsUrl(treeNode)
               }
@@ -114,6 +122,9 @@ export default {
     }
   },
   computed: {
+    treeWidth() {
+      return '23.6%'
+    },
     treeTableConfig() {
       if (this.treeSetting.notShowBuiltinTree) {
         // eslint-disable-next-line vue/no-side-effects-in-computed-properties
@@ -150,33 +161,42 @@ export default {
         $('#m_show_asset_only_current_node').css('color', '#606266')
       }
     },
+
     getAssetsUrl(treeNode) {
       let url = this.treeSetting?.url || this.url
+
+      const setParam = (param, value, delay) => {
+        setTimeout(() => {
+          url = setUrlParam(url, param, value)
+        })
+      }
+
       if (treeNode.meta.type === 'node') {
         const nodeId = treeNode.meta.data.id
-        url = setUrlParam(url, 'node_id', nodeId)
-        url = setUrlParam(url, 'asset_id', '')
+        setParam('node_id', nodeId)
+        setParam('asset_id', '')
       } else if (treeNode.meta.type === 'asset') {
         const assetId = treeNode.meta.data?.id || treeNode.id
-        url = setUrlParam(url, 'node_id', '')
-        url = setUrlParam(url, 'asset_id', assetId)
+        setParam('node_id', '')
+        setParam('asset_id', assetId)
       } else if (treeNode.meta.type === 'category') {
-        url = setUrlParam(url, 'category', treeNode.meta.category)
+        setParam('category', treeNode.meta.category)
       } else if (treeNode.meta.type === 'type') {
-        url = setUrlParam(url, 'category', treeNode.meta.category)
-        url = setUrlParam(url, 'type', treeNode.meta._type)
+        setParam('category', treeNode.meta.category)
+        setParam('type', treeNode.meta._type)
       } else if (treeNode.meta.type === 'platform') {
-        url = setUrlParam(url, 'platform', treeNode.id)
+        setParam('platform', treeNode.id)
       }
-      const query = this.setTreeUrlQuery()
-      url = query ? `${url}&${query}` : url
-      this.$set(this.tableConfig, 'url', url)
-      setRouterQuery(this, url)
+      setTimeout(() => {
+        const query = this.setTreeUrlQuery()
+        url = query ? `${url}&${query}` : url
+        this.$set(this.tableConfig, 'url', url)
+      })
+
+      if (this.treeSetting.selectSyncToRoute !== false) {
+        setRouterQuery(this, url)
+      }
     }
   }
 }
 </script>
-
-<style lang='scss' scoped>
-
-</style>

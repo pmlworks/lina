@@ -3,7 +3,7 @@
     :destroy-on-close="true"
     :loading-status="testLdapLoginStatus"
     :show-cancel="false"
-    :title="$tc('setting.testLdapLoginTitle') "
+    :title="$tc('TestLdapLoginTitle') "
     v-bind="$attrs"
     @confirm="testUserLoginClick()"
     v-on="$listeners"
@@ -13,17 +13,17 @@
       label-position="right"
       label-width="17%"
     >
-      <el-form-item :label="$tc('setting.username')">
+      <el-form-item :label="$tc('Username')">
         <el-input
           v-model="userLoginForm.username"
-          :placeholder="$tc('setting.usernamePlaceholder')"
+          :placeholder="$tc('UsernamePlaceholder')"
           autocomplete="off"
         />
       </el-form-item>
-      <el-form-item :label="$tc('setting.password')">
+      <el-form-item :label="$tc('Password')">
         <el-input
           v-model="userLoginForm.password"
-          :placeholder="$tc('setting.passwordPlaceholder')"
+          :placeholder="$tc('PasswordPlaceholder')"
           autocomplete="off"
           type="password"
         />
@@ -39,6 +39,12 @@ export default {
   name: 'TestLoginDialog',
   components: {
     Dialog
+  },
+  props: {
+    category: {
+      type: String,
+      required: true
+    }
   },
   data() {
     return {
@@ -69,7 +75,7 @@ export default {
     enableWS() {
       const scheme = document.location.protocol === 'https:' ? 'wss' : 'ws'
       const port = document.location.port ? ':' + document.location.port : ''
-      const url = '/ws/ldap/'
+      const url = `/ws/ldap/?category=${this.category}`
       const wsURL = scheme + '://' + document.location.hostname + port + url
       this.ws = new WebSocket(wsURL)
     }

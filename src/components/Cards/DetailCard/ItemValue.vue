@@ -1,5 +1,5 @@
 <script type="text/jsx">
-import { toSafeLocalDateStr } from '@/utils/common'
+import { toSafeLocalDateStr } from '@/utils/time'
 
 export default {
   name: 'ItemValue',
@@ -47,9 +47,9 @@ export default {
   methods: {
     toChoicesDisplay(value) {
       if (!value) {
-        return this.$t('common.No')
+        return this.$t('No')
       }
-      return this.$t('common.Yes')
+      return this.$t('Yes')
     },
     isDatetime(value) {
       if (typeof value !== 'string') {
@@ -78,7 +78,7 @@ export default {
         formatterData = data
       }
       return (
-        <span>{formatterData}</span>
+        <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: '1.2' }}>{formatterData}</span>
       )
     }
     if (this.value instanceof Array) {
@@ -92,7 +92,7 @@ export default {
       )
     }
     return (
-      <span>{this.displayValue}</span>
+      <span style='white-space: pre-wrap;' title={this.displayValue}>{this.displayValue}</span>
     )
   }
 }

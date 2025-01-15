@@ -1,7 +1,7 @@
 <template>
   <BaseAuth
     :config="settings"
-    :title="$tc('setting.OAuth2')"
+    :title="$tc('OAuth2')"
     enable-field="AUTH_OAUTH2"
     v-on="$listeners"
   />
@@ -13,6 +13,7 @@ import { JsonEditor } from '@/components/Form/FormFields'
 import { JsonRequired } from '@/components/Form/DataForm/rules'
 import { UploadField } from '@/components'
 import request from '@/utils/request'
+import { getOrgSelect2Meta } from '@/views/settings/Auth/const'
 
 export default {
   name: 'OAuth2',
@@ -25,24 +26,27 @@ export default {
       settings: {
         url: '/api/v1/settings/setting/?category=oauth2',
         fields: [
-          [this.$t('common.Basic'), [
+          [this.$t('Basic'), [
             'AUTH_OAUTH2',
             'AUTH_OAUTH2_PROVIDER',
             'AUTH_OAUTH2_LOGO_PATH',
             'AUTH_OAUTH2_CLIENT_ID', 'AUTH_OAUTH2_CLIENT_SECRET',
             'AUTH_OAUTH2_ACCESS_TOKEN_METHOD'
           ]],
-          [this.$t('common.Params'), [
+          [this.$t('Server'), [
             'AUTH_OAUTH2_SCOPE',
             'AUTH_OAUTH2_PROVIDER_AUTHORIZATION_ENDPOINT',
             'AUTH_OAUTH2_ACCESS_TOKEN_ENDPOINT',
             'AUTH_OAUTH2_PROVIDER_USERINFO_ENDPOINT',
             'AUTH_OAUTH2_PROVIDER_END_SESSION_ENDPOINT'
           ]],
-          [this.$t('common.Other'), [
-            'AUTH_OAUTH2_LOGOUT_COMPLETELY',
-            'AUTH_OAUTH2_ALWAYS_UPDATE_USER',
+          [this.$t('Search'), [
             'AUTH_OAUTH2_USER_ATTR_MAP'
+          ]],
+          [this.$t('Other'), [
+            'OAUTH2_ORG_IDS',
+            'AUTH_OAUTH2_ALWAYS_UPDATE_USER',
+            'AUTH_OAUTH2_LOGOUT_COMPLETELY'
           ]]
         ],
         fieldsMeta: {
@@ -51,7 +55,7 @@ export default {
             el: {
               width: '5%',
               height: '5%',
-              tip: this.$t('setting.OAuth2LogoTip')
+              tip: this.$t('OAuth2LogoTip')
             },
             on: {
               fileChange: ([value], updateForm) => {
@@ -61,13 +65,11 @@ export default {
           },
           AUTH_OAUTH2_USER_ATTR_MAP: {
             component: JsonEditor,
-            label: this.$t('setting.authUserAttrMap'),
-            rules: [JsonRequired],
-            helpText: this.$t('setting.authUserAttrMapHelpText')
+            rules: [JsonRequired]
           },
           AUTH_OAUTH2_ACCESS_TOKEN_METHOD: {
-            label: this.$t('setting.tokenHTTPMethod')
-          }
+          },
+          OAUTH2_ORG_IDS: getOrgSelect2Meta()
         },
         submitMethod: () => 'patch',
         afterGetFormValue(obj) {

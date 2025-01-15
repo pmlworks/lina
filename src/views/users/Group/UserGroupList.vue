@@ -1,10 +1,10 @@
 <template>
-  <GenericListPage :header-actions="headerActions" :table-config="tableConfig" />
+  <GenericListPage ref="listPage" :header-actions="headerActions" :table-config="tableConfig" />
 </template>
 
 <script>
 import { GenericListPage } from '@/layout/components'
-import { DetailFormatter } from '@/components/Table/TableFormatters'
+import AmountFormatter from '@/components/Table/TableFormatters/AmountFormatter.vue'
 
 export default {
   components: {
@@ -14,17 +14,19 @@ export default {
     return {
       tableConfig: {
         url: '/api/v1/users/groups/',
-        columns: ['name', 'users_amount', 'comment', 'actions'],
+        columns: ['name', 'users_amount', 'comment', 'actions', 'labels'],
         columnsShow: {
           default: ['name', 'users_amount', 'comment', 'actions'],
           min: ['name', 'action']
         },
         columnsMeta: {
           users_amount: {
-            label: this.$t('users.Users'),
-            width: '120px',
-            formatter: DetailFormatter,
+            formatter: AmountFormatter,
             formatterArgs: {
+              async: true,
+              getItem(item) {
+                return item.is_service_account ? null : item.name
+              },
               getRoute({ row }) {
                 return {
                   name: 'UserGroupDetail',
@@ -32,7 +34,7 @@ export default {
                     id: row.id
                   },
                   query: {
-                    activeTab: 'GroupUser'
+                    tab: 'GroupUser'
                   }
                 }
               }
@@ -52,7 +54,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>

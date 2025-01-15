@@ -1,5 +1,5 @@
 <template>
-  <GenericDetailPage :object.sync="execution" :active-menu.sync="config.activeMenu" v-bind="config" v-on="$listeners">
+  <GenericDetailPage :active-menu.sync="config.activeMenu" :object.sync="execution" v-bind="config" v-on="$listeners">
     <keep-alive>
       <component :is="config.activeMenu" :object="execution" />
     </keep-alive>
@@ -9,13 +9,13 @@
 <script>
 import { GenericDetailPage } from '@/layout/components'
 import AccountChangeSecretExecutionInfo from './AccountChangeSecretExecutionInfo'
-import AccountChangeSecretExecutionTaskList from './AccountChangeSecretExecutionTaskList'
+import AccountChangeSecretRecord from './AccountChangeSecretRecord'
 
 export default {
   components: {
     GenericDetailPage,
     AccountChangeSecretExecutionInfo,
-    AccountChangeSecretExecutionTaskList
+    AccountChangeSecretRecord
   },
   data() {
     return {
@@ -29,13 +29,13 @@ export default {
         },
         submenu: [
           {
-            title: this.$t('common.BasicInfo'),
+            title: this.$t('Basic'),
             name: 'AccountChangeSecretExecutionInfo',
             hidden: () => !this.$hasPerm('accounts.view_changesecretexecution')
           },
           {
-            title: this.$t('accounts.AccountChangeSecret.TaskList'),
-            name: 'AccountChangeSecretExecutionTaskList',
+            title: this.$t('TaskList'),
+            name: 'AccountChangeSecretRecord',
             hidden: () => !this.$hasPerm('accounts.view_changesecretrecord')
           }
         ],

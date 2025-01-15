@@ -1,75 +1,75 @@
 <template>
   <section class="app-main">
     <transition mode="out-in" name="fade-transform">
-      <keep-alive :include="cachedViews">
+      <keep-alive :max="10">
         <router-view :key="key" />
       </keep-alive>
     </transition>
-    <DrawerPanel v-if="chatAiEnabled" :icon="robotUrl" :modal="false" @toggle="onToggle">
-      <template scope="panelData">
-        <ChatGPT :drawer-panel-visible="panelData.drawerPanelVisible" />
-      </template>
-    </DrawerPanel>
+    <ChatGPT v-if="chatAiEnabled" />
   </section>
 </template>
 
 <script>
-import DrawerPanel from '@/components/Apps/DrawerPanel'
 import ChatGPT from '@/components/Apps/ChatAi'
 import { mapGetters } from 'vuex'
-import { getInputFocus } from '@/components/Apps/ChatAi/useChat'
 
 export default {
   name: 'AppMain',
   components: {
-    ChatGPT,
-    DrawerPanel
+    ChatGPT
   },
   computed: {
     ...mapGetters([
       'publicSettings'
     ]),
-    robotUrl() {
-      return require('../../assets/img/robot-assistant.png')
+    key() {
+      // 想让创建后回来 List 页面不刷新，但是完全不刷新 table 会不对，所以创建完成后，会更新 order 和 updated
+      // query 去掉这两个，如果变了再刷新
+      const query = {}
+      for (const [k, v] of Object.entries(this.$route.query)) {
+        if (k.includes('updated') || k.includes('order')) {
+          continue
+        }
+        query[k] = v
+      }
+
+      let key
+      if (this.$route.name.toLowerCase().includes('list')) {
+        key = _.trimEnd(this.$route.path, '/') + '?' + new URLSearchParams(query).toString()
+      } else {
+        key = new Date().getTime()
+      }
+      return key
     },
     chatAiEnabled() {
       return this.publicSettings?.CHAT_AI_ENABLED
-    },
-    key() {
-      return this.$route.path
-    },
-    cachedViews() {
-      return this.$store.state.tagsView.cachedViews
     }
   },
-  methods: {
-    onToggle(status) {
-      if (status) {
-        getInputFocus()
-      }
-    }
-  }
+  methods: {}
 }
 </script>
 
 <style lang="scss" scoped>
 .app-main {
   background-color: #f3f3f4;
-  height: 100%!important;
+  height: 100vh !important;
   width: 100%;
   position: relative;
   overflow: auto;
   /*padding: 10px 20px 10px;*/
 }
-.fixed-header+.app-main {
+
+.fixed-header + .app-main {
   padding-top: 50px;
 }
+
 .hasTagsView {
   .app-main {
     /* 84 = navbar + tags-view = 50 + 34 */
     min-height: calc(100vh - 84px);
   }
-  .fixed-header+.app-main {
+
+  .fixed-header + .app-main {
     padding-top: 84px;
   }
 }

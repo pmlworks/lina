@@ -1,5 +1,5 @@
-import store from '@/store'
 import { constantRoutes } from '@/router'
+import store from '@/store'
 import { openWindow } from './common'
 
 export function openTaskPage(taskId, taskType, taskUrl) {
@@ -109,7 +109,7 @@ export function isSameView(to, from) {
 
 export function getPropView() {
   const hasPermedViews = getPermedViews()
-  const preView = localStorage.getItem('PreView')
+  const preView = localStorage.getItem('preView')
   const hasPerm = hasPermedViews.indexOf(preView) > -1
   if (hasPerm) {
     return preView

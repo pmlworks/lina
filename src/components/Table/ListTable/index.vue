@@ -8,9 +8,11 @@
       :selected-rows="selectedRows"
       :table-url="tableUrl"
       v-bind="iHeaderActions"
+      @done="handleActionInitialDone"
     />
     <IBox class="table-content">
       <AutoDataTable
+        v-if="actionInit"
         ref="dataTable"
         :config="iTableConfig"
         :filter-table="filter"
@@ -29,7 +31,7 @@ import IBox from '../../IBox/index.vue'
 import TableAction from './TableAction/index.vue'
 import Emitter from '@/mixins/emitter'
 import AutoDataTable from '../AutoDataTable/index.vue'
-import { getDayEnd, getDaysAgo } from '@/utils/common'
+import { getDayEnd, getDaysAgo } from '@/utils/time'
 
 export default {
   name: 'ListTable',
@@ -73,7 +75,11 @@ export default {
     return {
       selectedRows: [],
       init: false,
-      extraQuery: extraQuery
+      urlUpdated: {},
+      isDeactivated: false,
+      extraQuery: extraQuery,
+      actionInit: this.headerActions.has === false,
+      initQuery: {}
     }
   },
   computed: {
@@ -93,11 +99,16 @@ export default {
       }
       const defaults = {}
       for (const [k, v] of Object.entries(actions)) {
-        let hasPerm = v.action.split('|').some(i => this.hasActionPerm(i.trim()))
-        if (v.checkRoot) {
-          hasPerm = hasPerm && !this.currentOrgIsRoot
+        const hasPerm = v.action.split('|').some(i => this.hasActionPerm(i.trim()))
+        if (!hasPerm) {
+          defaults[k] = this.$t('NoPermission')
+          continue
         }
-        defaults[k] = hasPerm
+        if (v.checkRoot && this.currentOrgIsRoot) {
+          defaults[k] = this.$t('NoPermissionInGlobal')
+          continue
+        }
+        defaults[k] = true
       }
       return Object.assign(defaults, this.headerActions)
     },
@@ -105,17 +116,29 @@ export default {
       return this.iHeaderActions.has === undefined ? true : this.iHeaderActions.has
     },
     iTableConfig() {
+      if (this.isDeactivated) {
+        return
+      }
       const config = deepmerge(this.tableConfig, {
         extraQuery: this.extraQuery
       })
       const checkRoot = !(this.$route.meta?.disableOrgsChange === true)
+      const checkPermAndRoot = (action) => {
+        if (!this.hasActionPerm(action)) {
+          return this.$t('NoPermission')
+        }
+        if (checkRoot && this.currentOrgIsRoot) {
+          return this.$t('NoPermissionInGlobal')
+        }
+        return true
+      }
       const formatterArgs = {
         'columnsMeta.actions.formatterArgs.canUpdate': () => {
-          return this.hasActionPerm('change') && (!checkRoot || !this.currentOrgIsRoot)
+          return checkPermAndRoot('change')
         },
         'columnsMeta.actions.formatterArgs.canDelete': 'delete',
         'columnsMeta.actions.formatterArgs.canClone': () => {
-          return this.hasActionPerm('add') && (!checkRoot || !this.currentOrgIsRoot)
+          return checkPermAndRoot('add')
         },
         'columnsMeta.name.formatterArgs.can': 'view'
       }
@@ -165,14 +188,55 @@ export default {
       deep: true
     }
   },
+  mounted() {
+    this.$set(this.urlUpdated, this.tableUrl, location.href)
+  },
+  deactivated() {
+    this.isDeactivated = true
+  },
+  activated() {
+    this.$nextTick(() => {
+      this.isDeactivated = false
+      const cleanUrl = this.tableUrl.split('?')[0]
+      const preURL = this.urlUpdated[cleanUrl]
+
+      if (!preURL || preURL === location.href) return
+
+      this.$set(this.urlUpdated, this.tableUrl, location.href)
+      this.$log.debug('Reload the table get latest data: pre ', preURL, ' current: ', location.href)
+      this.reloadTable()
+    })
+  },
   methods: {
+    handleActionInitialDone() {
+      setTimeout(() => {
+        this.actionInit = true
+      }, 100)
+    },
     handleSelectionChange(val) {
       this.selectedRows = val
     },
     reloadTable() {
-      this.dataTable.getList()
+      this.dataTable?.getList()
+    },
+    updateInitQuery(attrs) {
+      if (!this.actionInit) {
+        this.initQuery = attrs
+        for (const key in attrs) {
+          this.$set(this.extraQuery, key, attrs[key])
+        }
+        return true
+      }
+      const removeKeys = Object.keys(this.initQuery).filter(key => !attrs[key])
+      for (const key of removeKeys) {
+        this.$delete(this.extraQuery, key)
+      }
     },
     search(attrs) {
+      const init = this.updateInitQuery(attrs)
+      if (init) {
+        return
+      }
       this.$log.debug('ListTable: search table', attrs)
       this.$emit('TagSearch', attrs)
       this.$refs.dataTable?.$refs.dataTable?.search(attrs, true)
@@ -218,31 +282,28 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-
 .table-content {
   margin-top: 10px;
 
-  & > > > .el-card__body {
-    padding: 0;
-  }
+  ::v-deep {
+    .el-card__body {
+      padding: 0;
+    }
 
-  & > > > .el-table__header thead > tr > th {
-    background-color: white;
-  }
+    .el-table__row .cell {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
 
-  & > > > .el-table__row .cell {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
+    .el-table__expanded-cell pre {
+      max-height: 500px;
+      overflow-y: scroll;
+    }
 
-  & > > > .el-table__expanded-cell pre {
-    max-height: 500px;
-    overflow-y: scroll;
-  }
-
-  & > > > .el-button-ungroup .el-dropdown > .more-action {
-    height: 24.6px;
+    .el-button-ungroup .el-dropdown > .more-action {
+      //height: 24.6px;
+    }
   }
 }
 

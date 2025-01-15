@@ -5,7 +5,8 @@
       :accounts="gatherAccounts"
       :visible.sync="showDeleteAccountDialog"
     />
-    <TreeTable
+    <AssetTreeTable
+      ref="AssetTreeTable"
       :header-actions="headerActions"
       :table-config="tableConfig"
       :tree-setting="treeSetting"
@@ -14,14 +15,14 @@
 </template>
 
 <script>
-import TreeTable from '@/components/Table/TreeTable'
-import { toSafeLocalDateStr } from '@/utils/common'
+import AssetTreeTable from '@/components/Apps/AssetTreeTable'
+import { toSafeLocalDateStr } from '@/utils/time'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
 import RemoveAccount from '@/components/Apps/AccountListTable/RemoveAccount.vue'
 
 export default {
   components: {
-    TreeTable,
+    AssetTreeTable,
     RemoveAccount
   },
   data() {
@@ -32,7 +33,9 @@ export default {
       treeSetting: {
         showMenu: false,
         showRefresh: true,
+        showSearch: true,
         showAssets: true,
+        notShowBuiltinTree: true,
         url: '/api/v1/accounts/gathered-accounts/',
         nodeUrl: '/api/v1/assets/nodes/',
         // ?assets=0不显示资产. =1显示资产
@@ -42,11 +45,17 @@ export default {
         url: '/api/v1/accounts/gathered-accounts/',
         hasTree: true,
         columns: [
-          'asset', 'username', 'date_last_login', 'present', 'address_last_login', 'date_updated'
+          'asset', 'username', 'date_last_login', 'present',
+          'address_last_login', 'date_updated'
         ],
+        columnsShow: {
+          default: [
+            'asset', 'username', 'date_last_login', 'present',
+            'address_last_login'
+          ]
+        },
         columnsMeta: {
           asset: {
-            label: vm.$t('assets.Asset'),
             formatter: function(row) {
               const to = {
                 name: 'AssetDetail',
@@ -63,10 +72,7 @@ export default {
             showOverflowTooltip: true
           },
           present: {
-            width: 80
-          },
-          address_last_login: {
-            width: 120
+            width: '100px'
           },
           date_updated: {
             formatter: function(row, col, cell) {
@@ -78,11 +84,11 @@ export default {
             formatterArgs: {
               hasClone: false,
               hasUpdate: false, // can set function(row, value)
-              moreActionsTitle: this.$t('common.More'),
+              moreActionsTitle: this.$t('More'),
               extraActions: [
                 {
                   name: 'Sync',
-                  title: this.$t('accounts.Sync'),
+                  title: this.$t('Sync'),
                   can: this.$hasPerm('accounts.add_gatheredaccount') && !this.$store.getters.currentOrgIsRoot,
                   type: 'primary',
                   callback: ({ row }) => {
@@ -90,14 +96,14 @@ export default {
                       `/api/v1/accounts/gathered-accounts/sync-accounts/`,
                       { gathered_account_ids: [row.id] }
                     ).then(res => {
-                      this.$message.success(this.$tc('common.SyncSuccessMsg'))
+                      this.$message.success(this.$tc('SyncSuccessMsg'))
                     }).catch(() => {
                     })
                   }
                 },
                 {
                   name: 'SyncDelete',
-                  title: this.$t('accounts.SyncDelete'),
+                  title: this.$t('SyncDelete'),
                   can: this.$hasPerm('accounts.remove_account') && !this.$store.getters.currentOrgIsRoot,
                   type: 'danger',
                   callback: ({ row }) => {
@@ -116,15 +122,20 @@ export default {
       headerActions: {
         hasCreate: false,
         hasImport: false,
-        hasExport: false,
+        hasExport: true,
         searchConfig: {
           exclude: ['asset'],
-          options: []
+          options: [
+            {
+              label: this.$t('AssetName'),
+              value: 'asset_name'
+            }
+          ]
         },
         extraMoreActions: [
           {
             name: 'SyncSelected',
-            title: this.$t('common.SyncSelected'),
+            title: this.$t('SyncSelected'),
             type: 'primary',
             icon: 'fa fa-exchange',
             can: ({ selectedRows }) => {
@@ -138,15 +149,15 @@ export default {
                 `/api/v1/accounts/gathered-accounts/sync-accounts/`,
                 { gathered_account_ids: ids }
               ).then(() => {
-                this.$message.success(this.$tc('common.SyncSuccessMsg'))
+                this.$message.success(this.$tc('SyncSuccessMsg'))
               }).catch(err => {
-                this.$message.error(this.$tc('common.bulkSyncErrorMsg' + ' ' + err))
+                this.$message.error(this.$tc('SyncErrorMsg' + ' ' + err))
               })
             }.bind(this)
           },
           {
-            name: 'BulkSyncDelete',
-            title: this.$t('accounts.BulkSyncDelete'),
+            name: 'SyncDeleteSelected',
+            title: this.$t('SyncDeleteSelected'),
             type: 'primary',
             icon: 'fa fa-exchange',
             can: ({ selectedRows }) => {
@@ -163,10 +174,11 @@ export default {
         ]
       }
     }
+  },
+  activated() {
+    setTimeout(() => {
+      this.$refs.AssetTreeTable.$refs.TreeList.reloadTable()
+    }, 300)
   }
 }
 </script>
-
-<style>
-
-</style>
