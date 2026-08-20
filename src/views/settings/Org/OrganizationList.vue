@@ -1,12 +1,8 @@
 <template>
   <div>
     <GenericListPage :header-actions="headerActions" :table-config="tableConfig" />
-    <Dialog
-      :show-buttons="false"
-      :title="$tc('common.Setting')"
-      :visible.sync="visible"
-    >
-      <GenericCreateUpdateForm v-bind="form" @submitSuccess="visible=false" />
+    <Dialog v-model:visible="visible" :show-buttons="false" :title="$tc('General')">
+      <GenericCreateUpdateForm v-bind="form" @submit-success="visible = false" />
     </Dialog>
   </div>
 </template>
@@ -15,7 +11,7 @@
 import { GenericCreateUpdateForm, GenericListPage } from '@/layout/components'
 import { Dialog } from '@/components'
 
-const performDelete = function({ row, col }) {
+const performDelete = function ({ row, col }) {
   const id = row.id
   const url = `${this.url}${id}/`
   return this.$axios.delete(url)
@@ -33,8 +29,8 @@ export default {
       form: {
         url: '/api/v1/settings/setting/?category=basic',
         fields: ['GLOBAL_ORG_DISPLAY_NAME'],
-        fieldsMeta: {
-        },
+        labelWidth: '200px',
+        fieldsMeta: {},
         submitMethod() {
           return 'patch'
         }
@@ -45,49 +41,66 @@ export default {
           app: 'orgs',
           resource: 'organization'
         },
-        columns: ['name',
+        columns: [
+          'name',
+          'id',
           'resource_statistics.users_amount',
           'resource_statistics.groups_amount',
           'resource_statistics.assets_amount',
           'resource_statistics.asset_perms_amount',
-          'comment', 'actions'],
+          'actions'
+        ],
+        columnsShow: {
+          min: ['name', 'actions'],
+          default: [
+            'name',
+            'resource_statistics.users_amount',
+            'resource_statistics.groups_amount',
+            'resource_statistics.assets_amount',
+            'resource_statistics.asset_perms_amount'
+          ]
+        },
         columnsMeta: {
           'resource_statistics.users_amount': {
-            label: this.$t('xpack.Organization.users_amount')
+            label: this.$t('Users'),
+            width: '100px'
           },
           'resource_statistics.groups_amount': {
-            label: this.$t('xpack.Organization.groups_amount')
+            label: this.$t('UserGroups'),
+            width: '100px'
           },
           'resource_statistics.assets_amount': {
-            label: this.$t('xpack.Organization.assets_amount')
+            label: this.$t('AssetManagement'),
+            width: '100px'
           },
           'resource_statistics.asset_perms_amount': {
-            label: this.$t('xpack.Organization.asset_perms_amount')
+            label: this.$tc('AssetPermission', 2),
+            width: '200px'
           },
           actions: {
-            prop: 'id',
             formatterArgs: {
               canUpdate: this.$hasPerm('orgs.change_organization'),
-              canDelete: function({ row }) {
+              canDelete: function ({ row }) {
                 return !row.internal && vm.$hasPerm('orgs.delete_organization')
               },
-              onDelete: function({ row, col, cellValue, reload }) {
-                const msg = this.$t('xpack.Organization.DeleteOrgMsg')
-                const title = this.$t('xpack.Organization.DeleteOrgTitle')
+              onDelete: function ({ row, col, cellValue, reload }) {
+                const msg = this.$t('DeleteOrgMsg')
+                const title = this.$t('DeleteOrgTitle')
                 this.$alert(msg, title, {
                   type: 'warning',
                   confirmButtonClass: 'el-button--danger',
                   showCancelButton: true,
-                  beforeClose: async(action, instance, done) => {
+                  beforeClose: async (action, instance, done) => {
                     if (action !== 'confirm') return done()
                     instance.confirmButtonLoading = true
                     try {
                       await performDelete.bind(this)({ row: row, col: col })
-                      this.$store.dispatch('users/deleteAdminOrg', { id: row.id, name: row.name })
+                      this.$store
+                        .dispatch('users/deleteAdminOrg', { id: row.id, name: row.name })
                         .then(() => {
                           done()
                           reload()
-                          this.$message.success(this.$tc('common.deleteSuccessMsg'))
+                          this.$message.success(this.$tc('DeleteSuccessMsg'))
                         })
                     } finally {
                       instance.confirmButtonLoading = false
@@ -105,7 +118,7 @@ export default {
         canCreate: this.$hasPerm('orgs.add_organization'),
         extraActions: [
           {
-            title: this.$t('common.Setting'),
+            title: this.$t('Setting'),
             icon: 'el-icon-setting',
             callback: () => {
               this.visible = true
@@ -121,6 +134,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

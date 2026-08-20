@@ -1,18 +1,18 @@
 <template>
   <div style="display: block">
-    <el-button size="mini" type="primary" @click="visible=true">
-      {{ $t('common.Setting') }}
+    <el-button size="small" type="primary" @click="visible = true">
+      {{ $t('Setting') }}
     </el-button>
     <Dialog
+      v-model:visible="iVisible"
       :destroy-on-close="true"
-      :title="$tc('common.PasswordRule')"
-      :visible.sync="visible"
+      :title="$tc('PasswordRule')"
       width="600px"
       @cancel="handleCancel"
       @confirm="handleConfirm"
       @open="handleOpen"
     >
-      <AutoDataForm ref="dataform" v-bind="form" />
+      <AutoDataForm v-bind="form" ref="dataform" />
     </Dialog>
   </div>
 </template>
@@ -44,39 +44,51 @@ export default {
         fields: [
           {
             id: 'length',
-            label: this.$t('common.Length'),
+            label: this.$t('Length'),
             type: 'input-number',
             el: {
               min: 8,
-              max: 30
+              max: 36,
+              size: 'small'
             }
           },
           {
             id: 'uppercase',
-            label: this.$t('common.Uppercase'),
-            type: 'switch'
+            label: this.$t('Uppercase'),
+            type: 'checkbox'
           },
           {
             id: 'lowercase',
-            label: this.$t('common.Lowercase'),
-            type: 'switch'
+            label: this.$t('Lowercase'),
+            type: 'checkbox'
           },
           {
             id: 'digit',
-            label: this.$t('common.Digit'),
-            type: 'switch'
+            label: this.$t('Digit'),
+            type: 'checkbox'
           },
           {
             id: 'symbol',
-            label: this.$t('common.SpecialSymbol'),
-            type: 'switch'
+            label: this.$t('SpecialSymbol'),
+            type: 'checkbox'
           },
           {
             id: 'exclude_symbols',
-            label: this.$t('common.ExcludeSymbol'),
+            label: this.$t('ExcludeSymbol'),
             type: 'input'
           }
         ]
+      }
+    }
+  },
+  computed: {
+    iVisible: {
+      get() {
+        return this.visible
+      },
+      set(val) {
+        this.visible = val
+        this.$emit('update:visible', val)
       }
     }
   },
@@ -95,12 +107,9 @@ export default {
         this.visible = false
       }, 100)
     },
-    handleOpen() {
-    }
+    handleOpen() {}
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

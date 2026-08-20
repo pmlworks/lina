@@ -1,44 +1,43 @@
 <template>
   <Page v-bind="$attrs">
     <div v-if="!loading">
-      <el-alert v-if="!hasValidLicense" type="success">
-        {{ this.$t('setting.ImportLicenseTip') }}
+      <el-alert v-if="publicSettings.XPACK_ENABLED" type="info">
+        {{ $t('ImportLicenseTip') }}
       </el-alert>
-      <el-row :gutter="20">
-        <el-col :md="14" :sm="24">
-          <DetailCard :items="detailItems" :title="cardTitle" />
-        </el-col>
-        <el-col :md="10" :sm="24">
+      <TwoCol>
+        <DetailCard :items="detailItems" :title="cardTitle" />
+        <template #right>
           <QuickActions :actions="quickActions" type="primary" />
-        </el-col>
-      </el-row>
+        </template>
+      </TwoCol>
       <Dialog
-        :title="$tc('setting.ImportLicense')"
-        :visible.sync="dialogLicenseImport"
+        v-model:visible="dialogLicenseImport"
+        :title="$tc('ImportLicense')"
         top="20vh"
         width="600px"
         @cancel="dialogLicenseImport = false"
         @confirm="importLicense"
       >
         <div style="padding-bottom: 10px">
-          {{ this.$t('setting.LicenseFile') }}
+          {{ $t('LicenseFile') }}
         </div>
-        <input type="file" @change="fileChange">
+        <input type="file" @change="fileChange" />
       </Dialog>
     </div>
   </Page>
 </template>
 
-<script>
+<script lang="jsx">
 import Page from '@/layout/components/Page'
 import { Dialog, QuickActions } from '@/components'
 import DetailCard from '@/components/Cards/DetailCard/index'
 import { importLicense } from '@/api/settings'
 import { mapGetters } from 'vuex'
-
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 export default {
   name: 'License',
   components: {
+    TwoCol,
     Page,
     DetailCard,
     QuickActions,
@@ -47,8 +46,7 @@ export default {
   props: {
     object: {
       type: Object,
-      default: () => {
-      }
+      default: () => {}
     }
   },
   data() {
@@ -59,10 +57,10 @@ export default {
       licenseFile: {},
       quickActions: [
         {
-          title: this.$t('setting.ImportLicense'),
+          title: this.$t('ImportLicense'),
           attrs: {
             type: 'primary',
-            label: this.$t('setting.import'),
+            label: this.$t('Import'),
             disabled: false
           },
           callbacks: {
@@ -70,10 +68,10 @@ export default {
           }
         },
         {
-          title: this.$t('setting.technologyConsult'),
+          title: this.$t('TechnologyConsult'),
           attrs: {
             type: 'primary',
-            label: this.$t('setting.consult')
+            label: this.$t('Consult')
           },
           callbacks: {
             click: this.consultAction
@@ -83,9 +81,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters([
-      'publicSettings', 'hasValidLicense'
-    ]),
+    ...mapGetters(['publicSettings', 'hasValidLicense']),
     cardTitle() {
       return ''
     },
@@ -93,38 +89,52 @@ export default {
       if (!this.hasValidLicense) {
         return [
           {
-            key: this.$t('setting.License'),
-            value: this.$t('setting.communityEdition')
+            key: this.$t('Version'),
+            value: this.$t('CommunityEdition')
+          },
+          {
+            key: this.$t('Expired'),
+            value: this.$t('Never')
+          },
+          {
+            key: this.$t('License'),
+            value: 'GPLv3'
+          },
+          {
+            key: 'Github',
+            formatter: () => {
+              return (
+                <a href="https://github.com/jumpserver/jumpserver" target="_blank">
+                  {' JumpServer '}
+                </a>
+              )
+            }
           }
         ]
       }
       return [
         {
-          key: this.$t('setting.SubscriptionID'),
-          value: this.licenseData.subscription_id
-        },
-        {
-          key: this.$t('setting.Corporation'),
-          value: this.licenseData.corporation
-        },
-        {
-          key: this.$t('setting.Expired'),
-          value: this.licenseData.date_expired
-        },
-        {
-          key: this.$t('setting.AssetCount'),
-          value: this.licenseData.asset_count !== null ? this.licenseData.asset_count + '' : ''
-        },
-        {
-          key: this.$t('setting.Edition'),
-          value: this.licenseData.edition
-        },
-        {
-          key: this.$t('assets.SerialNumber'),
+          key: this.$t('SerialNumber'),
           value: this.licenseData?.serial_no || ''
         },
         {
-          key: this.$t('common.Comment'),
+          key: this.$t('Corporation'),
+          value: this.licenseData.corporation
+        },
+        {
+          key: this.$t('Expired'),
+          value: this.licenseData.date_expired
+        },
+        {
+          key: this.$t('AssetsOfNumber'),
+          value: this.licenseData.asset_count !== null ? this.licenseData.asset_count + '' : ''
+        },
+        {
+          key: this.$t('Edition'),
+          value: this.licenseData.edition
+        },
+        {
+          key: this.$t('Comment'),
           value: this.licenseData?.remark || ''
         }
       ]
@@ -133,21 +143,24 @@ export default {
   mounted() {
     this.quickActions[0].attrs.disabled = !this.publicSettings.XPACK_ENABLED
     if (this.publicSettings.XPACK_ENABLED) {
-      this.$axios.get('/api/v1/xpack/license/detail').then(res => {
-        this.licenseData = res
-      }).finally(() => {
-        this.loading = false
-      })
+      this.$axios
+        .get('/api/v1/xpack/license/detail')
+        .then((res) => {
+          this.licenseData = res
+        })
+        .finally(() => {
+          this.loading = false
+        })
     } else {
       this.loading = false
     }
   },
   methods: {
-    importAction: function() {
+    importAction: function () {
       this.dialogLicenseImport = true
     },
-    consultAction: function() {
-      const url = 'http://www.jumpserver.org/support/'
+    consultAction: function () {
+      const url = 'https://www.lxware.hk/pages/about'
       window.open(url, '_blank')
     },
     importLicense() {
@@ -156,7 +169,7 @@ export default {
       }
       const formData = new FormData()
       formData.append('file', this.licenseFile['file'])
-      importLicense(formData).then(res => {
+      importLicense(formData).then((res) => {
         if (res.status) {
           this.$message.success(res.msg)
           setTimeout(() => location.reload(), 500)
@@ -172,6 +185,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

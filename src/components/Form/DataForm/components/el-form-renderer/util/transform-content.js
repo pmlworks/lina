@@ -1,5 +1,6 @@
 /* eslint-disable no-sequences */
-import _kebabcase from 'lodash.kebabcase'
+import _ from 'lodash'
+import { markRaw, toRaw } from 'vue'
 /**
  * content 的每一项会浅拷贝一层
  * 只可以在 item 层新增修改属性，如 item.a = b
@@ -13,7 +14,12 @@ export default function transformContent(content) {
       removeDollarInKey(item)
       extractRulesFromComponent(item)
       // 有些旧写法是 checkboxGroup & radioGroup
-      item.type = _kebabcase(item.type)
+      item.type = _.kebabCase(item.type)
+    }
+
+    // 使用 markRaw 标记组件定义，避免被 Vue 变成响应式对象
+    if (item.component && typeof item.component !== 'string') {
+      item.component = markRaw(toRaw(item.component))
     }
 
     return item
@@ -22,9 +28,9 @@ export default function transformContent(content) {
 
 function removeDollarInKey(item) {
   Object.keys(item)
-    .filter(k => k.startsWith('$'))
-    .filter(k => !(k.slice(1) in item))
-    .forEach(k => ((item[k.slice(1)] = item[k]), delete item[k]))
+    .filter((k) => k.startsWith('$'))
+    .filter((k) => !(k.slice(1) in item))
+    .forEach((k) => ((item[k.slice(1)] = item[k]), delete item[k]))
 }
 
 export function extractRulesFromComponent(item) {
@@ -34,8 +40,5 @@ export function extractRulesFromComponent(item) {
   if (!component || typeof component === 'string') return
 
   const { rules = [] } = component
-  item.rules = [
-    ...(item.rules || []),
-    ...(typeof rules === 'function' ? rules(item) : rules)
-  ]
+  item.rules = [...(item.rules || []), ...(typeof rules === 'function' ? rules(item) : rules)]
 }

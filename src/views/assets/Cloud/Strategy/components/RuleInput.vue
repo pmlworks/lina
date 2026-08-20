@@ -7,31 +7,35 @@
   />
 </template>
 
-<script>
-import { AttrInput, Select2 } from '@/components/Form/FormFields'
-import { Required } from '@/components/Form/DataForm/rules'
-import { instanceAttrOptions, tableFormatter } from './const'
+<script lang="jsx">
 import { attrMatchOptions, strMatchValues } from '@/components/const'
-
+import { Required } from '@/components/Form/DataForm/rules'
+import { AttrInput, Select2 } from '@/components/Form/FormFields'
+import { instanceAttrOptions, tableFormatter } from './const'
 export default {
   name: 'RuleInput',
-  components: { AttrInput },
+  components: {
+    AttrInput
+  },
   props: {
     value: {
       type: Array,
-      default: () => ([])
+      default: () => []
     }
   },
   data() {
     return {
       formConfig: {
-        initial: { attr: '', match: '', value: '' },
+        initial: {
+          attr: '',
+          match: '',
+          value: ''
+        },
         inline: true,
         hasSaveContinue: false,
-        submitBtnSize: 'mini',
-        submitBtnText: this.$t('common.Add'),
+        submitBtnSize: 'small',
+        submitBtnText: this.$t('Add'),
         hasReset: false,
-        onSubmit: () => {},
         submitMethod: () => 'post',
         getUrl: () => '',
         fields: [['', ['attr', 'match', 'value']]],
@@ -71,22 +75,40 @@ export default {
       },
       tableConfig: {
         columns: [
-          { prop: 'attr', label: this.$t('common.AttrName'), formatter: tableFormatter('attr') },
-          { prop: 'match', label: this.$t('common.Match'), formatter: tableFormatter('match') },
-          { prop: 'value', label: this.$t('common.AttrValue'), formatter: tableFormatter('value') },
-          { prop: 'action', label: this.$t('common.Action'), align: 'center', width: '100px', formatter: (row, col, cellValue, index) => {
-            return (
-              <div className='input-button'>
-                <el-button
-                  icon='el-icon-minus'
-                  size='mini'
-                  style={{ 'flexShrink': 0 }}
-                  type='danger'
-                  onClick={ this.handleDelete(index) }
-                />
-              </div>
-            )
-          } }
+          {
+            prop: 'attr',
+            label: this.$t('AttrName'),
+            formatter: tableFormatter('attr')
+          },
+          {
+            prop: 'match',
+            label: this.$t('Match'),
+            formatter: tableFormatter('match')
+          },
+          {
+            prop: 'value',
+            label: this.$t('AttrValue'),
+            formatter: tableFormatter('value')
+          },
+          {
+            prop: 'action',
+            label: this.$t('Action'),
+            align: 'center',
+            width: '100px',
+            formatter: (row, col, cellValue, index) => {
+              return (
+                <div class="input-button">
+                  <el-button
+                    icon="Minus"
+                    size="small"
+                    style={{ flexShrink: 0 }}
+                    type="danger"
+                    onClick={this.handleDelete(index)}
+                  />
+                </div>
+              )
+            }
+          }
         ],
         totalData: this.value || [],
         hasPagination: false
@@ -103,7 +125,7 @@ export default {
         if (item[0]?.id) {
           this.$axios.delete(`/api/v1/xpack/cloud/strategy-rules/${item[0].id}/`)
         }
-        this.$message.success(this.$tc('common.deleteSuccessMsg'))
+        this.$message.success(this.$tc('DeleteSuccessMsg'))
       }
     }
   }
@@ -111,11 +133,35 @@ export default {
 </script>
 
 <style lang="scss" scoped>
->>> .el-form-item:nth-child(-n+4) {
-  width: 29%;
+.attr-input {
+  :deep(.form-fields.el-form) {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto !important;
+    column-gap: 12px;
+    row-gap: 8px;
+    align-items: start;
+    padding: 0 !important;
+  }
+
+  :deep(.form-fields > .el-form-item) {
+    min-width: 0;
+    margin: 0 !important;
+  }
 }
->>> .el-form-item:last-child {
-  width: 6%;
+
+@media (max-width: 1200px) {
+  .attr-input {
+    :deep(.form-fields.el-form) {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .attr-input {
+    :deep(.form-fields.el-form) {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+  }
 }
 </style>
-

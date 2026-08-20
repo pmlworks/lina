@@ -14,23 +14,22 @@ export default {
   data() {
     return {
       taskType: 'traceroute',
-      fields: [{
-        name: 'dest_ips',
-        label: this.$t('setting.DestinationIP'),
-        tip: this.$t('setting.helpTip.IP'),
-        el: {
-          placeholder: this.$t('setting.DestinationIP')
+      fields: [
+        {
+          name: 'dest_ips',
+          label: this.$t('DA'),
+          el: {
+            placeholder: this.$t('DestinationIP')
+          }
         }
-      }],
+      ],
       rules: {
         dest_ips: rules.Required
       }
     }
   },
-  methods: {
-  }
+  methods: {}
 }
 </script>
 
-<style lang="scss" scoped>
-</style>
+<style lang="scss" scoped></style>

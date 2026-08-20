@@ -1,17 +1,22 @@
 <template>
-  <GenericListPage
-    ref="ListPage"
-    v-loading="loading"
-    :header-actions="iTicketAction"
-    :table-config="ticketTableConfig"
-  />
+  <div v-loading="loading">
+    <GenericListPage
+      ref="ListPage"
+      :get-drawer-title="getDrawerTitle"
+      :create-drawer="createDrawer"
+      :detail-drawer="detailDrawer"
+      :header-actions="iTicketAction"
+      :quick-filters="quickFilters"
+      :table-config="ticketTableConfig"
+    />
+  </div>
 </template>
 
-<script type="text/jsx">
+<script>
 import { GenericListPage } from '@/layout/components'
 import { DetailFormatter, TagChoicesFormatter } from '@/components/Table/TableFormatters'
-import { toSafeLocalDateStr } from '@/utils/common'
-import { APPROVE, REJECT } from './const'
+import { toSafeLocalDateStr } from '@/composables/useDateTime'
+import { APPROVE, CLOSED, OPEN, REJECT } from './const'
 
 export default {
   name: 'TicketListTable',
@@ -36,66 +41,133 @@ export default {
     const vm = this
     return {
       loading: true,
+      getDrawerTitle: () => ' ',
+      createDrawer: () => import('@/views/tickets/RequestAssetPerm/CreateUpdate'),
+      quickFilters: [
+        {
+          label: this.$t('Type'),
+          options: [
+            {
+              label: this.$t('ApplyAsset'),
+              filter: {
+                type: 'apply_asset'
+              }
+            },
+            {
+              label: this.$t('LoginConfirm'),
+              filter: {
+                type: 'login_confirm'
+              }
+            },
+            {
+              label: this.$t('CommandConfirm'),
+              filter: {
+                type: 'command_confirm'
+              }
+            },
+            {
+              label: this.$t('LoginAssetConfirm'),
+              filter: {
+                type: 'login_asset_confirm'
+              }
+            }
+          ]
+        },
+        {
+          label: this.$t('State'),
+          options: [
+            {
+              label: this.$t('All'),
+              filter: {
+                state: 'all'
+              }
+            },
+            {
+              label: this.$t('Open'),
+              filter: {
+                state: 'pending'
+              }
+            },
+            {
+              label: this.$t('Cancel'),
+              filter: {
+                state: 'closed'
+              }
+            },
+            {
+              label: this.$t('Approved'),
+              filter: {
+                state: 'approved'
+              }
+            },
+            {
+              label: this.$t('Rejected'),
+              filter: {
+                state: 'rejected'
+              }
+            }
+          ]
+        }
+      ],
+      detailDrawer: null,
       ticketTableConfig: {
         url: this.url,
         extraQuery: this.extraQuery,
-        columnsExclude: ['process_map', 'rel_snapshot'],
+        columnsExclude: ['process_map', 'rel_snapshot', 'cc_users'],
         columnsShow: {
           min: ['title', 'serial_num', 'type', 'state', 'date_created'],
-          default: ['title', 'serial_num', 'type', 'state', 'status', 'date_created']
+          default: ['title', 'serial_num', 'type', 'state', 'date_created']
         },
         columnsMeta: {
           serial_num: {
-            label: this.$t('common.Number'),
-            sortable: 'custom'
+            label: this.$t('Number')
           },
           title: {
-            label: this.$t('tickets.title'),
+            label: this.$t('Title'),
             formatter: DetailFormatter,
-            sortable: 'custom',
             formatterArgs: {
-              getRoute: function({ row }) {
+              drawer: true,
+              getRoute: ({ row }) => {
                 const type = row.type.value
-                if (type === 'apply_asset') {
-                  return 'AssetsTicketDetail'
-                } else if (type === 'login_asset_confirm') {
-                  return 'LoginAssetTicketDetail'
-                } else if (type === 'login_confirm') {
-                  return 'LoginTicketDetail'
-                } else if (type === 'command_confirm') {
-                  return 'CommandConfirmDetail'
-                } else {
-                  return 'TicketDetail'
+                const routeMap = {
+                  apply_asset: 'AssetsTicketDetail',
+                  login_asset_confirm: 'LoginAssetTicketDetail',
+                  login_confirm: 'LoginTicketDetail',
+                  command_confirm: 'CommandConfirmDetail'
+                }
+
+                this.$store.dispatch('common/setDrawerActionMeta', {
+                  action: 'detail',
+                  row: {},
+                  col: {},
+                  id: row.id
+                })
+
+                return {
+                  name: routeMap[type] || 'TicketDetail',
+                  params: { id: row.id }
                 }
               }
             }
           },
           applicant: {
-            label: this.$t('tickets.user'),
-            sortable: 'custom',
-            formatter: row => {
+            label: this.$t('Applicant'),
+            formatter: (row) => {
               return row['rel_snapshot'].applicant
             }
           },
           type: {
-            label: this.$t('tickets.type'),
-            width: '160px',
-            formatter: row => {
+            label: this.$t('Type'),
+            formatter: (row) => {
               return row.type.label
             }
           },
           status: {
             align: 'center',
-            width: '90px',
-            sortable: 'custom',
             formatter: TagChoicesFormatter,
             formatterArgs: {
               getTagLabel({ row }) {
-                if (row.status.value === 'open') {
-                  return vm.$t('tickets.OpenStatus')
-                } else {
-                  return vm.$t('tickets.CloseStatus')
-                }
+                return row.status.label
               },
               getTagType({ row }) {
                 if (row.status.value === 'open') {
@@ -107,119 +179,42 @@ export default {
             }
           },
           state: {
-            label: this.$t('tickets.action'),
+            label: this.$t('Action'),
             align: 'center',
-            width: '90px',
-            sortable: 'custom',
             formatter: TagChoicesFormatter,
             formatterArgs: {
               getTagType({ row }) {
                 const mapper = {
-                  [APPROVE]: 'success',
-                  [REJECT]: 'danger'
+                  [OPEN]: 'success',
+                  [APPROVE]: 'primary',
+                  [REJECT]: 'danger',
+                  [CLOSED]: 'info'
                 }
                 return mapper[row.state.value] || 'warning'
               },
               getTagLabel({ row }) {
-                return row.state.label || vm.$t('common.Pending')
+                return row.state.label || vm.$t('Pending')
               }
             }
           },
           date_created: {
-            label: this.$t('tickets.date'),
-            sortable: 'custom',
-            formatter: (row) => toSafeLocalDateStr(row.date_created),
-            width: '160px'
+            label: this.$t('Date'),
+            formatter: (row) => toSafeLocalDateStr(row.date_created)
+          },
+          actions: {
+            has: this.$route.name !== 'AuditTicketList'
           }
         }
       },
       defaultTicketActions: {
-        hasExport: false,
+        hasImport: false,
+        hasReportExport: true,
         hasMoreActions: false,
         hasLeftActions: true,
         canCreate: this.$hasPerm('tickets.view_ticket'),
         hasBulkDelete: false,
-        searchConfig: {
-          default: {
-            state: {
-              key: 'state',
-              label: this.$t('tickets.action'),
-              value: 'pending',
-              valueLabel: this.$t('tickets.Pending')
-            }
-          },
-          exclude: ['state', 'id', 'title', 'type'],
-          options: [
-            {
-              value: 'state',
-              label: this.$t('tickets.action'),
-              type: 'choice',
-              children: [
-                {
-                  default: true,
-                  value: 'pending',
-                  label: this.$t('tickets.Pending')
-                },
-                {
-                  value: APPROVE,
-                  label: this.$t('tickets.Approved')
-                },
-                {
-                  value: REJECT,
-                  label: this.$t('tickets.Rejected')
-                }
-              ]
-            },
-            {
-              value: 'type',
-              label: this.$t('assets.Type'),
-              type: 'choice',
-              children: [
-                {
-                  value: 'apply_asset',
-                  label: this.$t('tickets.ApplyAsset')
-                },
-                {
-                  value: 'login_confirm',
-                  label: this.$t('tickets.LoginConfirm')
-                },
-                {
-                  value: 'command_confirm',
-                  label: this.$t('tickets.CommandConfirm')
-                },
-                {
-                  value: 'login_asset_confirm',
-                  label: this.$t('tickets.LoginAssetConfirm')
-                }
-              ]
-            },
-            {
-              value: 'id',
-              label: 'ID'
-            },
-            {
-              value: 'title',
-              label: this.$t('tickets.title')
-            },
-            {
-              value: 'relevant_app',
-              label: this.$t('tickets.RelevantApp')
-            },
-            {
-              value: 'relevant_asset',
-              label: this.$t('tickets.RelevantAsset')
-            },
-            {
-              value: 'relevant_system_user',
-              label: this.$t('tickets.RelevantCommand')
-            },
-            {
-              value: 'relevant_command',
-              label: this.$t('tickets.RelevantSystemUser')
-            }
-          ]
-        },
-        createTitle: this.$t('common.RequestTickets')
+        moreCreates: {},
+        createTitle: this.$t('RequestTickets')
       }
     }
   },
@@ -240,7 +235,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

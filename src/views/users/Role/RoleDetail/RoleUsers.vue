@@ -1,25 +1,21 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <ListTable
-        ref="ListTable"
-        :header-actions="headerActions"
-        :table-config="tableConfig"
-      />
-    </el-col>
-    <el-col :md="10" :sm="24">
-      <RelationCard v-if="!loading" ref="userRelation" v-bind="relationConfig" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" />
+    <template #right>
+      <RelationCard v-bind="relationConfig" v-if="!loading" ref="userRelation" />
+    </template>
+  </TwoCol>
 </template>
 
 <script>
 import { ListTable, RelationCard } from '@/components'
-import { mapGetters } from 'vuex'
 import { DeleteActionFormatter } from '@/components/Table/TableFormatters'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
+import { mapGetters } from 'vuex'
 
 export default {
   components: {
+    TwoCol,
     ListTable,
     RelationCard
   },
@@ -35,7 +31,7 @@ export default {
       relationConfig: {
         disabled: !this.$hasPerm(`rbac.add_${this.object.scope.value}rolebinding`),
         icon: 'fa-user',
-        title: this.$t('common.Members'),
+        title: this.$t('Members'),
         objectsAjax: {
           url: `/api/v1/users/users/?fields_size=mini&order=name${this.object.scope.value === 'system' ? '&oid=root' : ''}`,
           transformOption: (item) => {
@@ -45,7 +41,7 @@ export default {
         performAdd: (items) => {
           const relationUrl = `/api/v1/rbac/${this.object.scope.value}-role-bindings/`
           const objectId = this.object.id
-          const data = items.map(v => {
+          const data = items.map((v) => {
             return {
               user: v.value,
               role: objectId,
@@ -55,27 +51,30 @@ export default {
           return this.$axios.post(relationUrl, data)
         },
         onAddSuccess: () => {
-          this.$message.success(this.$tc('common.updateSuccessMsg'))
+          this.$message.success(this.$tc('UpdateSuccessMsg'))
           this.$refs.ListTable.reloadTable()
           this.$refs.userRelation.$refs.select2.clearSelected()
         }
       },
       tableConfig: {
         url: `/api/v1/rbac/${this.object.scope.value}-role-bindings/?role=${this.object.id}`,
-        columns: this.object.scope.value === 'system' ? ['user_display', 'delete_action'] : ['user_display', 'org_name', 'delete_action'],
+        columns:
+          this.object.scope.value === 'system'
+            ? ['user_display', 'delete_action']
+            : ['user_display', 'org_name', 'delete_action'],
         columnsShow: {
           min: ['user_display', 'delete_action']
         },
         columnsMeta: {
           user_display: {
-            label: this.$t('users.Name'),
+            label: this.$t('Name'),
             formatter: (row) => {
-              return row.user.name
+              return `${row.user.name}(${row.user.username})`
             }
           },
           delete_action: {
             prop: 'id',
-            label: this.$t('common.Actions'),
+            label: this.$t('Actions'),
             align: 'center',
             width: 150,
             objects: 'all',
@@ -83,15 +82,21 @@ export default {
             formatterArgs: {
               disabled: false
             },
-            onDelete: function(col, row, cellValue, reload) {
-              this.$axios.delete(
-                `/api/v1/rbac/${this.object.scope.value}-role-bindings/${row.id}/?role=${this.object.id}`,
-              ).then(res => {
-                this.$message.success(this.$tc('common.deleteSuccessMsg'))
-                reload()
-              }).catch(error => {
-                this.$message.error(this.$tc('common.deleteErrorMsg') + ' ' + error)
-              })
+            onDelete: function (col, row, cellValue, reload) {
+              this.$axios
+                .delete(
+                  `/api/v1/rbac/${this.object.scope.value}-role-bindings/${row.id}/?role=${this.object.id}`
+                )
+                .then((res) => {
+                  this.$message.success(this.$tc('DeleteSuccessMsg'))
+                  reload()
+                })
+                .catch((error) => {
+                  this.$message.error({
+                    message: error.response.data.detail,
+                    duration: 3000
+                  })
+                })
             }.bind(this)
           },
           actions: {
@@ -110,19 +115,6 @@ export default {
         hasLeftActions: false,
         importOptions: {
           canImportUpdate: false
-        },
-        searchConfig: {
-          exclude: ['user', 'scope', 'role', 'org'],
-          options: [
-            {
-              label: this.$t('users.Username'),
-              value: 'user__username'
-            },
-            {
-              label: this.$t('perms.User'),
-              value: 'user__name'
-            }
-          ]
         }
       }
     }
@@ -133,13 +125,12 @@ export default {
   created() {
     try {
       const scope = this.$route.query['scope']
-      this.relationConfig.disabled = !this.$hasPerm(`rbac.add_${this.object.scope.value}rolebinding`) || (scope === 'org' && this.currentOrgIsRoot)
+      this.relationConfig.disabled =
+        !this.$hasPerm(`rbac.add_${this.object.scope.value}rolebinding`) ||
+        (scope === 'org' && this.currentOrgIsRoot)
     } finally {
       this.loading = false
     }
   }
 }
 </script>
-
-<style lang="scss" scoped>
-</style>

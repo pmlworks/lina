@@ -1,10 +1,5 @@
 <template>
-  <GenericDetailPage
-    :object.sync="host"
-    :active-menu.sync="config.activeMenu"
-    v-bind="config"
-    v-on="$listeners"
-  >
+  <GenericDetailPage v-bind="config" v-model:active-menu="config.activeMenu" v-model:object="host">
     <keep-alive>
       <component :is="config.activeMenu" :object="host" />
     </keep-alive>
@@ -13,9 +8,9 @@
 
 <script>
 import { GenericDetailPage, TabPage } from '@/layout/components'
-import Detail from './Detail'
 import Apps from './Apps.vue'
 import Containers from './Containers'
+import Detail from './Detail'
 
 export default {
   name: 'AppProviderDetail',
@@ -34,16 +29,16 @@ export default {
         activeMenu: 'Detail',
         submenu: [
           {
-            'title': this.$t('common.Detail'),
-            'name': 'Detail'
+            title: this.$t('Basic'),
+            name: 'Detail'
           },
           {
-            'title': this.$t('common.VirtualApps'),
-            'name': 'Apps'
+            title: this.$t('VirtualApps'),
+            name: 'Apps'
           },
           {
-            'title': this.$t('terminal.Containers'),
-            'name': 'Containers'
+            title: this.$t('Containers'),
+            name: 'Containers'
           }
         ],
         hasRightSide: true,
@@ -63,11 +58,8 @@ export default {
       }
     }
   },
-  mounted() {
-  }
+  mounted() {}
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

@@ -1,10 +1,9 @@
 <template>
   <GenericDetailPage
-    :object.sync="ticket"
-    :active-menu.sync="config.activeMenu"
     v-bind="config"
-    @getObjectDone="afterGetTicket"
-    v-on="$listeners"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="ticket"
+    @get-object-done="afterGetTicket"
   >
     <component :is="config.activeMenu" :object="ticket" />
   </GenericDetailPage>
@@ -33,7 +32,7 @@ export default {
         activeMenu: 'TicketDetail',
         submenu: [
           {
-            title: this.$t('route.TicketDetail'),
+            title: this.$t('TicketDetail'),
             name: 'TicketDetail'
           }
         ],
@@ -48,10 +47,10 @@ export default {
     },
     afterGetTicket(ticket) {
       const ticketRouteMapper = {
-        'apply_asset': 'AssetsTicketDetail',
-        'login_confirm': 'LoginTicketDetail',
-        'login_asset_confirm': 'LoginAssetTicketDetail',
-        'command_confirm': 'CommandConfirmDetail'
+        apply_asset: 'AssetsTicketDetail',
+        login_confirm: 'LoginTicketDetail',
+        login_asset_confirm: 'LoginAssetTicketDetail',
+        command_confirm: 'CommandConfirmDetail'
       }
       const routeName = ticketRouteMapper[ticket.type.value]
       setTimeout(() => {
@@ -65,6 +64,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

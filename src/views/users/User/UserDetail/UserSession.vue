@@ -1,17 +1,17 @@
 <template>
-  <el-row :gutter="10">
-    <el-col :span="18">
-      <BaseList :url="url" :columns-show="columnsShow" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <BaseList :columns-show="columnsShow" :url="url" />
+  </TwoCol>
 </template>
 
 <script>
 import BaseList from '@/views/sessions/SessionList/BaseList.vue'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'UserSession',
   components: {
+    TwoCol,
     BaseList
   },
   props: {
@@ -24,14 +24,10 @@ export default {
     return {
       url: `/api/v1/terminal/sessions/?user_id=${this.object.id}&order=is_finished,-date_end`,
       columnsShow: {
-        min: ['id'],
-        default: [
-          'id', 'user', 'asset', 'account', 'remote_addr', 'protocol',
-          'command_amount', 'date_start', 'duration'
-        ]
+        min: ['number', 'asset', 'account'],
+        default: ['number', 'asset', 'account', 'protocol', 'date_start', 'duration']
       }
     }
   }
-
 }
 </script>

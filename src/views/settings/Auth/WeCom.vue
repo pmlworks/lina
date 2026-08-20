@@ -1,14 +1,11 @@
 <template>
-  <BaseAuth
-    :config="settings"
-    enable-field="AUTH_WECOM"
-    v-on="$listeners"
-  />
+  <BaseAuth :config="settings" enable-field="AUTH_WECOM" />
 </template>
 
 <script>
 import BaseAuth from './Base'
-import { UpdateToken } from '@/components/Form/FormFields'
+import { JsonEditor, UpdateToken } from '@/components/Form/FormFields'
+import { getOrgSelect2Meta } from '@/views/settings/Auth/const'
 
 export default {
   name: 'WeCom',
@@ -23,34 +20,46 @@ export default {
         hasDetailInMsg: false,
         moreButtons: [
           {
-            title: this.$t('setting.weComTest'),
+            title: this.$t('WeComTest'),
             loading: false,
-            callback: function(value, form, btn) {
+            callback: function (value, form, btn) {
               btn.loading = true
-              vm.$axios.post(
-                '/api/v1/settings/wecom/testing/',
-                value
-              ).then(res => {
-                vm.$message.success(res['msg'])
-              }).catch(() => {
-                vm.$log.error('err occur')
-              }).finally(() => { btn.loading = false })
+              vm.$axios
+                .post('/api/v1/settings/wecom/testing/', value)
+                .then((res) => {
+                  vm.$message.success(res['msg'])
+                })
+                .catch(() => {
+                  vm.$log.error('err occur')
+                })
+                .finally(() => {
+                  btn.loading = false
+                })
             }
           }
         ],
         encryptedFields: ['WECOM_SECRET'],
         fields: [
           [
-            this.$t('common.BasicInfo'),
+            this.$t('Basic'),
             [
-              'AUTH_WECOM', 'WECOM_CORPID', 'WECOM_AGENTID', 'WECOM_SECRET'
+              'AUTH_WECOM',
+              'WECOM_CORPID',
+              'WECOM_AGENTID',
+              'WECOM_SECRET',
+              'WECOM_RENAME_ATTRIBUTES'
             ]
-          ]
+          ],
+          [this.$t('Other'), ['WECOM_ORG_IDS']]
         ],
         fieldsMeta: {
           WECOM_SECRET: {
             component: UpdateToken
-          }
+          },
+          WECOM_RENAME_ATTRIBUTES: {
+            component: JsonEditor
+          },
+          WECOM_ORG_IDS: getOrgSelect2Meta()
         },
         // 不清理的话，编辑secret，在删除提交会报错
         cleanFormValue(data) {
@@ -65,11 +74,8 @@ export default {
       }
     }
   },
-  methods: {
-  }
+  methods: {}
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

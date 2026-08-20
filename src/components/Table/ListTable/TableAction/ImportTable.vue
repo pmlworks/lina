@@ -1,41 +1,50 @@
 <template>
-  <div>
-    <el-row>
-      <el-col :md="8" :sm="24">
-        <div class="tableFilter">
-          <el-radio-group v-model="importStatusFilter" size="small">
-            <el-radio-button label="all">{{ $t('common.Total') }}</el-radio-button>
-            <el-radio-button label="ok">{{ $t('common.Success') }}</el-radio-button>
-            <el-radio-button label="error">{{ $t('common.Failed') }}</el-radio-button>
-            <el-radio-button label="pending">{{ $t('common.Pending') }}</el-radio-button>
-          </el-radio-group>
-        </div>
-      </el-col>
-      <el-col :md="8" :sm="24" style="text-align: center">
-        <span class="summary-item summary-total"> {{ $t('common.Total') }}: {{ totalCount }}</span>
-        <span class="summary-item summary-success"> {{ $t('common.Success') }}: {{ successCount }}</span>
-        <span class="summary-item summary-failed"> {{ $t('common.Failed') }}: {{ failedCount }}</span>
-        <span class="summary-item summary-pending"> {{ $t('common.Pending') }}: {{ pendingCount }}</span>
-      </el-col>
-    </el-row>
-    <div class="row">
+  <div class="import-table-body">
+    <div class="tableFilter">
+      <el-radio-group v-model="importStatusFilter" size="small">
+        <el-radio-button value="all">{{ $t('Total') }}: {{ totalCount }}</el-radio-button>
+        <el-radio-button value="ok">{{ $t('Success') }}: {{ successCount }}</el-radio-button>
+        <el-radio-button value="error">{{ $t('Failed') }}: {{ failedCount }}</el-radio-button>
+        <el-radio-button value="pending">{{ $t('Pending') }}: {{ pendingCount }}</el-radio-button>
+      </el-radio-group>
+    </div>
+    <div class="progress-row">
       <el-progress :percentage="processedPercent" />
     </div>
-    <DataTable v-if="tableGenDone" id="importTable" ref="dataTable" :config="tableConfig" class="importTable" />
-    <div class="row" style="padding-top: 20px">
-      <div style="float: right">
-        <el-button size="small" @click="performCancel">{{ $t('common.Cancel') }}</el-button>
-        <el-button size="small" type="primary" @click="performImportAction">{{ importActionTitle }}</el-button>
-      </div>
+    <DataTable
+      v-if="tableGenDone"
+      id="importTable"
+      ref="dataTable"
+      :config="tableConfig"
+      class="importTable"
+    />
+    <div class="import-footer">
+      <el-button v-if="showCancel" @click="performCancel">{{ $t('Cancel') }}</el-button>
+      <el-button v-show="!disableImportBtn" type="primary" @click="performImportAction">
+        {{ importActionTitle }}
+      </el-button>
+      <el-button
+        v-bind="button"
+        v-for="button in moreButtons"
+        v-show="!button.hidden"
+        :key="button.title"
+        :disabled="disableImportBtn"
+        :loading="button.loading"
+        @click="handleClick(button)"
+      >
+        {{ button.title }}
+      </el-button>
     </div>
   </div>
 </template>
 
 <script>
 import DataTable from '@/components/Table/DataTable/index.vue'
-import { getUpdateObjURL, sleep } from '@/utils/common'
-import { EditableInputFormatter, StatusFormatter } from '@/components/Table/TableFormatters'
-import { encryptPassword } from '@/utils/crypto'
+import { getUpdateObjURL } from '@/utils/common/index'
+import { sleep } from '@/utils/common/time'
+import { EditableInputFormatter } from '@/components/Table/TableFormatters'
+import { encryptPassword } from '@/utils/secure'
+import getStatusColumnMeta from '@/components/Table/ListTable/TableAction/const'
 
 export default {
   name: 'ImportTable',
@@ -49,11 +58,51 @@ export default {
     },
     url: {
       type: String,
-      required: true
+      default: () => ''
     },
     importOption: {
       type: String,
       required: true
+    },
+    showButtons: {
+      type: Boolean,
+      default: () => true
+    },
+    config: {
+      type: Object,
+      default: () => ({})
+    },
+    performUploadObject: {
+      type: Function,
+      default: null
+    },
+    canEdit: {
+      type: Boolean,
+      default: () => true
+    },
+    showCancel: {
+      type: Boolean,
+      default: () => true
+    },
+    moreButtons: {
+      type: Array,
+      default: () => []
+    },
+    disableImportBtn: {
+      type: Boolean,
+      default: false
+    },
+    origin: {
+      type: String,
+      default: ''
+    },
+    encryptFields: {
+      type: Array,
+      default: () => []
+    },
+    valueFormatters: {
+      type: Object,
+      default: () => ({})
     }
   },
   data() {
@@ -61,7 +110,8 @@ export default {
       columns: [],
       importStatusFilter: 'all',
       iTotalData: [],
-      tableConfig: {
+      defaultTableConfig: {
+        url: '',
         hasSelection: false,
         // hasPagination: false,
         columns: [],
@@ -72,7 +122,19 @@ export default {
           stripe: true, // 斑马纹表格
           border: true, // 表格边框
           fit: true, // 宽度自适应,
-          tooltipEffect: 'dark'
+          // 单元格溢出 tooltip 限宽并断词，避免密文等超长内容横向撑破页面。
+          // popperStyle 直接传给 Element Plus 生成的浮层，不能只依赖 CSS 类名。
+          tooltipOptions: {
+            effect: 'dark',
+            popperClass: 'import-cell-tooltip',
+            popperStyle: {
+              maxWidth: 'min(600px, calc(100vw - 32px))',
+              overflowWrap: 'anywhere',
+              whiteSpace: 'normal',
+              wordBreak: 'break-all'
+            }
+          },
+          maxHeight: this.tableHeight
         }
       },
       tableGenDone: false,
@@ -81,10 +143,10 @@ export default {
       hasImport: false,
       hasContinueButton: false,
       importActions: {
-        import: this.$t('common.Import'),
-        continue: this.$t('common.Continue'),
-        stop: this.$t('common.Stop'),
-        finished: this.$t('common.Finished')
+        import: this.$t('Import'),
+        continue: this.$t('Continue'),
+        stop: this.$t('Stop'),
+        finished: this.$t('Finished')
       }
     }
   },
@@ -146,10 +208,20 @@ export default {
       if (this.totalCount === 0) {
         return 0
       }
-      return Math.round(this.processedCount / this.totalCount * 100)
+      return Math.round((this.processedCount / this.totalCount) * 100)
     },
     elDataTable() {
       return this.$refs['dataTable'].dataTable
+    },
+    tableConfig() {
+      const tableDefaultConfig = this.defaultTableConfig
+      let tableAttrs = tableDefaultConfig.tableAttrs
+      if (this.config.tableAttrs) {
+        tableAttrs = Object.assign(tableAttrs, this.config.tableAttrs)
+      }
+      const config = Object.assign(tableDefaultConfig, this.config)
+      config.tableAttrs = tableAttrs
+      return config
     }
   },
   watch: {
@@ -170,40 +242,9 @@ export default {
   },
   methods: {
     generateTableColumns(tableTitles, tableData) {
-      const vm = this
-      const columns = [{
-        prop: '@status',
-        label: vm.$t('common.Status'),
-        width: '80px',
-        align: 'center',
-        formatter: StatusFormatter,
-        formatterArgs: {
-          faChoices: {
-            ok: 'fa-check text-primary',
-            error: 'fa-times text-danger',
-            pending: 'fa-clock-o'
-          },
-          getChoicesKey(val) {
-            if (val === 'ok' || val === 'pending') {
-              return val
-            }
-            return 'error'
-          },
-          getTip(val) {
-            if (val === 'ok') {
-              return vm.$t('common.Success')
-            } else if (val === 'pending') {
-              return vm.$t('common.Pending')
-            } else if (val && val.name === 'error') {
-              return val.error
-            }
-            return ''
-          },
-          hasTips: true
-        }
-      }]
+      const columns = [{ ...getStatusColumnMeta.bind(this)().status }]
       for (const item of tableTitles) {
-        const dataItemLens = tableData.map(d => {
+        const dataItemLens = tableData.map((d) => {
           if (!d) {
             return 0
           }
@@ -237,22 +278,29 @@ export default {
           formatter: EditableInputFormatter,
           showOverflowTooltip: true,
           formatterArgs: {
+            canEdit: this.canEdit,
+            getDisplayValue: this.valueFormatters[item[1]],
             onEnter: ({ row, col, oldValue, newValue }) => {
               const prop = col.prop
               row['@status'] = 'pending'
               this.$log.debug(`Set value ${oldValue} => ${newValue}`)
-              this.$set(row, prop, newValue)
+              row[prop] = newValue
             }
           }
         })
       }
       return columns
     },
+    getEncryptFields() {
+      const fromProp =
+        Array.isArray(this.encryptFields) && this.encryptFields.length ? this.encryptFields : null
+      return fromProp || ['password', 'secret', 'private_key']
+    },
     generateTableData(tableTitles, tableData) {
       const totalData = []
-      tableData.forEach(item => {
-        this.$set(item, '@status', 'pending')
-        const encryptFields = ['password', 'secret', 'private_key']
+      tableData.forEach((item) => {
+        item['@status'] = 'pending'
+        const encryptFields = this.getEncryptFields()
         for (const field of encryptFields) {
           if (item[field]) {
             item[field] = encryptPassword(item[field])
@@ -268,11 +316,9 @@ export default {
       const columns = this.generateTableColumns(tableTitles, tableData)
       const totalData = this.generateTableData(tableTitles, tableData)
       this.tableConfig.columns = columns
+      this.iTotalData = totalData
+      this.tableConfig.totalData = totalData
       this.tableGenDone = true
-      setTimeout(() => {
-        this.iTotalData = totalData
-        this.tableConfig.totalData = totalData
-      }, 200)
     },
     beautifyErrorData(errorData) {
       if (typeof errorData === 'string') {
@@ -337,7 +383,12 @@ export default {
       this.importTaskStatus = 'stopped'
     },
     async performUploadCurrentPageData() {
-      const currentData = this.elDataTable.getPageData()
+      let currentData
+      if (this.tableConfig.hasSelection) {
+        currentData = this.elDataTable.selected
+      } else {
+        currentData = this.elDataTable.getPageData()
+      }
       for (const item of currentData) {
         if (item['@status'] !== 'pending') {
           continue
@@ -345,7 +396,8 @@ export default {
         if (this.taskIsStopped()) {
           return
         }
-        await this.performUploadObject(item)
+        const handler = this.performUploadObject || this.defaultPerformUploadObject
+        await handler(item)
         await sleep(100)
       }
     },
@@ -362,22 +414,23 @@ export default {
           break
         }
       }
-      if (this.pendingCount === 0) {
-        this.importTaskStatus = 'done'
+      this.importTaskStatus = 'done'
+
+      // 在不影响其他组件使用本组件的基础上，对云同步中导入按钮的变化
+      if (this.origin === 'cloudSync') {
+        this.tableConfig.totalData = this.pendingData
+        this.importTaskStatus = 'pending'
       }
+
       if (this.failedCount > 0) {
-        this.$message.error(this.$tc('common.imExport.hasImportErrorItemMsg') + '')
+        this.$message.error(this.$tc('HasImportErrorItemMsg') + '')
       }
     },
     async performUpdateObject(item) {
       const updateUrl = getUpdateObjURL(this.url, item.id)
-      return this.$axios.patch(
-        updateUrl,
-        item,
-        { disableFlashErrorMsg: true }
-      )
+      return this.$axios.patch(updateUrl, item, { disableFlashErrorMsg: true })
     },
-    async performUploadObject(item) {
+    async defaultPerformUploadObject(item) {
       let handler = this.performCreateObject
       if (this.importOption === 'update') {
         handler = this.performUpdateObject
@@ -395,11 +448,7 @@ export default {
       }
     },
     async performCreateObject(item) {
-      return this.$axios.post(
-        this.url,
-        item,
-        { disableFlashErrorMsg: true }
-      )
+      return this.$axios.post(this.url, item, { disableFlashErrorMsg: true })
     },
     keepElementInViewport() {
       const tableRef = document.getElementById('importTable')
@@ -411,37 +460,102 @@ export default {
       const rect = parentTdRef.getBoundingClientRect()
       let windowInnerHeight = window.innerHeight || document.documentElement.clientHeight
       windowInnerHeight = windowInnerHeight * 0.97 - 150
-      const inViewport = (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= windowInnerHeight
-      )
+      const inViewport = rect.top >= 0 && rect.left >= 0 && rect.bottom <= windowInnerHeight
       if (!inViewport) {
         parentTdRef.scrollIntoView({ behavior: 'auto', block: 'start', inline: 'start' })
       }
+    },
+    addTableItem(item) {
+      this.tableConfig.totalData.push(item)
+    },
+    handleClick(btn) {
+      const callback = btn.callback || function () {}
+      callback(btn)
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-@import "~@/styles/variables";
+@use '@/styles/variables' as *;
+
+// 状态 tab / 进度条 / 表格 / 按钮统一 flex 纵向布局,间距一致
+.import-table-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// 顶部状态 tab 统一 30px 高度
+.tableFilter :deep(.el-radio-button__inner) {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+}
+
 .summary-item {
-  padding: 0 10px
+  padding: 0 10px;
 }
 
 .summary-success {
-  color: $--color-primary;
+  color: $color-primary;
 }
 
 .summary-failed {
-  color: $--color-danger;
+  color: $color-danger;
 }
 
-.importTable >>> .cell {
+.importTable :deep(.cell) {
   min-height: 20px;
   height: 100%;
   max-height: 160px;
 }
 
+// 底部按钮对齐 Dialog footer 规范:分隔线 + 右对齐 + 12px 间距 + 默认尺寸
+.import-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #dee2e6;
+
+  // 按钮在 dialog body 内,吃不到 .dialog-footer 的全站规范,这里对齐同款 30px 高度
+  :deep(.el-button) {
+    min-height: 30px;
+    height: 30px;
+    padding: 8px 12px;
+    margin-left: 0;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1;
+
+    > span {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+    }
+  }
+
+  :deep(.el-button.is-disabled) {
+    cursor: not-allowed;
+  }
+}
+</style>
+
+<!-- 表格单元格溢出 tooltip 会 teleport 到 body,须用非 scoped 样式限宽 -->
+<style lang="scss">
+.import-cell-tooltip.el-popper {
+  max-width: min(600px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: normal;
+  line-height: 1.5;
+}
 </style>

@@ -3,80 +3,94 @@
     <li class="divider" />
     <li
       id="m_add_asset_to_node"
-      v-perms="'assets.change_assetnodes'"
+      v-if="$hasPerm('assets.change_assetnodes')"
       class="rmenu"
       tabindex="-1"
       @click="rMenuAddAssetToNode"
     >
-      <i class="fa fa-clone" />  {{ this.$t('tree.AddAssetToNode') }}
+      <i class="fa fa-clone" /> {{ $t('AddAssetToNode') }}
     </li>
     <li
       id="m_move_asset_to_node"
-      v-perms="'assets.change_assetnodes'"
+      v-if="$hasPerm('assets.change_assetnodes')"
       class="rmenu"
       tabindex="-1"
       @click="rMenuMoveAssetToNode"
     >
-      <i class="fa fa-scissors" />  {{ this.$t('tree.MoveAssetToNode') }}
+      <i class="fa fa-scissors" /> {{ $t('MoveAssetToNode') }}
     </li>
     <li
       id="m_remove_asset_from_node"
-      v-perms="'assets.change_assetnodes'"
+      v-if="$hasPerm('assets.change_assetnodes')"
       class="rmenu"
       tabindex="-1"
       @click="rMenuRemoveAssetFromNode"
     >
-      <i class="fa fa-minus-square-o" />  {{ this.$t('tree.RemoveAssetFromNode') }}
+      <i class="fa fa-minus-square-o" /> {{ $t('RemoveAssetFromNode') }}
     </li>
     <li v-if="$hasPerm('assets.change_assetnodes')" class="divider" />
     <li
       id="m_update_node_asset_hardware_info"
-      v-perms="'assets.refresh_assethardwareinfo'"
+      v-if="$hasPerm('assets.refresh_assethardwareinfo')"
       class="rmenu"
       tabindex="-1"
       @click="rMenuUpdateNodeAssetHardwareInfo"
     >
-      <i class="fa fa-refresh" />  {{ this.$t('tree.UpdateNodeAssetHardwareInfo') }}
+      <i class="fa fa-refresh" /> {{ $t('UpdateNodeAssetHardwareInfo') }}
     </li>
     <li
       id="m_test_node_asset_connectivity"
-      v-perms="'assets.test_assetconnectivity'"
+      v-if="$hasPerm('assets.test_assetconnectivity')"
       class="rmenu"
       tabindex="-1"
       @click="rMenuTestNodeAssetConnectivity"
     >
-      <i class="fa fa-link" />  {{ this.$t('tree.TestNodeAssetConnectivity') }}
+      <i class="fa fa-link" /> {{ $t('TestNodeAssetConnectivity') }}
     </li>
-    <li v-if="$hasPerm('assets.change_assetnodes | assets.test_assetconnectivity')" class="divider" />
-    <li id="m_show_asset_only_current_node" class="rmenu" tabindex="-1" @click="rMenuShowAssetOnlyCurrentNode">
-      <i class="fa fa-indent" />  {{ this.$t('tree.ShowAssetOnlyCurrentNode') }}
+    <li
+      v-if="$hasPerm('assets.change_assetnodes | assets.test_assetconnectivity')"
+      class="divider"
+    />
+    <li
+      id="m_show_asset_only_current_node"
+      class="rmenu"
+      tabindex="-1"
+      @click="rMenuShowAssetOnlyCurrentNode"
+    >
+      <i class="fa fa-indent" /> {{ $t('ShowAssetOnlyCurrentNode') }}
     </li>
-    <li id="m_show_asset_all_children_node" class="rmenu" tabindex="-1" @click="rMenuShowAssetAllChildrenNode">
-      <i class="fa fa-align-justify" />  {{ this.$t('tree.ShowAssetAllChildrenNode') }}
+    <li
+      id="m_show_asset_all_children_node"
+      class="rmenu"
+      tabindex="-1"
+      @click="rMenuShowAssetAllChildrenNode"
+    >
+      <i class="fa fa-align-justify" /> {{ $t('ShowAssetAllChildrenNode') }}
     </li>
     <li class="divider" />
     <li
       id="m_check_assets_amount"
-      v-perms="'assets.change_node'"
+      v-if="$hasPerm('assets.change_node')"
       class="rmenu"
       tabindex="-1"
       @click="rCheckAssetsAmount"
     >
-      <i class="fa fa-clone" />  {{ this.$t('tree.CheckAssetsAmount') }}
+      <i class="fa fa-clone" /> {{ $t('CheckAssetsAmount') }}
     </li>
     <li id="m_show_node_info" class="rmenu" tabindex="-1" @click="rMenuShowNodeInfo">
-      <i class="fa fa-info-circle" />  {{ this.$t('tree.ShowNodeInfo') }}
+      <i class="fa fa-info-circle" /> {{ $t('ShowNodeInfo') }}
     </li>
     <NodeAssetsUpdateDialog
-      v-if="nodeAssetsUpdateDialog.visible"
-      :visible.sync="nodeAssetsUpdateDialog.visible"
       v-bind="nodeAssetsUpdateDialog"
+      v-if="nodeAssetsUpdateDialog.visible"
+      v-model:visible="nodeAssetsUpdateDialog.visible"
+      @hide-menu="hideMenu"
     />
     <Dialog
+      v-model:visible="nodeInfoDialogSetting.dialogVisible"
       :show-cancel="false"
       :show-confirm="false"
-      :title="$tc('assets.NodeInformation')"
-      :visible.sync="nodeInfoDialogSetting.dialogVisible"
+      :title="$tc('NodeInformation')"
       width="50%"
     >
       <el-row
@@ -86,7 +100,9 @@
         class="item"
       >
         <el-col :md="6" :sm="24">
-          <div class="item-label"><label>{{ item.label }}: </label></div>
+          <div class="item-label">
+            <label>{{ item.label }}: </label>
+          </div>
         </el-col>
         <el-col :md="18" :sm="24">
           <div class="item-text">{{ item.value }}</div>
@@ -97,7 +113,7 @@
 </template>
 
 <script>
-import { openTaskPage } from '@/utils/jms'
+import { openTaskPage } from '@/utils/jms/index'
 import NodeAssetsUpdateDialog from './NodeAssetsUpdateDialog'
 import Dialog from '@/components/Dialog'
 
@@ -149,14 +165,14 @@ export default {
       if (!currentNode) {
         return
       }
-      this.$axios.post(
-        `/api/v1/assets/nodes/${currentNode.meta.data.id}/tasks/`,
-        { 'action': 'refresh' }
-      ).then((res) => {
-        openTaskPage(res['task'])
-      }).catch(error => {
-        this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + error))
-      })
+      this.$axios
+        .post(`/api/v1/assets/nodes/${currentNode.meta.data.id}/tasks/`, { action: 'refresh' })
+        .then((res) => {
+          openTaskPage(res['task'])
+        })
+        .catch((error) => {
+          this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + error))
+        })
     },
     rMenuTestNodeAssetConnectivity() {
       this.hideMenu()
@@ -164,14 +180,14 @@ export default {
       if (!currentNode) {
         return
       }
-      this.$axios.post(
-        `/api/v1/assets/nodes/${currentNode.meta.data.id}/tasks/`,
-        { 'action': 'test' }
-      ).then((res) => {
-        openTaskPage(res['task'])
-      }).catch(error => {
-        this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + error))
-      })
+      this.$axios
+        .post(`/api/v1/assets/nodes/${currentNode.meta.data.id}/tasks/`, { action: 'test' })
+        .then((res) => {
+          openTaskPage(res['task'])
+        })
+        .catch((error) => {
+          this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + error))
+        })
     },
     rMenuShowAssetOnlyCurrentNode() {
       this.hideMenu()
@@ -199,21 +215,22 @@ export default {
         this.nodeInfoDialogSetting.items = [
           { key: 'id', label: 'ID', value: res.id },
           { key: 'key', label: 'KEY', value: res.key },
-          { key: 'name', label: this.$t('assets.Name'), value: res.name },
-          { key: 'fullName', label: this.$t('assets.FullName'), value: res.full_value }
+          { key: 'name', label: this.$t('Name'), value: res.name },
+          { key: 'fullName', label: this.$t('FullName'), value: res.full_value }
         ]
       } catch (error) {
-        this.$message.error(this.$tc('common.ErrorMsg' + ' ' + error))
+        this.$message.error(this.$tc('ErrorMsg' + ' ' + error))
       }
     },
     rCheckAssetsAmount() {
-      this.$axios.post(
-        `/api/v1/assets/nodes/check_assets_amount_task/`
-      ).then(res => {
-        openTaskPage(res['task'])
-      }).catch(error => {
-        this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + error))
-      })
+      this.$axios
+        .post(`/api/v1/assets/nodes/check_assets_amount_task/`)
+        .then((res) => {
+          openTaskPage(res['task'])
+        })
+        .catch((error) => {
+          this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + error))
+        })
     },
     hideMenu() {
       this.tree.hideRMenu()
@@ -246,7 +263,8 @@ div.rMenu li {
   list-style: none outside none;
 }
 
-.rmenu > a:hover, .dropdown-menu > a:focus {
+.rmenu > a:hover,
+.dropdown-menu > a:focus {
   color: #262626;
   text-decoration: none;
   background-color: #f5f5f5;
@@ -260,7 +278,7 @@ div.rMenu li {
   margin: 1px 0;
   list-style: none outside none;
   background-color: #e5e5e5;
-  height: 1px
+  height: 1px;
 }
 
 .el-row {
@@ -270,5 +288,4 @@ div.rMenu li {
     margin-bottom: 0;
   }
 }
-
 </style>

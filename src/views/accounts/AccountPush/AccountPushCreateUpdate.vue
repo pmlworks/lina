@@ -1,12 +1,14 @@
 <template>
-  <GenericCreateUpdatePage v-bind="$data" />
+  <GenericCreateUpdatePage v-bind="$data" @get-object-done="handleObjectDone" />
 </template>
 
 <script>
-import i18n from '@/i18n/i18n'
+import { AutomationParams } from '@/components'
+import { periodicMeta } from '@/components/const'
+import { ResourceSelect, TagInput, TreeResourceSelect } from '@/components/Form/FormFields'
 import { GenericCreateUpdatePage } from '@/layout/components'
 import { getChangeSecretFields } from '@/views/accounts/AccountChangeSecret/fields'
-import { AssetSelect, AutomationParams } from '@/components'
+import AccountPushPasswordRule from './AccountPushPasswordRule.vue'
 
 export default {
   name: 'AccountPushCreateUpdate',
@@ -14,14 +16,16 @@ export default {
     GenericCreateUpdatePage
   },
   data() {
+    const changeSecretFields = getChangeSecretFields()
+
     return {
-      node_ids: [],
-      asset_ids: [],
+      nodeIds: [],
+      assetIds: [],
       isAssetType: '',
       initial: {
-        is_periodic: this.$store.getters.hasValidLicense,
+        is_periodic: false,
         password_rules: {
-          length: 30
+          length: 36
         },
         interval: 24,
         secret_type: 'password',
@@ -30,51 +34,65 @@ export default {
       url: '/api/v1/accounts/push-account-automations/',
       encryptedFields: ['secret'],
       fields: [
-        [this.$t('common.Basic'), ['name']],
-        [this.$t('xpack.Asset'), ['assets', 'nodes']],
+        [this.$t('Basic'), ['name']],
+        [this.$t('Asset'), ['assets', 'nodes']],
         [
-          this.$t('assets.Account'),
+          this.$t('Account'),
           [
-            'accounts', 'secret_strategy', 'secret_type', 'secret',
-            'password_rules', 'ssh_key_change_strategy', 'ssh_key',
-            'passphrase', 'params'
+            'accounts',
+            'secret_strategy',
+            'secret_type',
+            'secret',
+            'password_rules',
+            'ssh_key_change_strategy',
+            'ssh_key',
+            'passphrase'
           ]
         ],
-        [this.$t('xpack.Timer'), ['is_periodic', 'crontab', 'interval']],
-        [this.$t('common.Other'), ['is_active', 'comment']]
+        [this.$t('Params'), ['params']],
+        [this.$t('Periodic'), ['is_periodic', 'interval', 'crontab']],
+        [this.$t('Other'), ['check_conn_after_change', 'is_active', 'comment']]
       ],
       fieldsMeta: {
-        ...getChangeSecretFields(),
+        ...periodicMeta,
+        ...changeSecretFields,
+        password_rules: {
+          ...changeSecretFields.password_rules,
+          component: AccountPushPasswordRule
+        },
         assets: {
-          label: i18n.t('xpack.Asset'),
-          type: 'assetSelect',
-          component: AssetSelect,
-          rules: [
-            { required: false }
-          ],
+          type: 'resourceSelect',
+          component: ResourceSelect,
+          rules: [{ required: false }],
           el: {
-            baseUrl: '/api/v1/assets/assets/?push_account_enabled=true'
+            value: [],
+            url: '/api/v1/assets/assets/?push_account_enabled=true&fields_size=mini',
+            resourceName: this.$t('Assets'),
+            nodeFilter: {
+              treeUrl: '/api/v1/assets/nodes/children/tree/?asset_amount=0&all=all',
+              typeTreeUrl: '/api/v1/assets/nodes/category/tree/?count_resource=none',
+              includeDescendants: true
+            }
           },
           on: {
             input: ([value]) => {
-              this.asset_ids = value
+              this.assetIds = value
             }
           }
         },
         nodes: {
-          label: this.$tc('assets.Node'),
+          type: 'treeResourceSelect',
+          component: TreeResourceSelect,
+          rules: [{ required: false }],
           el: {
-            multiple: true,
-            ajax: {
-              transformOption: (item) => {
-                return { label: item['full_value'], value: item.id }
-              },
-              url: '/api/v1/assets/nodes/'
-            }
+            value: [],
+            url: '/api/v1/assets/nodes/?fields_size=mini',
+            treeUrl: '/api/v1/assets/nodes/children/tree/?asset_amount=0&all=all',
+            resourceName: this.$t('Nodes')
           },
           on: {
             input: ([value]) => {
-              this.node_ids = value?.map(i => i.pk)
+              this.nodeIds = value || []
             }
           }
         },
@@ -82,27 +100,27 @@ export default {
           hidden: (formValue) => formValue['dynamic_username']
         },
         ssh_key_change_strategy: {
-          hidden: (formValue) => formValue['action'] !== 'create_and_push' ||
-            formValue['secret_type'] !== 'ssh_key'
+          hidden: (formValue) =>
+            formValue['action'] !== 'create_and_push' || formValue['secret_type'] !== 'ssh_key'
         },
         triggers: {
           el: {
             readonly: true
           }
         },
-        is_periodic: {
-          type: 'switch',
-          disabled: !this.$store.getters.hasValidLicense
+        accounts: {
+          component: TagInput,
+          helpText: this.$t('PushAccountHelpText')
         },
         params: {
           component: AutomationParams,
-          label: this.$t('assets.PushParams'),
+          label: this.$t('PushParams'),
           el: {
             method: 'push_account_method',
-            assets: this.asset_ids,
-            nodes: this.node_ids
+            assets: this.assetIds,
+            nodes: this.nodeIds
           },
-          helpText: this.$t('accounts.AccountPush.ParamsHelpText')
+          helpText: this.$t('ParamsHelpText')
         }
       },
       createSuccessNextRoute: { name: 'AccountPushList' },
@@ -114,6 +132,10 @@ export default {
           data.secret = data[secretType]
           delete data[secretType]
         }
+
+        if (data.ssh_key_change_strategy === 'add') {
+          data.ssh_key_change_strategy = this.initial.ssh_key_change_strategy
+        }
         return data
       }
     }
@@ -124,13 +146,13 @@ export default {
     }
   },
   watch: {
-    node_ids: {
+    nodeIds: {
       handler(val) {
         this.fieldsMeta.params.el.nodes = val
       },
       deep: true
     },
-    asset_ids: {
+    assetIds: {
       handler(val) {
         this.fieldsMeta.params.el.assets = val
       },
@@ -138,13 +160,12 @@ export default {
     }
   },
   methods: {
-    hasType(type) {
-      return this.isAssetType.indexOf(type) > -1
+    handleObjectDone({ assets = [], nodes = [] }) {
+      this.assetIds = assets.map((item) => item.id || item.pk || item)
+      this.nodeIds = nodes.map((item) => item.id || item.pk || item)
     },
     handleAfterGetRemoteMeta(meta) {
-      const needSetOptionFields = [
-        'secret_type', 'secret_strategy', 'ssh_key_change_strategy'
-      ]
+      const needSetOptionFields = ['secret_type', 'secret_strategy', 'ssh_key_change_strategy']
       for (const i of needSetOptionFields) {
         const field = this.fieldsMeta[i] || {}
         field.options = meta[i]?.choices || []
@@ -154,6 +175,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

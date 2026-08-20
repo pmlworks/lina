@@ -1,10 +1,14 @@
 <template>
-  <GenericListTableDialog :visible.sync="iVisible" v-bind="config" />
+  <GenericListTableDialog
+    v-bind="config"
+    :visible="visible"
+    @update:visible="$emit('update:visible', $event)"
+  />
 </template>
 
 <script>
 import { GenericListTableDialog } from '@/layout/components'
-import { ShowKeyCopyFormatter } from '@/components/Table/TableFormatters'
+import { SecretViewerFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   components: {
@@ -20,27 +24,28 @@ export default {
       default: false
     }
   },
+  emits: ['update:visible'],
   data() {
     return {
       config: {
-        title: this.$t('accounts.HistoryPassword'),
+        title: this.$t('HistoryPassword'),
         visible: false,
-        width: '60%',
+        width: '860px',
         tableConfig: {
           id: 'history_date',
           url: `/api/v1/accounts/account-secrets/${this.account.id}/histories/`,
           columns: ['secret', 'version', 'history_date'],
           columnsMeta: {
             secret: {
-              label: this.$t('assets.Password'),
-              formatter: ShowKeyCopyFormatter,
+              label: this.$t('Password'),
+              formatter: SecretViewerFormatter,
               formatterArgs: {
                 hasDownload: false,
                 name: this.account.name
               }
             },
             history_date: {
-              label: this.$t('accounts.HistoryDate')
+              label: this.$t('HistoryDate')
             },
             secret_type: {
               width: '200px'
@@ -59,20 +64,8 @@ export default {
         }
       }
     }
-  },
-  computed: {
-    iVisible: {
-      get() {
-        return this.visible
-      },
-      set(val) {
-        this.$emit('update:visible', val)
-      }
-    }
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

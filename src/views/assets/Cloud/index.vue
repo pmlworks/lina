@@ -1,5 +1,5 @@
 <template>
-  <TabPage :active-menu.sync="config.activeMenu" v-bind="config" />
+  <TabPage v-bind="config" v-model:active-menu="config.activeMenu" />
 </template>
 
 <script>
@@ -13,25 +13,27 @@ export default {
   data() {
     return {
       config: {
-        activeMenu: 'SyncInstanceTaskList',
+        title: '',
+        activeMenu: 'CloudAccountList',
         submenu: [
           {
-            title: this.$t('common.SyncTask'),
-            name: 'SyncInstanceTaskList',
-            hidden: () => !this.$hasPerm('xpack.view_syncinstancetask'),
-            component: () => import('@/views/assets/Cloud/SyncInstanceTask/SyncInstanceTaskList.vue')
+            title: this.$t('CloudAccountList'),
+            name: 'CloudAccountList',
+            hidden: () => !this.$hasPerm('xpack.view_account'),
+            component: () => import('@/views/assets/Cloud/Account/AccountList.vue')
           },
           {
-            title: this.$t('xpack.Cloud.SyncStrategy'),
+            title: this.$t('SyncStrategy'),
             name: 'StrategyList',
             hidden: () => !this.$hasPerm('xpack.view_strategy'),
             component: () => import('@/views/assets/Cloud/Strategy/StrategyList.vue')
           },
           {
-            title: this.$t('xpack.Cloud.AccountList'),
-            name: 'AccountList',
-            hidden: () => !this.$hasPerm('xpack.view_account'),
-            component: () => import('@/views/assets/Cloud/Account/AccountList.vue')
+            title: this.$t('SyncInstanceTaskHistoryAssetList'),
+            name: 'TaskSyncAssetList',
+            hidden: () => !this.$hasLicense() || !this.$hasPerm('xpack.view_syncinstancedetail'),
+            component: () =>
+              import('@/views/assets/Cloud/Account/AccountDetail/TaskSyncAssetList.vue')
           }
         ],
         actions: {
@@ -39,10 +41,11 @@ export default {
         }
       }
     }
+  },
+  mounted() {
+    const category = this.$route.query.category || 'host'
+    const display = category === 'host' ? this.$t('Host') : this.$t('Database')
+    this.config.title = `${display} - ${this.$t('CloudSync')}`
   }
 }
 </script>
-
-<style scoped>
-
-</style>

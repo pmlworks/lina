@@ -1,30 +1,29 @@
 <template>
   <TabPage
-    v-if="!loading"
-    :active-menu.sync="iActiveMenu"
+    v-model:active-menu="iActiveMenu"
     :submenu="iSubmenu"
     :title="iTitle"
+    class="generic-detail-page"
     @tab-click="handleTabClick"
   >
     <template #headingRightSide>
       <span v-if="hasRightSide">
-        <ActionsGroup slot="headingRightSide" :actions="pageActions" />
+        <ActionsGroup :actions="pageActions" class="header-buttons" />
       </span>
     </template>
-    <slot />
+    <div v-if="!loading">
+      <slot />
+    </div>
   </TabPage>
 </template>
 
 <script>
 import TabPage from '../TabPage'
 import { flashErrorMsg } from '@/utils/request'
-import { getApiPath } from '@/utils/common'
-import ActionsGroup from '@/components/ActionsGroup'
-import ResourceActivity from '@/components/Apps/ResourceActivity/index.vue'
+import { getApiPath } from '@/utils/common/index'
+import ActionsGroup from '@/components/Common/ActionsGroup'
+import { getRuntimeActionMeta } from '@/libs/context/runtime'
 import { mapGetters } from 'vuex'
-import Vue from 'vue'
-
-Vue.component('ResourceActivity', ResourceActivity)
 
 export default {
   name: 'GenericDetailPage',
@@ -35,7 +34,6 @@ export default {
   props: {
     url: {
       type: String,
-      required: false,
       default: ''
     },
     object: {
@@ -73,74 +71,81 @@ export default {
     },
     getObjectName: {
       type: Function,
-      default: function(obj) {
+      default: function (obj) {
         return obj.name
       }
     },
     getTitle: {
       type: Function,
-      default: function(obj) {
-        const objectType = this.$route.meta.title.replace('Detail', '').replace('详情', '')
-        this.$log.debug('Object is: ', obj)
-        const titlePrefix = this.titlePrefix || objectType
-        const objectName = this.getObjectName(obj)
-        let title = `${titlePrefix}: ${objectName}`
-        if (title.length > 80) {
-          title = title.slice(0, 80) + '...'
-        }
-        return title
+      default: function (obj) {
+        const objectName = obj?.name || ''
+        return objectName
       }
     }
   },
+  emits: [
+    'update:activeMenu',
+    'tab-click',
+    'update:object',
+    'getObjectDone',
+    'close-drawer',
+    'detail-delete-success',
+    'open-update-drawer',
+    'reload-table'
+  ],
   data() {
     const vm = this
-    const detailApiUrl = (function() {
-      if (vm.url) {
-        return `${vm.url}/${vm.$route.params.id}/`
-      } else {
-        return getApiPath(vm)
-      }
-    }())
     const defaultActions = {
       // Delete button
       canDelete: vm.$hasCurrentResAction('delete'),
-      deleteCallback: function(item) {
+      hasDelete: true,
+      deleteCallback: function (item) {
         vm.defaultDelete(item)
       },
-      deleteApiUrl: detailApiUrl,
       deleteSuccessRoute: this.$route.name.replace('Detail', 'List'),
       // Update button
       canUpdate: () => {
         return !vm.currentOrgIsRoot && vm.$hasCurrentResAction('change')
       },
-      updateCallback: function(item) {
+      hasUpdate: true,
+      updateCallback: function (item) {
         this.defaultUpdate(item)
       },
       updateRoute: this.$route.name.replace('Detail', 'Update')
     }
     return {
-      detailApiUrl,
       defaultActions,
       loading: true,
+      drawer: false,
+      action: '',
+      actionId: '',
       validActions: Object.assign(defaultActions, this.actions)
     }
   },
+
   computed: {
     ...mapGetters(['currentOrgIsRoot']),
+    hasLoadedObject() {
+      return !!(this.object && Object.keys(this.object).length > 0)
+    },
     pageActions() {
       return [
         {
           name: 'update',
-          title: this.$t('common.Update'),
+          title: this.$t('Edit'),
+          icon: 'el-icon-edit-outline',
+          size: 'small',
           can: this.validActions.canUpdate,
           has: this.validActions.hasUpdate,
           callback: this.validActions.updateCallback.bind(this)
         },
         {
           name: 'delete',
-          title: this.$t('common.Delete'),
+          title: this.$t('Delete'),
           type: 'danger',
           plain: true,
+          icon: 'el-icon-delete',
+          size: 'small',
           can: this.validActions.canDelete,
           has: this.validActions.hasDelete,
           callback: this.validActions.deleteCallback.bind(this)
@@ -148,6 +153,12 @@ export default {
       ]
     },
     iTitle() {
+      if (this.drawer) {
+        return 'null'
+      }
+      return this.detailTitle
+    },
+    detailTitle() {
       return this.title || this.getTitle(this.object)
     },
     iActiveMenu: {
@@ -163,49 +174,90 @@ export default {
         return this.submenu
       }
       const activity = {
-        title: this.$t('common.Activity'),
+        title: this.$t('Activity'),
         name: 'ResourceActivity',
         hidden: () => !this.$hasPerm('audits.view_activitylog')
       }
       return [...this.submenu, activity]
     }
   },
-  async mounted() {
-    try {
-      this.loading = true
-      await this.getObject()
-    } finally {
-      this.loading = false
-    }
+  async created() {
+    await this.loadObject()
+  },
+  async activated() {
+    if (this.loading || this.hasLoadedObject) return
+    await this.loadObject()
   },
   methods: {
+    async loadObject() {
+      try {
+        this.loading = true
+        await this.checkDrawer()
+        await this.getObject()
+      } finally {
+        this.loading = false
+      }
+    },
+    async getDrawerMeta() {
+      return getRuntimeActionMeta(this)
+    },
+    async checkDrawer() {
+      const drawActionMeta = await this.getDrawerMeta()
+      if (drawActionMeta && drawActionMeta.action) {
+        this.drawer = true
+        this.row = drawActionMeta.row
+        this.actionId = drawActionMeta.id
+      }
+    },
+    getDetailUrl() {
+      const vm = this
+      const objectId = this.actionId || this.$context.get('id')
+      // 兼容之前的 detailApiUrl
+      if (vm.validActions.detailApiUrl || vm.detailApiUrl) {
+        return vm.validActions.detailApiUrl || vm.detailApiUrl
+      }
+      const url = _.trimEnd(vm.url, '/')
+      return url ? `${url}/${objectId}/` : getApiPath(vm, objectId)
+    },
+    afterDelete() {
+      if (this.drawer) {
+        this.$emit('close-drawer')
+        this.$emit('detail-delete-success')
+        this.$emit('reload-table')
+      } else {
+        this.$message.success(this.$tc('DeleteSuccessMsg'))
+        this.$router.push({ name: this.validActions.deleteSuccessRoute })
+      }
+    },
     defaultDelete() {
-      const msg = this.$t('common.deleteWarningMsg') + ' ' + this.iTitle + ' ?'
-      const title = this.$t('common.Info')
+      const msg = this.$t('DeleteWarningMsg') + ' ' + this.detailTitle + ' ?'
+      const title = this.$t('Info')
       const performDelete = () => {
-        const url = this.validActions.deleteApiUrl
+        const url = this.getDetailUrl()
         this.$log.debug('Start perform delete: ', url)
         return this.$axios.delete(url)
       }
+
       this.$alert(msg, title, {
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
+        closeOnPressEscape: true,
         showCancelButton: true,
-        beforeClose: async(action, instance, done) => {
+        beforeClose: async (action, instance, done) => {
           if (action !== 'confirm') return done()
           instance.confirmButtonLoading = true
           try {
             await performDelete.bind(this)()
             done()
-            this.$message.success(this.$tc('common.deleteSuccessMsg'))
-            this.$router.push({ name: this.validActions.deleteSuccessRoute })
+            this.afterDelete()
           } catch (error) {
             const errorDetail = error?.response?.data?.detail || ''
             if (errorDetail) {
               this.$message.error(errorDetail)
             } else {
-              this.$message.error(this.$tc('common.deleteErrorMsg') + ' ' + error)
+              this.$message.error(this.$tc('DeleteErrorMsg') + ' ' + error)
             }
+            done()
           } finally {
             instance.confirmButtonLoading = false
           }
@@ -215,32 +267,56 @@ export default {
       })
     },
     defaultUpdate() {
-      const id = this.$route.params.id
+      const id = this.actionId || this.$context.get('id')
       let route = this.validActions.updateRoute
+      if (typeof route === 'function') {
+        route = route({
+          object: this.object,
+          row: this.row,
+          id
+        })
+      }
+      if (this.drawer) {
+        const row = this.object?.id ? this.object : { ...(this.row || {}), id }
+        this.$emit('open-update-drawer', {
+          row,
+          query: route?.query || {}
+        })
+        return
+      }
       if (typeof route === 'string') {
-        route = { name: route, params: {}}
+        route = { name: route, params: {} }
       }
       route = {
         ...route,
-        query: this.$route.query || {}
+        query: {
+          ...(this.$route.query || {}),
+          ...(route?.query || {})
+        }
       }
-      route.params.id = id
+      route.params = {
+        ...(route.params || {}),
+        id
+      }
       this.$router.push(route)
     },
     getObject() {
       // 兼容之前的 detailApiUrl
-      const url = this.validActions.detailApiUrl || this.detailApiUrl
-      return this.$axios.get(url, { disableFlashErrorMsg: true }).then(data => {
-        this.$emit('update:object', data)
-        this.$emit('getObjectDone', data)
-      }).catch(error => {
-        if (error.response && error.response.status === 404) {
-          const msg = this.$t('common.ObjectNotFoundOrDeletedMsg')
-          this.$message.error(msg)
-        } else {
-          flashErrorMsg({ error, response: error.response })
-        }
-      })
+      const url = this.getDetailUrl()
+      return this.$axios
+        .get(url, { disableFlashErrorMsg: true })
+        .then((data) => {
+          this.$emit('update:object', data)
+          this.$emit('getObjectDone', data)
+        })
+        .catch((error) => {
+          if (error.response && error.response.status === 404) {
+            const msg = this.$tc('ObjectNotFoundOrDeletedMsg')
+            this.$message.error(msg)
+          } else {
+            flashErrorMsg({ error, response: error.response })
+          }
+        })
     },
     handleTabClick(tab) {
       this.$emit('tab-click', tab, this.iActiveMenu)
@@ -251,19 +327,9 @@ export default {
 }
 </script>
 
-<style scoped>
-  .page-submenu >>> .el-tabs__header {
-    background-color: white;
-    margin-left: -25px;
-    padding-left: 25px;
-    margin-right: -25px;
-    padding-right: 25px;
-    margin-top: -30px;
-    /*margin: 0;*/
-    /*background-color: #f3f3f4;*/
-  }
-
-  .page-submenu >>> .el-tabs__nav-wrap {
-    position: static;
-  }
+<style lang="scss" scoped>
+.header-buttons {
+  z-index: 999;
+  margin-right: 20px;
+}
 </style>

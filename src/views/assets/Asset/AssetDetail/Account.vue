@@ -1,36 +1,38 @@
 <template>
   <div>
-    <el-row :gutter="24">
-      <el-col :md="24" :sm="24">
-        <AccountListTable
-          ref="ListTable"
-          :asset="object"
-          :has-clone="false"
-          :has-import="false"
-          :has-left-actions="true"
-          :header-extra-actions="headerExtraActions"
-          :url="iUrl"
-          v-bind="$attrs"
-        />
-        <AccountTemplateDialog
-          v-if="templateDialogVisible"
-          :asset="object"
-          :show-create="false"
-          :visible.sync="templateDialogVisible"
-          @onConfirm="onConfirm"
-        />
-      </el-col>
-    </el-row>
+    <TwoCol>
+      <AccountListTable
+        v-bind="$attrs"
+        ref="ListTable"
+        :asset="object"
+        :columns-default="columnsDefault"
+        :has-clone="false"
+        :has-import="false"
+        :has-left-actions="true"
+        :header-extra-actions="headerExtraActions"
+        :url="iUrl"
+      />
+      <AccountTemplateDialog
+        v-if="templateDialogVisible"
+        v-model:visible="templateDialogVisible"
+        :asset="object"
+        :show-create="false"
+        @on-confirm="onConfirm"
+      />
+    </TwoCol>
   </div>
 </template>
 
 <script>
 import { AccountListTable } from '@/components'
 import AccountTemplateDialog from '@/views/assets/Asset/AssetCreateUpdate/components/AccountTemplateDialog'
+import { openTaskPage } from '@/utils/jms/index'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'Detail',
   components: {
+    TwoCol,
     AccountListTable,
     AccountTemplateDialog
   },
@@ -42,20 +44,55 @@ export default {
     url: {
       type: String,
       default: ''
+    },
+    extraQuickActions: {
+      type: Array,
+      default: () => {
+        return []
+      }
     }
   },
   data() {
     return {
+      title: this.$t('Test'),
       templateDialogVisible: false,
+      columnsDefault: ['name', 'username', 'connect'],
       headerExtraActions: [
         {
-          name: this.$t('route.AccountTemplate'),
-          title: this.$t('route.AccountTemplate'),
-          can: () => this.$hasPerm('accounts.view_accounttemplate') && !this.$store.getters.currentOrgIsRoot,
+          name: this.$t('AccountTemplate'),
+          title: this.$t('AccountTemplate'),
+          has: this.$hasLicense() || this.$route.name !== 'Applets',
+          can: () =>
+            this.$hasPerm('accounts.view_accounttemplate') && !this.$store.getters.currentOrgIsRoot,
           callback: () => {
             this.templateDialogVisible = true
           }
         }
+      ],
+      quickActions: [
+        {
+          title: this.$t('BatchTest'),
+          attrs: {
+            type: 'primary',
+            label: this.$tc('Test'),
+            disabled:
+              ['clickhouse', 'redis', 'website', 'chatgpt'].indexOf(this.object.type.value) !==
+                -1 || this.$store.getters.currentOrgIsRoot
+          },
+          callbacks: Object.freeze({
+            click: () => {
+              this.$axios
+                .post(`/api/v1/accounts/accounts/tasks/`, {
+                  action: 'verify',
+                  assets: [this.object.id]
+                })
+                .then((res) => {
+                  openTaskPage(res['task'])
+                })
+            }
+          })
+        },
+        ...this.extraQuickActions
       ]
     }
   },
@@ -66,20 +103,16 @@ export default {
   },
   methods: {
     onConfirm(data) {
-      data = data?.map(i => {
+      data = data?.map((i) => {
         i.asset = this.object.id
         return i
       })
       this.$axios.post(`/api/v1/accounts/accounts/`, data).then(() => {
         this.templateDialogVisible = false
         this.$refs.ListTable.addAccountSuccess()
-        this.$message.success(this.$tc('common.AddSuccessMsg'))
+        this.$message.success(this.$tc('AddSuccessMsg'))
       })
     }
   }
 }
 </script>
-
-<style lang='less' scoped>
-
-</style>

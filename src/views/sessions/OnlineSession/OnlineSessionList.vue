@@ -1,15 +1,16 @@
 <template>
   <GenericListPage
     ref="GenericListPage"
-    :title="this.$t('route.OnlineUserDevices')"
     :header-actions="headerActions"
+    :help-tip="helpMsg"
     :table-config="tableConfig"
-    :help-message="helpMsg"
+    :title="$t('OnlineUserDevices')"
   />
 </template>
 
 <script>
-import GenericListPage from '@/layout/components/GenericListPage'
+import { GenericListPage } from '@/layout/components'
+import { DetailFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   components: {
@@ -18,7 +19,7 @@ export default {
   data() {
     const vm = this
     return {
-      helpMsg: this.$t('terminal.OnlineSessionHelpMsg'),
+      helpMsg: this.$t('OnlineSessionHelpMsg'),
       tableConfig: {
         permissions: {
           app: 'audits',
@@ -29,33 +30,52 @@ export default {
         columnsShow: {
           min: ['user_display', 'actions'],
           default: [
-            'user_display', 'backend_display', 'ip', 'city',
-            'user_agent', 'date_created', 'is_active', 'actions'
+            'user_display',
+            'backend_display',
+            'city',
+            'date_created',
+            'is_active',
+            'actions'
           ]
         },
         columns: [
-          'user_display', 'backend_display', 'ip', 'city', 'type',
-          'user_agent', 'date_created', 'is_active', 'date_expired', 'actions'
+          'user_display',
+          'backend_display',
+          'city',
+          'type',
+          'date_created',
+          'is_active',
+          'date_expired',
+          'user_agent',
+          'actions'
         ],
         columnsMeta: {
           is_active: {
-            label: this.$t('terminal.Active'),
+            label: this.$t('Active'),
             formatterArgs: {
               showText: false,
               showFalse: false
             }
           },
           user_display: {
-            label: this.$t('audits.User'),
-            formatter: function(row) {
-              const to = {
-                name: 'UserDetail',
-                params: { id: row.user.id }
-              }
-              if (vm.$hasPerm('users.view_user')) {
-                return <router-link to={to}>{row.user.name}</router-link>
-              } else {
-                return <span>{row.user.name}</span>
+            label: this.$t('User'),
+            formatter: DetailFormatter,
+            formatterArgs: {
+              drawer: true,
+              can: this.$hasPerm('users.view_user'),
+              getTitle: ({ row }) => {
+                return row.user.name
+              },
+              getDrawerTitle({ row }) {
+                return row.user.name
+              },
+              getRoute: ({ row }) => {
+                return {
+                  name: 'UserDetail',
+                  params: {
+                    id: row.user.id
+                  }
+                }
               }
             }
           },
@@ -67,19 +87,19 @@ export default {
               extraActions: [
                 {
                   name: 'OfflineSession',
-                  title: this.$t('terminal.Offline'),
+                  title: this.$t('Offline'),
+                  icon: 'fa-solid fa-power-off',
                   can: ({ row }) => {
                     return vm.$hasPerm('audits.offline_usersession') && !row.is_current_user_session
                   },
                   type: 'danger',
                   callback: ({ row }) => {
-                    this.$axios.post(
-                      '/api/v1/audits/user-sessions/offline/',
-                      { ids: [row.id] }
-                    ).then(() => {
-                      vm.$message.success(this.$tc('terminal.OfflineSuccessMsg'))
-                      vm.$refs.GenericListPage.$refs.ListTable.$refs.ListTable.reloadTable()
-                    })
+                    this.$axios
+                      .post('/api/v1/audits/user-sessions/offline/', { ids: [row.id] })
+                      .then(() => {
+                        vm.$message.success(this.$tc('OfflineSuccessMsg'))
+                        vm.$refs.GenericListPage.$refs.ListTable.$refs.ListTable.reloadTable()
+                      })
                   }
                 }
               ]
@@ -94,40 +114,26 @@ export default {
         hasBulkDelete: false,
         hasLeftActions: true,
         hasRightActions: true,
-        searchConfig: {
-          exclude: ['is_active'],
-          options: [
-            {
-              value: 'is_active',
-              label: this.$t('terminal.Active'),
-              children: [
-                { value: true, label: this.$t('common.Yes') },
-                { value: false, label: this.$t('common.No') }
-              ]
-            }
-          ]
-        },
         extraMoreActions: [
           {
             name: 'OfflineSelected',
-            title: this.$t('terminal.BulkOffline'),
+            title: this.$t('OfflineSelected'),
             type: 'danger',
-            fa: 'clean',
+            icon: 'clean',
             can: ({ selectedRows }) => {
               return selectedRows.length > 0 && vm.$hasPerm('audits.offline_usersession')
             },
-            callback: function({ selectedRows }) {
-              vm.$axios.post(
-                '/api/v1/audits/user-sessions/offline/',
-                {
-                  ids: selectedRows.map(v => {
+            callback: function ({ selectedRows }) {
+              vm.$axios
+                .post('/api/v1/audits/user-sessions/offline/', {
+                  ids: selectedRows.map((v) => {
                     return v.id
                   })
-                }
-              ).then(res => {
-                vm.$message.success(vm.$tc('terminal.OfflineSuccessMsg'))
-                vm.$refs.GenericListPage.$refs.ListTable.$refs.ListTable.reloadTable()
-              })
+                })
+                .then((res) => {
+                  vm.$message.success(vm.$tc('OfflineSuccessMsg'))
+                  vm.$refs.GenericListPage.$refs.ListTable.$refs.ListTable.reloadTable()
+                })
             }
           }
         ]

@@ -16,18 +16,18 @@ export default {
     return {
       url: '/api/v1/xpack/cloud/strategies/',
       fields: [
-        [this.$t('common.Basic'), ['name', 'priority']],
-        [this.$t('common.RuleSetting'), ['rule_relation', 'strategy_rules']],
-        [this.$t('common.ActionSetting'), ['strategy_actions']],
-        [this.$t('common.Other'), ['comment']]
+        [this.$t('Basic'), ['name', 'priority']],
+        [this.$t('RuleSetting'), ['rule_relation', 'strategy_rules']],
+        [this.$t('ActionSetting'), ['strategy_actions']],
+        [this.$t('Other'), ['comment']]
       ],
       fieldsMeta: {
         name: {
           rules: [RequiredChange, specialEmojiCheck]
         },
         rule_relation: {
-          label: this.$t('common.RuleRelation'),
-          helpTips: this.$t('common.RuleRelationHelpTips')
+          label: this.$t('RuleRelation'),
+          helpTip: this.$t('RuleRelationHelpTip')
         },
         strategy_rules: {
           component: RuleInput
@@ -36,21 +36,20 @@ export default {
           component: ActionInput
         }
       },
-      updateSuccessNextRoute: { name: 'CloudCenter', params: { activeMenu: 'StrategyList' }},
-      createSuccessNextRoute: { name: 'CloudCenter', params: { activeMenu: 'StrategyList' }},
+      updateSuccessNextRoute: { name: 'CloudAccountList', params: { activeMenu: 'StrategyList' } },
+      createSuccessNextRoute: { name: 'CloudAccountList', params: { activeMenu: 'StrategyList' } },
+      cleanFormValue: (value) => {
+        value['category'] = this.$context.get('category') ?? 'host'
+        return value
+      },
       getUrl() {
-        const id = this.$route.params?.id
+        const id = this.$context.get('id')
         return id ? `${this.url}${id}/` : this.url
       }
     }
   },
   methods: {}
 }
-
 </script>
 
-<style lang="scss" scoped>
->>> .attr-input {
-  margin-top: -6px;
-}
-</style>
+<style lang="scss" scoped></style>

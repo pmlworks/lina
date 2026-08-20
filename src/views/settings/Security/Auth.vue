@@ -1,11 +1,12 @@
 <template>
   <IBox>
-    <GenericCreateUpdateForm submit-method="patch" v-bind="config" />
+    <GenericCreateUpdateForm v-bind="config" submit-method="patch" />
   </IBox>
 </template>
 
 <script>
-import IBox from '@/components/IBox/index.vue'
+import IBox from '@/components/Common/IBox/index.vue'
+import rules from '@/components/Form/DataForm/rules'
 import GenericCreateUpdateForm from '@/layout/components/GenericCreateUpdateForm/index.vue'
 
 export default {
@@ -17,7 +18,7 @@ export default {
         url: '/api/v1/settings/setting/?category=security_auth',
         fields: [
           [
-            this.$t('common.Basic'),
+            this.$t('Basic'),
             [
               'SECURITY_LOGIN_CAPTCHA_ENABLED',
               'SECURITY_LOGIN_CHALLENGE_ENABLED',
@@ -30,9 +31,11 @@ export default {
             [
               'SECURITY_MFA_AUTH',
               'SECURITY_MFA_IN_LOGIN_PAGE',
+              'SECURITY_MFA_BY_EMAIL',
               'SECURITY_MFA_AUTH_ENABLED_FOR_THIRD_PARTY',
               'SECURITY_MFA_VERIFY_TTL',
-              'OTP_ISSUER_NAME', 'OTP_VALID_WINDOW'
+              'OTP_ISSUER_NAME',
+              'OTP_VALID_WINDOW'
             ]
           ]
         ],
@@ -71,7 +74,13 @@ export default {
             }
           },
           VERIFY_CODE_TTL: {
-            label: this.$t('setting.ExpirationTimeout')
+            label: this.$t('ExpirationTimeout')
+          },
+          SECURITY_MFA_AUTH_ENABLED_FOR_THIRD_PARTY: {
+            helpText: this.$t('ThirdPartyMfaHelpText')
+          },
+          SECURITY_UNCOMMON_USERS_TTL: {
+            rules: [rules.LengthCheck, rules.Required]
           }
         }
       }
@@ -79,7 +88,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

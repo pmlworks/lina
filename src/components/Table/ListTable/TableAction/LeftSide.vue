@@ -1,20 +1,24 @@
 <template>
   <DataActions
-    v-if="hasLeftActions"
-    :actions="iActions"
-    class="header-action"
     v-bind="$attrs"
+    v-if="hasLeftActions && iActions.length > 0"
+    :key="actionsRenderKey"
+    :actions="iActions"
+    size="small"
+    class="header-action"
   />
 </template>
 
 <script>
-import i18n from '@/i18n/i18n'
-import DataActions from '@/components/DataActions/index.vue'
 import { createSourceIdCache } from '@/api/common'
+import { getErrorResponseMsg } from '@/utils/common/index'
 import { cleanActions } from './utils'
 
-const defaultTrue = { type: [Boolean, Function], default: true }
-const defaultFalse = { type: [Boolean, Function], default: false }
+import DataActions from '@/components/Common/DataActions/index.vue'
+
+const defaultTrue = { type: [Boolean, Function, String], default: true }
+const defaultFalse = { type: [Boolean, Function, String], default: false }
+
 export default {
   name: 'LeftSide',
   components: {
@@ -26,9 +30,11 @@ export default {
     canCreate: defaultTrue,
     createRoute: {
       type: [String, Object, Function],
-      default() {
-        return this.$route.name?.replace('List', 'Create')
-      }
+      default: ''
+    },
+    beforeCreate: {
+      type: Function,
+      default: () => null
     },
     onCreate: {
       type: Function,
@@ -44,8 +50,7 @@ export default {
     canBulkUpdate: defaultTrue,
     handleBulkUpdate: {
       type: Function,
-      default: () => {
-      }
+      default: () => {}
     },
     hasMoreActions: defaultTrue,
     tableUrl: {
@@ -54,8 +59,7 @@ export default {
     },
     reloadTable: {
       type: Function,
-      default: () => {
-      }
+      default: () => {}
     },
     performBulkDelete: {
       type: Function,
@@ -63,17 +67,21 @@ export default {
     },
     selectedRows: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     extraActions: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     extraMoreActions: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     moreActionsTitle: {
+      type: String,
+      default: ''
+    },
+    moreActionsType: {
       type: String,
       default: null
     },
@@ -83,7 +91,7 @@ export default {
     },
     createTitle: {
       type: String,
-      default: () => i18n.t('common.Create')
+      default: ''
     }
   },
   data() {
@@ -91,21 +99,21 @@ export default {
     return {
       defaultMoreActions: [
         {
-          title: this.$t('common.BatchDelete'),
+          title: this.$t('DeleteSelected'),
           name: 'actionDeleteSelected',
           has: this.hasBulkDelete,
-          icon: 'fa fa-trash-o',
+          icon: 'trash',
           can({ selectedRows }) {
             return selectedRows.length > 0 && vm.canBulkDelete
           },
           callback: this.defaultBulkDeleteCallback
         },
         {
-          title: this.$t('common.BatchUpdate'),
+          title: this.$t('UpdateSelected'),
           name: 'actionUpdateSelected',
           has: this.hasBulkUpdate,
-          fa: 'batch-update',
-          can: function({ selectedRows }) {
+          icon: 'batch-update',
+          can: function ({ selectedRows }) {
             let canBulkUpdate = vm.canBulkUpdate
             if (typeof canBulkUpdate === 'function') {
               canBulkUpdate = canBulkUpdate({ selectedRows })
@@ -118,26 +126,42 @@ export default {
     }
   },
   computed: {
+    iCreateTitle() {
+      return this.createTitle || this.$t('Create')
+    },
+    iCreateRoute() {
+      return this.createRoute || this.$route?.name?.replace('List', 'Create')
+    },
     defaultActions() {
       const defaultActions = [
         {
           name: 'actionCreate',
-          title: this.createTitle,
+          title: this.iCreateTitle,
           type: 'primary',
           has: this.hasCreate && !this.moreCreates,
           can: this.canCreate,
-          callback: this.onCreate || this.handleCreate
+          icon: 'plus',
+          callback: () => {
+            this.beforeCreate()
+            const callback = this.onCreate || this.handleCreate
+            callback()
+          }
         }
       ]
       if (this.moreCreates) {
         const defaultMoreCreate = {
           name: 'actionMoreCreate',
-          title: this.createTitle,
+          title: this.iCreateTitle,
           type: 'primary',
           has: true,
+          icon: 'plus',
           can: this.canCreate,
           dropdown: [],
-          callback: this.onCreate || this.handleCreate
+          callback: () => {
+            this.beforeCreate()
+            const callback = this.onCreate || this.handleCreate
+            callback()
+          }
         }
         const createCreateAction = Object.assign(defaultMoreCreate, this.moreCreates)
         defaultActions.push(createCreateAction)
@@ -146,6 +170,9 @@ export default {
     },
     iActions() {
       return [...this.actions, this.moreAction]
+    },
+    actionsRenderKey() {
+      return this.selectedRows.map((row) => row.id).join(',') || 'empty'
     },
     actions() {
       const actions = [...this.defaultActions, ...this.extraActions]
@@ -161,42 +188,51 @@ export default {
       const invariantActions = [
         {
           name: 'batch',
-          title: this.$t('common.BatchProcessing', { 'Number': this.selectedRows.length }),
-          divided: true,
-          has: function({ selectedRows }) {
+          title: this.$t('BatchProcessing', { number: this.selectedRows.length }),
+          iconPlaceholder: false,
+          has: function ({ selectedRows }) {
             return selectedRows.length > 0
           },
           class: 'more-batch-processing',
           can: true
         }
       ]
-      let dropdown = _.uniqBy([...invariantActions, ...this.extraMoreActions, ...this.defaultMoreActions], 'name')
+      let dropdown = _.uniqBy(
+        [...invariantActions, ...this.extraMoreActions, ...this.defaultMoreActions],
+        'name'
+      )
       dropdown = cleanActions(dropdown, true, {
         selectedRows: this.selectedRows,
         reloadTable: this.reloadTable
       })
       return {
         name: 'moreActions',
-        title: this.moreActionsTitle || this.$t('common.MoreActions'),
-        dropdown: dropdown
+        title: this.moreActionsTitle || this.$t('MoreActions'),
+        dropdown: dropdown,
+        type: this.moreActionsType
       }
     },
     hasSelectedRows() {
       return this.selectedRows.length > 0
     }
   },
+  mounted() {
+    this.$emit('init-actions-done', this.iActions)
+  },
   methods: {
     handleCreate() {
       let route
-      if (typeof this.createRoute === 'string') {
-        route = { name: this.createRoute }
-        route.name = this.createRoute
-      } else if (typeof this.createRoute === 'function') {
-        route = this.createRoute()
-      } else if (typeof this.createRoute === 'object') {
-        route = this.createRoute
+
+      if (typeof this.iCreateRoute === 'string') {
+        route = { name: this.iCreateRoute }
+      } else if (typeof this.iCreateRoute === 'function') {
+        route = this.iCreateRoute()
+      } else if (typeof this.iCreateRoute === 'object') {
+        route = this.iCreateRoute
       }
+
       this.$log.debug('handle create')
+
       if (this.createInNewPage) {
         const { href } = this.$router.resolve(route)
         window.open(href, '_blank')
@@ -205,23 +241,25 @@ export default {
       }
     },
     defaultBulkDeleteCallback({ selectedRows, reloadTable }) {
-      const msg = this.$t('common.deleteWarningMsg') + ' ' + selectedRows.length + ' ' + this.$t('common.rows') + ' ?'
-      const title = this.$tc('common.Info')
+      const msg =
+        this.$t('DeleteWarningMsg') + ' ' + selectedRows.length + ' ' + this.$t('Rows') + ' ?'
+      const title = this.$tc('Info')
       const performDelete = this.performBulkDelete || this.defaultPerformBulkDelete
       this.$alert(msg, title, {
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
         showCancelButton: true,
-        beforeClose: async(action, instance, done) => {
+        beforeClose: async (action, instance, done) => {
           if (action !== 'confirm') return done()
           instance.confirmButtonLoading = true
           try {
             await performDelete(selectedRows)
             done()
             reloadTable()
-            this.$message.success(this.$tc('common.bulkDeleteSuccessMsg'))
+            this.$message.success(this.$tc('BulkDeleteSuccessMsg'))
           } catch (error) {
-            this.$message.error(this.$tc('common.bulkDeleteErrorMsg') + error.message)
+            const msg = getErrorResponseMsg(error)
+            this.$message.error(this.$tc('BulkDeleteErrorMsg') + msg)
           } finally {
             instance.confirmButtonLoading = false
           }
@@ -235,12 +273,14 @@ export default {
         return v.id
       })
       const data = await createSourceIdCache(ids)
-      const url = (this.tableUrl.indexOf('?') === -1) ? `${this.tableUrl}?spm=` + data.spm : `${this.tableUrl}&spm=` + data.spm
+      const url =
+        this.tableUrl.indexOf('?') === -1
+          ? `${this.tableUrl}?spm=` + data.spm
+          : `${this.tableUrl}&spm=` + data.spm
       return this.$axios.delete(url)
     }
   }
 }
 </script>
 
-<style scoped>
-</style>
+<style lang="scss" scoped></style>

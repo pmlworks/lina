@@ -1,47 +1,64 @@
 <template>
   <div>
     <Dialog
+      v-bind="$attrs"
+      v-model:visible="showSecret"
       :destroy-on-close="true"
       :show-cancel="false"
-      :title="title"
-      :visible.sync="showSecret"
-      :width="'50'"
-      v-bind="$attrs"
+      :title="iTitle"
+      width="720px"
       @confirm="accountConfirmHandle"
-      v-on="$listeners"
     >
-      <el-form :model="secretInfo" class="password-form" label-position="right" label-width="100px">
-        <el-form-item :label="$tc('assets.Name')">
+      <el-form :model="secretInfo" class="password-form" label-position="right" label-width="130px">
+        <el-form-item :label="$tc('Name')">
           <span>{{ account['name'] }}</span>
         </el-form-item>
-        <el-form-item :label="$tc('assets.Username')">
+        <el-form-item :label="$tc('Username')">
           <span>{{ account['username'] }}</span>
         </el-form-item>
         <el-form-item :label="secretTypeLabel">
-          <ShowKeyCopyFormatter
+          <el-tooltip
+            v-if="vaultUnavailable"
+            :content="$t('VaultSecretUnavailableTip')"
+            placement="top"
+          >
+            <span class="vault-secret-unavailable">
+              <i class="fa fa-exclamation-circle" />
+              {{ $t('VaultSecretUnavailable') }}
+            </span>
+          </el-tooltip>
+          <SecretViewerFormatter
+            v-else
             :cell-value="secretInfo.secret"
-            :col="{ formatterArgs: {
-              name: account['name'],
-              secretType: secretType || ''
-            }}"
+            :col="{
+              formatterArgs: {
+                name: account['name'],
+                secretType: secretType || ''
+              }
+            }"
             @input="onShowKeyCopyFormatterChange"
           />
         </el-form-item>
-        <el-form-item v-if="secretType === 'ssh_key'" :label="$tc('assets.sshKeyFingerprint')">
+        <el-form-item v-if="secretType === 'ssh_key'" :label="`${$tc('SshKeyFingerprint')} (MD5)`">
           <span>{{ sshKeyFingerprint }}</span>
         </el-form-item>
-        <el-form-item :label="$tc('common.DateCreated')">
-          <span>{{ account['date_created'] | date }}</span>
+        <el-form-item
+          v-if="secretType === 'ssh_key'"
+          :label="`${$tc('SshKeyFingerprint')} (SHA256)`"
+        >
+          <span>{{ sshKeyFingerprintSha256 }}</span>
         </el-form-item>
-        <el-form-item :label="$tc('common.DateUpdated')">
-          <span>{{ account['date_updated'] | date }}</span>
+        <el-form-item :label="$tc('DateCreated')">
+          <span>{{ toSafeLocalDateStr(account['date_created']) }}</span>
         </el-form-item>
-        <el-form-item v-if="showPasswordRecord" v-perms="'accounts.view_accountsecret'" :label="$tc('accounts.PasswordRecord')">
-          <el-link
-            :underline="false"
-            type="success"
-            @click="showHistoryDialog"
-          >
+        <el-form-item :label="$tc('DateUpdated')">
+          <span>{{ toSafeLocalDateStr(account['date_updated']) }}</span>
+        </el-form-item>
+        <el-form-item
+          v-if="showPasswordRecord && $hasPerm('accounts.view_accountsecret')"
+          :label="$tc('PasswordRecord')"
+        >
+          <el-link underline="never" type="success" @click="showHistoryDialog">
             <span style="padding-right: 30px">
               {{ versions }}
             </span>
@@ -51,24 +68,26 @@
     </Dialog>
     <PasswordHistoryDialog
       v-if="showPasswordHistoryDialog"
+      v-model:visible="showPasswordHistoryDialog"
       :account="account"
-      :visible.sync="showPasswordHistoryDialog"
     />
   </div>
 </template>
 
 <script>
 import Dialog from '@/components/Dialog/index.vue'
+import { SecretViewerFormatter } from '@/components/Table/TableFormatters'
+import { useDateTime } from '@/composables/useDateTime'
+import { encryptPassword } from '@/utils/secure'
 import PasswordHistoryDialog from './PasswordHistoryDialog.vue'
-import { ShowKeyCopyFormatter } from '@/components/Table/TableFormatters'
-import { encryptPassword } from '@/utils/crypto'
+import { mapGetters } from 'vuex'
 
 export default {
   name: 'ShowSecretInfo',
   components: {
     Dialog,
     PasswordHistoryDialog,
-    ShowKeyCopyFormatter
+    SecretViewerFormatter
   },
   props: {
     account: {
@@ -83,30 +102,39 @@ export default {
       type: String,
       default: ''
     },
+    type: {
+      type: String,
+      default: 'account'
+    },
     title: {
       type: String,
-      default: function() {
-        return this.$tc('assets.AccountDetail')
-      }
+      default: ''
     },
     showPasswordRecord: {
       type: Boolean,
       default: true
     }
   },
+  emits: ['update:visible'],
   data() {
     return {
       modifiedSecret: '',
       secretInfo: {},
       versions: '-',
       showSecret: false,
+      vaultUnavailable: false,
       mfaDialogVisible: true,
       sshKeyFingerprint: '-',
+      sshKeyFingerprintSha256: '-',
       historyCount: 0,
+      iTitle: this.title || this.$tc('Detail'),
       showPasswordHistoryDialog: false
     }
   },
   computed: {
+    ...mapGetters({
+      publicSettings: 'publicSettings'
+    }),
     secretTypeLabel() {
       return this.account['secret_type'].label || 'Password'
     },
@@ -114,16 +142,20 @@ export default {
       return this.account['secret_type'].value
     }
   },
-  mounted() {
+  setup() {
+    return useDateTime()
+  },
+  async mounted() {
     if (this.showPasswordRecord) {
       const url = `/api/v1/accounts/account-secrets/${this.account.id}/histories/?limit=1`
-      this.$axios.get(url, { disableFlashErrorMsg: true }).then(resp => {
+      try {
+        const resp = await this.$axios.get(url, { disableFlashErrorMsg: true })
         this.versions = resp.count
-        this.showSecretDialog()
-      })
-    } else {
-      this.showSecretDialog()
+      } catch (error) {
+        // The secret request below displays a dedicated Vault status when applicable.
+      }
     }
+    this.showSecretDialog()
   },
   methods: {
     accountConfirmHandle() {
@@ -136,16 +168,33 @@ export default {
         name: this.secretInfo.name,
         secret: encryptPassword(this.modifiedSecret)
       }
-      this.$axios.patch(`/api/v1/accounts/accounts/${this.account.id}/`, params).then(() => {
-        this.$message.success(this.$tc('common.updateSuccessMsg'))
+      const url =
+        this.type === 'account' ? `/api/v1/accounts/accounts` : `/api/v1/accounts/account-templates`
+      this.$axios.patch(`${url}/${this.account.id}/`, params).then(() => {
+        this.$message.success(this.$tc('UpdateSuccessMsg'))
       })
     },
     showSecretDialog() {
-      return this.$axios.get(this.url, { disableFlashErrorMsg: true }).then((res) => {
-        this.secretInfo = res
-        this.sshKeyFingerprint = res?.spec_info?.ssh_key_fingerprint || '-'
-        this.showSecret = true
-      })
+      if (this.publicSettings.SECURITY_DISABLE_VIEW_SECRET) {
+        this.$message.warning(this.$tc('AccountSecretReadDisabled'))
+        return
+      }
+      return this.$axios
+        .get(this.url, { disableFlashErrorMsg: true })
+        .then((res) => {
+          this.vaultUnavailable = false
+          this.secretInfo = res
+          this.sshKeyFingerprint = res?.spec_info?.ssh_key_fingerprint || '-'
+          this.sshKeyFingerprintSha256 = res?.spec_info?.ssh_key_fingerprint_sha256 || '-'
+          this.showSecret = true
+        })
+        .catch((error) => {
+          if (error?.response?.data?.code !== 'vault_unavailable') {
+            throw error
+          }
+          this.vaultUnavailable = true
+          this.showSecret = true
+        })
     },
     exit() {
       this.$emit('update:visible', false)
@@ -162,48 +211,62 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .item-textarea >>> .el-textarea__inner {
-    height: 110px;
+.item-textarea :deep(.el-textarea__inner) {
+  height: 110px;
+}
+
+.vault-secret-unavailable {
+  color: var(--el-color-warning);
+
+  .fa {
+    margin-right: 4px;
+  }
+}
+
+.el-form-item {
+  border-bottom: 1px solid #ebeef5;
+  padding: 5px 0;
+  margin-bottom: 0;
+
+  &:last-child {
+    border-bottom: none;
   }
 
-  .el-form-item {
-    border-bottom: 1px solid #EBEEF5;
-    padding: 5px 0;
-    margin-bottom: 0;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    >>> .el-form-item__label {
-      padding-right: 20px;
-      line-height: 30px;
-    }
-
-    >>> .el-form-item__content {
-      line-height: 30px;
-
-      pre {
-        margin: 0;
-      }
-    }
+  :deep(.el-form-item__label) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-right: 20px;
+    line-height: 30px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
 
-  ul {
-    margin: 0;
-  }
+  :deep(.el-form-item__content) {
+    line-height: 30px;
 
-  li {
-    display: block;
-    font-size: 13px;
-    margin-bottom: 8px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-
-    .title {
-      color: #303133;
-      font-weight: 500;
+    pre {
+      margin: 0;
     }
   }
+}
+
+ul {
+  margin: 0;
+}
+
+li {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  .title {
+    color: #303133;
+    font-weight: 500;
+  }
+}
 </style>

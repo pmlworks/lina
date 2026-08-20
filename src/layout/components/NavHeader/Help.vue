@@ -1,17 +1,21 @@
 <template>
   <div>
-    <el-dropdown :show-timeout="50" @command="handleCommand">
-      <span class="el-dropdown-link" style="vertical-align: middle;">
-        <svg-icon icon-class="question-mark" style="font-size: 16px;" />
+    <el-dropdown popper-class="nav-header-dropdown" :show-timeout="50" @command="handleCommand">
+      <span class="el-dropdown-link" style="vertical-align: baseline">
+        <svg-icon icon-class="question-mark" />
       </span>
-      <el-dropdown-menu slot="dropdown">
-        <el-dropdown-item command="docs">{{ $t('common.nav.Docs') }}</el-dropdown-item>
-        <el-dropdown-item command="support">{{ $t('common.nav.Support') }}</el-dropdown-item>
-        <el-dropdown-item v-if="!hasLicence" command="enterprise">{{ $t('common.nav.EnterpriseEdition') }}</el-dropdown-item>
-        <el-dropdown-item command="about">{{ $tc('common.About') }}</el-dropdown-item>
-      </el-dropdown-menu>
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item command="docs">{{ $t('Docs') }}</el-dropdown-item>
+          <el-dropdown-item command="support">{{ $t('Support') }}</el-dropdown-item>
+          <el-dropdown-item v-if="!hasLicence" command="enterprise">{{
+            $t('EnterpriseEdition')
+          }}</el-dropdown-item>
+          <el-dropdown-item command="about">{{ $tc('About') }}</el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
     </el-dropdown>
-    <About :visible.sync="visible" />
+    <About v-model:visible="visible" />
   </div>
 </template>
 
@@ -51,7 +55,7 @@ export default {
           window.open(this.URLSite.HELP_SUPPORT_URL, '_blank')
           break
         case 'enterprise':
-          window.open('https://jumpserver.org/enterprise.html', '_blank')
+          window.open('https://www.jumpserver.com/#section-edition', '_blank')
           break
         case 'about':
           this.visible = true

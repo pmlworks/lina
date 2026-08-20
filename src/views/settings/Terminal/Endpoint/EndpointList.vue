@@ -1,12 +1,22 @@
 <template>
   <div>
-    <el-alert type="success" v-html="helpMessage" />
-    <ListTable :header-actions="headerActions" :table-config="tableConfig" />
+    <el-alert type="info">
+      <template #default>
+        <div v-sanitize="helpMessage" />
+      </template>
+    </el-alert>
+    <ListTable
+      ref="ListTable"
+      :header-actions="headerActions"
+      :table-config="tableConfig"
+      :create-drawer="createDrawer"
+      :resource="$t('Endpoint')"
+    />
   </div>
 </template>
 
 <script>
-import ListTable from '@/components/Table/ListTable'
+import { DrawerListTable as ListTable } from '@/components'
 
 export default {
   name: 'EndpointList',
@@ -15,17 +25,23 @@ export default {
   },
   data() {
     return {
-      helpMessage: this.$t('setting.EndpointListHelpMessage'),
+      createDrawer: () => import('./EndpointCreateUpdate.vue'),
+      helpMessage: this.$t('EndpointListHelpMessage'),
       tableConfig: {
         url: '/api/v1/terminal/endpoints/',
-        columnsExclude: ['magnus_listen_db_port'],
         columnsShow: {
           min: ['name', 'actions'],
           default: [
-            'name', 'host', 'actions',
-            'http_port', 'https_port', 'ssh_port', 'rdp_port',
-            'mysql_port', 'mariadb_port', 'postgresql_port',
-            'redis_port', 'sqlserver_port', 'oracle_port_range'
+            'name',
+            'host',
+            'actions',
+            'http_port',
+            'https_port',
+            'ssh_port',
+            'rdp_port',
+            'vnc_port',
+            'magnus_port',
+            'is_active'
           ]
         },
         columnsMeta: {
@@ -37,7 +53,9 @@ export default {
               canUpdate: this.$hasPerm('terminal.change_endpoint'),
               updateRoute: 'EndpointUpdate',
               cloneRoute: 'EndpointCreate',
-              canDelete: ({ row }) => row.id !== '00000000-0000-0000-0000-000000000001' && this.$hasPerm('terminal.delete_endpoint')
+              canDelete: ({ row }) =>
+                row.id !== '00000000-0000-0000-0000-000000000001' &&
+                this.$hasPerm('terminal.delete_endpoint')
             }
           }
         }
@@ -51,7 +69,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>

@@ -1,36 +1,35 @@
 <template>
   <div>
     <div class="treebox">
-      <div>
+      <div v-if="treeSetting.showSearch">
         <el-input
-          v-if="treeSetting.showSearch && showTreeSearch"
+          v-show="showTreeSearch"
           v-model="treeSearchValue"
-          :placeholder="$tc('common.Search')"
-          class="fixed-tree-search"
-          prefix-icon="fa fa-search"
-          size="mini"
+          :placeholder="$tc('Search')"
+          class="fixed-tree-search jms-input-spacing"
+          size="small"
           @input="treeSearchHandle"
         >
-          <span slot="suffix">
-            <!-- <i class="fa fa-search" style="font-size: 14px; color: #676A6C;" /> -->
-            <svg-icon
-              :icon-class="'close'"
-              class="icon"
-              style="font-size: 14px;"
-              @click="onClose"
-            />
-          </span>
+          <template #prefix>
+            <i class="fa fa-search fixed-tree-search__prefix" />
+          </template>
+          <template #suffix>
+            <el-icon style="font-size: 12px; cursor: pointer" @click="onClose"><Close /></el-icon>
+          </template>
         </el-input>
       </div>
-      <ul v-show="loading" class="ztree">
-        {{ this.$t('common.tree.Loading') }}...
+      <ul v-show="loading" class="zloading">
+        {{
+          $t('Loading')
+        }}...
       </ul>
       <ul v-show="!loading" :id="iZTreeID" :key="iZTreeID" class="ztree" />
-      <div v-if="treeSetting.treeUrl===''" class="tree-empty">
-        {{ this.$t('common.tree.Empty') }}
+      <div v-if="treeSetting.treeUrl === ''" class="tree-empty">
+        {{ $t('Empty') }}
         <a id="tree-refresh"><i class="fa fa-refresh" /></a>
       </div>
     </div>
+
     <div :id="iRMenuID" class="rMenu">
       <ul class="dropdown-menu menu-actions">
         <slot name="rMenu" />
@@ -48,12 +47,17 @@ import '@ztree/ztree_v3/js/jquery.ztree.exhide.min.js'
 import '@/styles/ztree.css'
 import '@/styles/ztree_icon.scss'
 import axiosRetry from 'axios-retry'
+import _ from 'lodash'
 
 const defaultObject = {
   type: Object,
-  default: () => {
-  }
+  default: () => ({})
 }
+
+function createDomId(prefix) {
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
+}
+
 export default {
   name: 'ZTree',
   components: {},
@@ -62,13 +66,13 @@ export default {
   },
   data() {
     return {
-      iZTreeID: `zTree_${this._uid}`,
-      iRMenuID: `rMenu_${this._uid}`,
+      iZTreeID: createDomId('zTree'),
+      iRMenuID: createDomId('rMenu'),
       zTree: '',
       rMenu: '',
       init: false,
       loading: false,
-      showTreeSearch: JSON.parse(localStorage.getItem('showTreeSearch')) || false,
+      showTreeSearch: false,
       treeSearchValue: ''
     }
   },
@@ -80,22 +84,57 @@ export default {
   mounted() {
     window.refresh = this.refresh
     window.onSearch = this.onSearch
-    this.initTree()
+    this.initTree().then(() => {
+      this.$nextTick(() => {
+        this.updateTreeHeight()
+      })
+    })
+    window.addEventListener('resize', this.updateTreeHeight)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     $.fn.zTree.destroy(this.iZTreeID)
+    window.removeEventListener('resize', this.updateTreeHeight)
   },
   methods: {
+    onMenuClick(menu) {
+      if (menu.disabled) {
+        return
+      }
+      menu.callback()
+    },
+    updateTreeHeight: _.debounce(function () {
+      const tree = document.getElementById(this.iZTreeID)
+      if (!tree) {
+        return
+      }
+      // 使用 dialog 的高度
+      const dialogs = [...document.getElementsByClassName('el-dialog__body')]
+      if (dialogs.length > 0) {
+        const dialog = dialogs.find((d) => d.innerHTML.indexOf(this.iZTreeID) !== -1)
+        if (dialog) {
+          // 对话框内的 zTree 才需要重新计算高度
+          const dialogRect = dialog.getBoundingClientRect()
+          tree.style.height = `${dialogRect.height - 60}px`
+          return
+        }
+      }
+      // 使用 table 的高度
+      const zTreeRect = tree.getBoundingClientRect()
+      tree.style.height = `calc(100vh - ${zTreeRect.top}px - 30px - 25px)`
+    }, 100),
     async initTree(refresh = false) {
       const vm = this
       let treeUrl
       this.loading = true
-      if (refresh && this.treeSetting.treeUrl.indexOf('/perms/') !== -1 &&
+      if (
+        refresh &&
+        this.treeSetting.treeUrl.indexOf('/perms/') !== -1 &&
         this.treeSetting.treeUrl.indexOf('rebuild_tree') === -1
       ) {
-        treeUrl = (this.treeSetting.treeUrl.indexOf('?') === -1)
-          ? `${this.treeSetting.treeUrl}?rebuild_tree=1`
-          : `${this.treeSetting.treeUrl}&rebuild_tree=1`
+        treeUrl =
+          this.treeSetting.treeUrl.indexOf('?') === -1
+            ? `${this.treeSetting.treeUrl}?rebuild_tree=1`
+            : `${this.treeSetting.treeUrl}&rebuild_tree=1`
       } else {
         treeUrl = this.treeSetting.treeUrl
       }
@@ -107,7 +146,7 @@ export default {
       let res = await this.$axios.get(treeUrl, {
         'axios-retry': {
           retries: 20,
-          retryCondition: e => {
+          retryCondition: (e) => {
             return axiosRetry.isNetworkOrIdempotentRequestError(e) || e.response.status === 409
           },
           shouldResetTimeout: true,
@@ -120,7 +159,7 @@ export default {
       if (!res) res = []
       if (res?.length === 0) {
         res?.push({
-          name: this.$t('common.tree.Empty')
+          name: this.$t('Empty')
         })
       }
       this.treeSetting.treeUrl = treeUrl
@@ -128,18 +167,15 @@ export default {
       const rootNode = this.zTree.getNodes()[0]
       this.rootNodeAddDom(rootNode)
       // 手动上报事件, Tree加载完成
-      this.$emit('TreeInitFinish', this.zTree)
+      this.$emit('tree-init-finish', this.zTree)
 
       if (this.treeSetting.showMenu) {
         this.rMenu = $(`#${this.iRMenuID}`)
       }
-      if (this.treeSetting?.otherMenu) {
-        $('.menu-actions').append(this.otherMenu)
-      }
     },
     onSearch() {
       this.showTreeSearch = !this.showTreeSearch
-      localStorage.setItem('showTreeSearch', JSON.stringify(this.showTreeSearch))
+      // localStorage.setItem('showTreeSearch', JSON.stringify(this.showTreeSearch))
     },
     onClose() {
       this.refresh()
@@ -157,11 +193,21 @@ export default {
         </a>`
       const treeActions = `${showSearch ? searchIcon : ''}${showRefresh ? refreshIcon : ''}`
       const icons = `
-        <span style="float: right; margin-right: 10px">
+        <span class="tree-actions">
           ${treeActions}
         </span>`
       if (rootNode) {
         const $rootNodeRef = $('#' + rootNode.tId + '_a')
+        const $rootNodeItem = $rootNodeRef.closest('li')
+        $rootNodeItem.css('position', 'relative')
+        $rootNodeItem.children('.tree-actions').remove()
+        $rootNodeRef.css({
+          display: 'inline-block',
+          width: 'calc(100% - 64px)',
+          overflow: 'hidden',
+          'text-overflow': 'ellipsis',
+          'white-space': 'nowrap'
+        })
         $rootNodeRef.after(icons)
       }
     },
@@ -186,20 +232,20 @@ export default {
       }
       searchInput.onblur = (e) => {
         e.stopPropagation()
-        if (!(e.target.value)) {
+        if (!e.target.value) {
           searchIcon.classList.toggle('active')
         }
       }
-      searchInput.oninput = e => this.treeSearchHandle((e.target.value || ''))
+      searchInput.oninput = (e) => this.treeSearchHandle(e.target.value || '')
     },
-    treeSearchHandle: _.debounce(function(value) {
+    treeSearchHandle: _.debounce(function (value) {
       if (this.treeSetting.async.enable) {
         this.filterAssetsServer(value)
       } else {
         this.filterTree(value)
       }
     }, 600),
-    getCheckedNodes: function() {
+    getCheckedNodes: function () {
       return this.zTree.getCheckedNodes(true)
     },
     recurseParent(node) {
@@ -228,12 +274,12 @@ export default {
     },
     groupBy(array, filter) {
       const groups = {}
-      array.forEach(function(o) {
+      array.forEach(function (o) {
         const group = JSON.stringify(filter(o))
         groups[group] = groups[group] || []
         groups[group].push(o)
       })
-      return Object.keys(groups).map(function(group) {
+      return Object.keys(groups).map(function (group) {
         return groups[group]
       })
     },
@@ -268,10 +314,15 @@ export default {
       })
 
       if (matchedNodes.length < 1) {
-        let name = this.$t('common.Search')
+        let name = this.$t('Search')
         const assetsAmount = matchedNodes.length
         name = `${name} (${assetsAmount})`
-        const newNode = { id: 'search', name: name, isParent: false, open: false }
+        const newNode = {
+          id: 'search',
+          name: name,
+          isParent: false,
+          open: false
+        }
         tree.addNodes(null, newNode)
       }
 
@@ -309,17 +360,25 @@ export default {
         this.zTree.hideNodes(treeNodes)
       }
 
-      let treeUrl = this.treeSetting.searchUrl ? this.treeSetting.searchUrl : this.treeSetting.treeUrl
+      let treeUrl = this.treeSetting.searchUrl
+        ? this.treeSetting.searchUrl
+        : this.treeSetting.treeUrl
       const filterField = treeUrl.includes('?') ? `&search=${keyword}` : `?search=${keyword}`
       if (treeUrl.indexOf('assets/nodes/children/tree') > -1) {
         treeUrl = treeUrl + '&all=all'
       }
       const searchUrl = `${treeUrl}${filterField}`
-      this.$axios.get(searchUrl).then(nodes => {
-        let name = this.$t('common.Search')
+      this.$axios.get(searchUrl).then((nodes) => {
+        let name = this.$t('Search')
         const assetsAmount = nodes.length
         name = `${name} (${assetsAmount})`
-        const newNode = { id: 'search', name: name, isParent: true, open: true, zAsync: true }
+        const newNode = {
+          id: 'search',
+          name: name,
+          isParent: true,
+          open: true,
+          zAsync: true
+        }
         searchNode = this.zTree.addNodes(null, newNode)[0]
         searchNode.zAsync = true
         this.rootNodeAddDom(searchNode)
@@ -335,97 +394,29 @@ export default {
       })
     }
   }
-
 }
 </script>
 
 <style lang="scss" scoped>
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-::-webkit-scrollbar-track:horizontal {
-  background: #FFFFFF;
-  border-radius: 10px;
-}
-
-div.rMenu {
-  position: absolute;
-  visibility: hidden;
-  text-align: left;
-  top: 0;
-  left: 0;
-  z-index: 999;
-  float: left;
-  padding: 0 0;
-  margin: 2px 0 0;
-  list-style: none;
-  background-clip: padding-box;
-}
-
-.dataTables_wrapper .dataTables_processing {
-  opacity: .9;
-  border: none;
-}
-
-div.rMenu li {
-  margin: 6px 0;
-  cursor: pointer;
-  list-style: none outside none;
-}
-
-.dropdown-menu {
-  border: medium none;
-  min-width: 160px;
-  background-color: #fff;
-  border-radius: 3px;
-  box-shadow: 0 0 3px rgba(86, 96, 117, 0.7);
-  display: block;
-  float: left;
-  font-size: 12px;
-  left: 0;
-  list-style: none outside none;
-  padding: 0;
-  position: absolute;
-  text-shadow: none;
-  top: 100%;
-  z-index: 1000;
-}
-
-.ztree ::v-deep .fa {
-  font: normal normal normal 14px/1 FontAwesome !important;
-}
-
-.dropdown a:hover {
-  background-color: #f1f1f1
-}
-
-.dropdown-menu > li > a {
-  border-radius: 3px;
-  color: inherit;
-  line-height: 25px;
-  margin: 4px;
-  text-align: left;
-  font-weight: normal;
-  display: block;
-  padding: 3px 20px;
-  clear: both;
-  white-space: nowrap;
-}
-
-.dropdown-menu > li > a:hover, .dropdown-menu > li > a:focus {
-  color: #262626;
-  text-decoration: none;
-  background-color: #f5f5f5;
-}
-
 .treebox {
-  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 5px 0 0 5px;
 
-  > > > .ztree {
+  .ztree {
+    width: 100%;
     overflow: auto;
-    background-color: transparent;
-    height: calc(100vh - 237px);
+    height: 648px;
+    background-color: #ffffff;
+
+    .level0 {
+      .node_name {
+        max-width: 120px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+    }
 
     li {
       background-color: transparent !important;
@@ -439,28 +430,127 @@ div.rMenu li {
       }
     }
   }
+
+  &:hover {
+    :deep(.tree-action-btn) {
+      display: inline;
+
+      &:hover {
+        box-shadow: none;
+        color: var(--color-text-primary) !important;
+      }
+    }
+  }
 }
 
-::v-deep #tree-refresh {
-  margin-left: 3px;
+div.rMenu {
+  position: fixed;
+  visibility: hidden;
+  text-align: left;
+  top: 0;
+  left: 0;
+  z-index: 999;
+  float: left;
+  padding: 0 0;
+  margin: 2px 0 0;
+  list-style: none;
+  background-clip: padding-box;
 }
 
-::v-deep .tree-banner-icon-zone {
+.dataTables_wrapper .dataTables_processing {
+  opacity: 0.9;
+  border: none;
+}
+
+div.rMenu li {
+  margin: 6px 0;
+  cursor: pointer;
+  list-style: none outside none;
+}
+
+.menu-item {
+  font-size: 12px;
+  padding: 0 16px;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #606266;
+  height: 24px;
+  line-height: 24px;
+  box-sizing: border-box;
+  cursor: pointer;
+
+  i {
+    width: 15px;
+  }
+}
+
+.dropdown-menu {
+  border: medium none;
+  min-width: 160px;
+  background-color: #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 3px rgba(86, 96, 117, 0.7);
+  display: block;
+  float: left;
+  font-size: 12px;
+  left: 0;
+  list-style: none outside none;
+  padding: 0;
+  position: absolute;
+  text-shadow: none;
+  top: 100%;
+  z-index: 1000;
+  max-height: none;
+  overflow: auto;
+}
+
+.ztree :deep(.fa) {
+  font: normal normal normal 14px/1 FontAwesome !important;
+}
+
+.dropdown a:hover {
+  background-color: #f1f1f1;
+}
+
+.dropdown-menu > li > a {
+  border-radius: 2px;
+  color: inherit;
+  line-height: 25px;
+  margin: 4px;
+  text-align: left;
+  font-weight: normal;
+  display: block;
+  padding: 3px 20px;
+  clear: both;
+  white-space: nowrap;
+  width: 20px;
+}
+
+.dropdown-menu > li > a:hover,
+.dropdown-menu > li > a:focus {
+  color: #262626;
+  text-decoration: none;
+  background-color: #f5f5f5;
+}
+
+:deep(.tree-banner-icon-zone) {
   position: absolute;
   right: 7px;
   height: 30px;
   overflow: hidden;
 
   .fa {
-    color: #838385 !important;;
+    color: #838385 !important;
 
     &:hover {
-      color: #606266 !important;;
+      color: #606266 !important;
     }
   }
 }
 
-::v-deep .tree-search {
+:deep(.tree-search) {
   position: relative;
   top: -2px;
   width: 20px;
@@ -468,7 +558,7 @@ div.rMenu li {
   display: inline-block;
   border-radius: 12px;
   vertical-align: sub;
-  transition: .25s;
+  transition: 0.25s;
   overflow: hidden;
 
   .fa {
@@ -480,7 +570,7 @@ div.rMenu li {
   }
 }
 
-::v-deep .tree-search .tree-banner-icon {
+:deep(.tree-search .tree-banner-icon) {
   position: absolute;
   top: 4px;
   left: 6px;
@@ -493,16 +583,16 @@ div.rMenu li {
   cursor: pointer;
 }
 
-::v-deep .tree-search.active {
+:deep(.tree-search.active) {
   width: 160px;
   background-color: #ffffff !important;
 }
 
-::v-deep .tree-search.active:hover {
+:deep(.tree-search.active:hover) {
   border-radius: 12px;
 }
 
-::v-deep .tree-search input {
+:deep(.tree-search input) {
   position: relative;
   left: 20px;
   width: 133px;
@@ -516,6 +606,14 @@ div.rMenu li {
   outline: none;
 }
 
+.refresh-btn {
+  padding: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  background: inherit;
+  border: none;
+}
+
 .tree-header {
   position: relative;
 
@@ -527,15 +625,15 @@ div.rMenu li {
     height: 30px;
     line-height: 30px;
     border-bottom: 1px solid #e0e0e0;
-    border-radius: 3px;
+    border-radius: 2px;
     padding: 0 5px;
     box-sizing: border-box;
     overflow: hidden;
     cursor: pointer;
-    background-color: #D7D8DC;
+    background-color: #d7d8dc;
 
     .rotate {
-      transition: all .1 .8s;
+      transition: all 0.8s ease-in-out;
       transform: rotate(-90deg);
     }
 
@@ -554,25 +652,49 @@ div.rMenu li {
 }
 
 .fixed-tree-search {
+  --jms-input-padding-inline-end: 32px;
+
   margin-bottom: 10px;
 
-  & > > > .el-input__inner {
+  & :deep(.el-input__inner) {
     border-radius: 4px;
     background: #fafafa;
-    padding-right: 32px;
+    color: var(--color-text-primary);
   }
 
-  & > > > .el-input__suffix {
+  & :deep(.el-input__suffix) {
     padding-right: 8px;
+
+    .el-input__suffix-inner:hover {
+      color: var(--color-text-primary);
+    }
   }
 
-  & > > > .el-input__prefix {
-    padding-left: 6px;
+  & :deep(.el-input__prefix) {
+    display: flex;
+    align-items: center;
+
+    .el-input__icon {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
   }
 
-  & > > > .el-input__suffix-inner {
+  & :deep(.el-input__suffix-inner) {
     line-height: 30px;
   }
+}
+
+.fixed-tree-search__prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--N500);
+  font-size: 12px;
+  line-height: 1;
 }
 
 .icon-refresh {
@@ -592,8 +714,18 @@ div.rMenu li {
   cursor: pointer;
 }
 
-.tree-action-btn {
-  padding: 0 2px;
-  color: red;
+:deep(.tree-action-btn) {
+  display: none;
+}
+
+:deep(.tree-actions) {
+  position: absolute;
+  top: 0;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  gap: 4px;
+  white-space: nowrap;
 }
 </style>

@@ -1,196 +1,192 @@
 <template>
-  <GenericListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <div>
+    <SmallCard v-bind="table" ref="table" class="account-table" />
+    <CreateDialog v-bind="providerConfig" v-if="visible" v-model:visible="visible" />
+    <UpdateDialog
+      v-if="updateVisible"
+      v-model:visible="updateVisible"
+      :object="object"
+      @submit-success="onSubmitSuccess"
+    />
+    <SyncDialog v-if="onlineSyncVisible" v-model:visible="onlineSyncVisible" :object="object" />
+  </div>
 </template>
 
-<script type="text/jsx">
-import GenericListTable from '@/layout/components/GenericListTable'
-import {
-  ACCOUNT_PROVIDER_ATTRS_MAP, aliyun, aws_china, aws_international, azure, azure_international, baiducloud,
-  ctyun_private, fc, gcp, huaweicloud, huaweicloud_private, jdcloud, kingsoftcloud, lan, nutanix, openstack, zstack,
-  qcloud, qcloud_lighthouse, qingcloud_private, ucloud, vmware, scp, apsara_stack
-} from '../const'
+<script>
+import SmallCard from '@/components/Table/InfoCardTable/index.vue'
+import { toSafeLocalDateStr } from '@/composables/useDateTime'
+import { ACCOUNT_PROVIDER_ATTRS_MAP } from '@/views/assets/Cloud/const'
+import { lan, privateCloudProviders, publicDBProviders, publicHostProviders } from '../const'
+import CreateDialog from './components/CreateDialog.vue'
+import SyncDialog from './components/SyncDialog.vue'
+import UpdateDialog from './components/UpdateDialog.vue'
 
 export default {
-  name: 'AccountList',
+  name: 'CloudAccountList',
   components: {
-    GenericListTable
+    SyncDialog,
+    SmallCard,
+    CreateDialog,
+    UpdateDialog
   },
   data() {
     const vm = this
+    const category = this.$route.query.category || 'host'
     return {
-      tableConfig: {
-        url: '/api/v1/xpack/cloud/accounts/',
-        permissions: {
-          app: 'xpack',
-          resource: 'account'
-        },
-        columnsExclude: ['attrs'],
-        columnsShow: {
-          default: [
-            'name', 'provider', 'comment', 'validity', 'actions'
-          ]
-        },
-        columnsMeta: {
-          name: {
-            sortable: true,
-            formatterArgs: {
-              route: 'AccountDetail'
-            }
+      object: null,
+      table: {
+        tableConfig: {
+          url: '/api/v1/xpack/cloud/accounts/',
+          permissions: {
+            app: 'xpack',
+            resource: 'account'
           },
-          provider: {
-            width: '120px'
+          extraQuery: { category }
+        },
+        subComponentProps: {
+          handleUpdate: (obj) => {
+            this.object = obj
+            this.updateVisible = true
           },
-          actions: {
-            formatterArgs: {
-              updateRoute: 'AccountUpdate',
-              hasClone: false,
-              onUpdate: ({ row, col }) => {
-                vm.$router.push({ name: 'AccountUpdate', params: { id: row.id }, query: { provider: row.provider?.value }})
+          getImage: (obj) => {
+            return ACCOUNT_PROVIDER_ATTRS_MAP[obj.provider.value].image
+          },
+          getInfos: (obj) => {
+            return [
+              {
+                title: this.$tc('TotalSyncRegion'),
+                content: obj?.task.regions.length
               },
-              extraActions: [
-                {
-                  name: 'TestConnection',
-                  title: this.$t('assets.TestConnection'),
-                  can: () => vm.$hasPerm('xpack.test_account'),
-                  callback: function(val) {
-                    this.$axios.get(`/api/v1/xpack/cloud/accounts/${val.row.id}/test-connective/`).then(res => {
-                      this.$message.success(this.$tc('common.TestSuccessMsg'))
-                    })
-                  }
-                }
-              ]
-            }
-          }
-        }
-      },
-      headerActions: {
-        hasBulkDelete: false,
-        hasImport: false,
-        hasMoreActions: false,
-        searchConfig: {
-          getUrlQuery: false
-        },
-        moreCreates: {
-          callback: (option) => {
-            vm.$router.push({ name: 'AccountCreate', query: { provider: option.name }})
+              {
+                title: this.$tc('TotalSyncAsset'),
+                content: obj?.task.instance_count
+              },
+              {
+                title: this.$tc('DateLastSync'),
+                content: toSafeLocalDateStr(obj?.task.date_last_sync)
+              }
+            ]
           },
-          dropdown: [
+          actions: [
             {
-              name: aliyun,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[aliyun].title,
-              type: 'primary',
-              group: this.$t('common.PublicCloud'),
-              can: true
-            },
-            {
-              name: qcloud,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[qcloud].title,
-              type: 'primary',
-              can: true
-            },
-            {
-              name: qcloud_lighthouse,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[qcloud_lighthouse].title
-            },
-            {
-              name: huaweicloud,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[huaweicloud].title
-            },
-            {
-              name: baiducloud,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[baiducloud].title
-            },
-            {
-              name: jdcloud,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[jdcloud].title
-            },
-            {
-              name: kingsoftcloud,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[kingsoftcloud].title
-            },
-            {
-              name: aws_china,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[aws_china].title
-            },
-            {
-              name: aws_international,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[aws_international].title
-            },
-            {
-              name: azure,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[azure].title
-            },
-            {
-              name: azure_international,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[azure_international].title
-            },
-            {
-              name: gcp,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[gcp].title
-            },
-            {
-              name: ucloud,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[ucloud].title
-            },
-            {
-              name: vmware,
-              group: this.$t('common.PrivateCloud'),
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[vmware].title
-            },
-            {
-              name: qingcloud_private,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[qingcloud_private].title
-            },
-            {
-              name: huaweicloud_private,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[huaweicloud_private].title
-            },
-            {
-              name: ctyun_private,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[ctyun_private].title
-            },
-            {
-              name: openstack,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[openstack].title
-            },
-            {
-              name: zstack,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[zstack].title
-            },
-            {
-              name: nutanix,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[nutanix].title
-            },
-            {
-              name: fc,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[fc].title
-            },
-            {
-              name: scp,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[scp].title
-            },
-            {
-              name: apsara_stack,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[apsara_stack].title
-            },
-            {
-              name: lan,
-              title: ACCOUNT_PROVIDER_ATTRS_MAP[lan].title
+              id: 'online-sync',
+              name: this.$tc('SyncOnline'),
+              icon: 'el-icon-thumb',
+              callback: this.handleOnlineExecute,
+              disabled: !this.$hasPerm('xpack.change_syncinstancetask')
             }
           ]
+        },
+        headerActions: {
+          hasImport: false,
+          hasExport: false,
+          hasColumnSetting: false,
+          hasMoreActions: false,
+          searchConfig: {
+            getUrlQuery: false
+          },
+          moreCreates: {
+            loading: false,
+            callback: (option) => {
+              vm.$router.push({ name: 'AccountCreate', query: { provider: option.name } })
+            },
+            dropdown: [
+              {
+                name: 'publicCloud',
+                title: this.$t('PublicCloud'),
+                icon: 'public-cloud',
+                callback: () => {
+                  const providers =
+                    this.iCategory === 'host' ? publicHostProviders : publicDBProviders
+                  this.providerConfig.providers = providers.map(
+                    (item) => ACCOUNT_PROVIDER_ATTRS_MAP[item]
+                  )
+                  this.visible = true
+                }
+              },
+              {
+                name: 'privateCloud',
+                title: this.$t('PrivateCloud'),
+                icon: 'private-cloud',
+                has: () => this.iCategory === 'host',
+                callback: () => {
+                  this.providerConfig.providers = privateCloudProviders.map(
+                    (item) => ACCOUNT_PROVIDER_ATTRS_MAP[item]
+                  )
+                  this.visible = true
+                }
+              },
+              {
+                name: 'LAN',
+                title: this.$t('LAN'),
+                icon: 'computer',
+                has: () => this.iCategory === 'host',
+                callback: () => {
+                  const providers = [lan]
+                  this.providerConfig.providers = providers.map(
+                    (item) => ACCOUNT_PROVIDER_ATTRS_MAP[item]
+                  )
+                  this.visible = true
+                }
+              }
+            ]
+          }
+        },
+        detailDrawer: () => import('@/views/assets/Cloud/Account/AccountDetail/index.vue')
+      },
+      providerConfig: {
+        providers: []
+      },
+      visible: false,
+      updateVisible: false,
+      onlineSyncVisible: false
+    }
+  },
+  computed: {
+    iCategory() {
+      return this.$route.query.category || 'host'
+    }
+  },
+  watch: {
+    visible: {
+      handler(val) {
+        if (!val) {
+          this.$refs.table.reloadTable()
+        }
+      }
+    },
+    onlineSyncVisible: {
+      handler(newValue) {
+        if (newValue === false) {
+          this.$refs.table.reloadTable()
+        }
+      }
+    },
+    updateVisible: {
+      handler(newValue) {
+        if (newValue === false) {
+          this.$refs.table.reloadTable()
         }
       }
     }
   },
   methods: {
-    createAccount(provider) {
-      return () => { this.$router.push({ name: 'AccountCreate', query: { provider: provider }}) }
+    valid(status) {
+      if (status !== 200) {
+        this.$message.error(this.$tc('TestAccountConnectionError'))
+        return 200
+      }
+      return status
+    },
+    handleOnlineExecute(obj) {
+      this.object = obj
+      this.onlineSyncVisible = true
+    },
+    onSubmitSuccess() {
+      this.$refs.table.reloadTable()
+      this.updateVisible = false
     }
   }
-
 }
 </script>
-
-<style>
-
-</style>
+<style lang="scss" scoped></style>

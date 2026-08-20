@@ -12,79 +12,85 @@ export default {
   components: { BaseAssetCreateUpdate },
   data() {
     return {
-      url: '/api/v1/assets/databases/',
+      url: `/api/v1/assets/databases/`,
       addFields: this.getAddFields(),
       addFieldsMeta: this.getAddFieldsMeta()
     }
   },
-  mounted() {
-    this.url = `${this.url}?platform=${this.$route.query.platform}`
-  },
   methods: {
     getAddFields() {
-      const platform = this.$route.query.type
-      const baseFields = [[this.$t('common.Basic'), ['db_name']]]
+      const platform = this.$context.get('type')
+      const baseFields = [[this.$t('Basic'), ['db_name']]]
       let tlsFields = ['use_ssl', 'ca_cert']
-      switch (platform) {
-        case 'redis':
-          tlsFields = tlsFields.concat(['client_cert', 'client_key'])
-          break
-        case 'mysql':
-          tlsFields = tlsFields.concat(['client_cert', 'client_key', 'allow_invalid_cert'])
-          break
-        case 'mongodb':
-          tlsFields = tlsFields.concat(['client_key', 'allow_invalid_cert'])
-          break
+      const platformFieldsMap = {
+        redis: ['client_cert', 'client_key'],
+        postgresql: ['client_cert', 'client_key', 'pg_ssl_mode'],
+        mysql: ['client_cert', 'client_key', 'allow_invalid_cert'],
+        mongodb: ['client_key', 'allow_invalid_cert']
+      }
+
+      if (platformFieldsMap[platform]) {
+        tlsFields = tlsFields.concat(platformFieldsMap[platform])
       }
       if (tlsFields.length > 2) {
-        const secureField = [
-          this.$t('assets.Secure'), tlsFields, 2
-        ]
+        const secureField = [this.$t('Secure'), tlsFields, 2]
         baseFields.push(secureField)
       }
       return baseFields
     },
     getAddFieldsMeta() {
-      const platform = this.$route.query.type
+      const platform = this.$context.get('type')
       const fieldsMeta = {
         db_name: {
-          label: this.$t('assets.DefaultDatabase')
+          label: this.$t('DefaultDatabase')
         },
         use_ssl: {
-          label: this.$t('common.UseSSL'),
-          component: 'el-switch'
+          label: this.$t('UseSSL'),
+          component: 'el-switch',
+          on: {
+            change: ([event], updateForm) => {
+              updateForm({
+                pg_ssl_mode: event ? 'require' : 'prefer'
+              })
+            }
+          }
         },
         allow_invalid_cert: {
-          label: this.$t('common.AllowInvalidCert'),
+          label: this.$t('AllowInvalidCert'),
           hidden: (form) => {
             return !form.use_ssl
           },
           component: 'el-switch'
         },
         ca_cert: {
-          label: this.$t('common.CACertificate'),
+          label: this.$t('CACertificate'),
           hidden: (form) => {
             return !form.use_ssl
           },
           component: UploadKey
         },
         client_cert: {
-          label: this.$t('common.ClientCertificate'),
+          label: this.$t('ClientCertificate'),
           hidden: (form) => {
             return !form.use_ssl
           },
           component: UploadKey
         },
         client_key: {
-          label: this.$t('common.CertificateKey'),
+          label: this.$t('CertificateKey'),
           hidden: (form) => {
             return !form.use_ssl
           },
           component: UploadKey
         }
       }
-      if (['mongodb', 'postgresql'].indexOf(platform) !== -1) {
+
+      fieldsMeta['db_name']['rules'] = []
+      if (['mongodb', 'oracle', 'postgresql'].indexOf(platform) !== -1) {
         fieldsMeta['db_name']['rules'] = [rules.Required]
+      }
+      if (platform === 'oracle') {
+        fieldsMeta['db_name']['helpText'] = this.$t('OracleDBNameHelpText')
       }
       return fieldsMeta
     }
@@ -92,5 +98,4 @@ export default {
 }
 </script>
 
-<style>
-</style>
+<style></style>

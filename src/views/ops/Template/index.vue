@@ -1,11 +1,7 @@
 <template>
-  <TabPage
-    :submenu="submenu"
-    :active-menu.sync="activeMenu"
-  >
+  <TabPage v-model:active-menu="activeMenu" :submenu="submenu">
     <component :is="activeMenu" />
   </TabPage>
-
 </template>
 
 <script>
@@ -25,23 +21,17 @@ export default {
       activeMenu: 'Adhoc',
       submenu: [
         {
-          title: this.$t('ops.AdhocManage'),
+          title: this.$t('AdhocManage'),
           name: 'Adhoc',
           hidden: () => !this.$hasPerm('ops.view_adhoc')
         },
         {
-          title: this.$t('ops.PlaybookManage'),
+          title: this.$t('PlaybookManage'),
           name: 'Playbook',
           hidden: () => !this.$hasPerm('ops.view_playbook')
         }
       ]
     }
-  },
-  mounted() {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

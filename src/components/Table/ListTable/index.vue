@@ -1,44 +1,80 @@
 <template>
-  <div>
+  <div class="list-table">
+    <QuickFilter
+      v-if="iHasQuickFilter"
+      v-model:expand="filterExpand"
+      :filters="quickFilters"
+      :summary="quickSummary"
+      :table-url="tableUrl"
+      @filter="filter"
+    />
     <TableAction
+      v-bind="iHeaderActions"
       v-if="hasActions"
+      v-model:quick-filter-expand="filterExpand"
+      ref="tableAction"
+      :class="{ 'filter-expand': filterExpand }"
       :date-pick="handleDateChange"
+      :has-quick-filter="iHasQuickFilter"
       :reload-table="reloadTable"
       :search-table="search"
       :selected-rows="selectedRows"
+      :get-table-metadata="getTableMetadata"
       :table-url="tableUrl"
-      v-bind="iHeaderActions"
+      @done="handleActionInitialDone"
     />
-    <IBox class="table-content">
-      <AutoDataTable
-        ref="dataTable"
-        :config="iTableConfig"
-        :filter-table="filter"
-        v-on="$listeners"
-        @selection-change="handleSelectionChange"
-      />
-    </IBox>
+    <div v-loading="!actionInit" class="table-content">
+      <IBox>
+        <AutoDataTable
+          v-bind="$attrs"
+          v-if="actionInit"
+          ref="dataTable"
+          :config="iTableConfig"
+          :filter-table="filter"
+          :get-table-metadata="getTableMetadata"
+          @selection-change="handleSelectionChange"
+        />
+      </IBox>
+    </div>
   </div>
 </template>
 
 <script>
-import { getResourceFromApiUrl } from '@/utils/jms'
+import { getResourceFromApiUrl } from '@/utils/jms/index'
 import deepmerge from 'deepmerge'
 import { mapGetters } from 'vuex'
-import IBox from '../../IBox/index.vue'
+import { provide } from 'vue'
+import IBox from '@/components/Common/IBox/index.vue'
 import TableAction from './TableAction/index.vue'
-import Emitter from '@/mixins/emitter'
 import AutoDataTable from '../AutoDataTable/index.vue'
-import { getDayEnd, getDaysAgo } from '@/utils/common'
+import QuickFilter from './TableAction/QuickFilter.vue'
+import { getDayEnd, getDaysAgo } from '@/utils/common/time'
+import { ObjectLocalStorage } from '@/utils/common/objectLocalStorage'
+import i18n from '@/i18n/i18n'
+import _ from 'lodash'
+
+const LIST_TABLE_KEY = Symbol('listTable')
+
+export { LIST_TABLE_KEY }
 
 export default {
   name: 'ListTable',
   components: {
+    QuickFilter,
     AutoDataTable,
     TableAction,
     IBox
   },
-  mixins: [Emitter],
+  setup() {
+    // Provide list table instance to child components
+    // This replaces $parent chain access
+    const listTableContext = {
+      dataTable: null,
+      tableConfig: null
+    }
+    provide(LIST_TABLE_KEY, listTableContext)
+    return { listTableContext }
+  },
   props: {
     // 定义 table 的配置
     tableConfig: {
@@ -49,6 +85,18 @@ export default {
     headerActions: {
       type: Object,
       default: () => ({})
+    },
+    quickFilters: {
+      type: Array,
+      default: () => null
+    },
+    quickSummary: {
+      type: Array,
+      default: () => null
+    },
+    tableMetadataProvider: {
+      type: Function,
+      default: null
     }
   },
   data() {
@@ -62,10 +110,13 @@ export default {
         date_from: getDaysAgo(7).toISOString(),
         date_to: this.$moment(getDayEnd()).add(1, 'day').toISOString()
       }
-      this.headerActions.datePicker = Object.assign({
-        dateStart: extraQuery.date_from,
-        dateEnd: extraQuery.date_to
-      }, this.headerActions.datePicker)
+      this.headerActions.datePicker = Object.assign(
+        {
+          dateStart: extraQuery.date_from,
+          dateEnd: extraQuery.date_to
+        },
+        this.headerActions.datePicker
+      )
     }
     if (this.$route.query.order) {
       extraQuery['order'] = this.$route.query.order
@@ -73,13 +124,44 @@ export default {
     return {
       selectedRows: [],
       init: false,
-      extraQuery: extraQuery
+      urlUpdated: {},
+      isDeactivated: false,
+      extraQuery: extraQuery,
+      actionInit: this.headerActions.has === false,
+      initQuery: {},
+      tablePath: new URL(this.tableConfig.url || '', 'http://127.0.0.1').pathname,
+      objStorage: new ObjectLocalStorage('filterExpand'),
+      iFilterExpand: null,
+      reloadTable: _.debounce(this._reloadTable, 300),
+      searchQuery: {},
+      filterQuery: {},
+      metadataRequestUrl: '',
+      metadataRequest: null
     }
   },
   computed: {
     ...mapGetters(['currentOrgIsRoot']),
+    filterExpand: {
+      get() {
+        if (this.iFilterExpand !== null) {
+          return this.iFilterExpand
+        }
+        return this.objStorage.get(this.tablePath)
+      },
+      set(val) {
+        this.iFilterExpand = val
+        this.objStorage.set(this.tablePath, val)
+      }
+    },
+    iHasQuickFilter() {
+      const has =
+        (this.quickFilters && this.quickFilters.length > 0) ||
+        (this.quickSummary && this.quickSummary.length > 0)
+
+      return !!has
+    },
     dataTable() {
-      return this.$refs.dataTable.$refs.dataTable
+      return this.$refs.dataTable?.$refs.dataTable
     },
     iHeaderActions() {
       // 如果路由中锁定了 root 组织，就不在检查 root 组织下是否可以创建等
@@ -93,12 +175,18 @@ export default {
       }
       const defaults = {}
       for (const [k, v] of Object.entries(actions)) {
-        let hasPerm = v.action.split('|').some(i => this.hasActionPerm(i.trim()))
-        if (v.checkRoot) {
-          hasPerm = hasPerm && !this.currentOrgIsRoot
+        const hasPerm = v.action.split('|').some((i) => this.hasActionPerm(i.trim()))
+        if (!hasPerm) {
+          defaults[k] = i18n.global.t('NoPermission')
+          continue
         }
-        defaults[k] = hasPerm
+        if (v.checkRoot && this.currentOrgIsRoot) {
+          defaults[k] = i18n.global.t('NoPermissionInGlobal')
+          continue
+        }
+        defaults[k] = true
       }
+      defaults.handleTableSettingClick = this.handleTableSettingClick
       return Object.assign(defaults, this.headerActions)
     },
     hasActions() {
@@ -109,13 +197,22 @@ export default {
         extraQuery: this.extraQuery
       })
       const checkRoot = !(this.$route.meta?.disableOrgsChange === true)
+      const checkPermAndRoot = (action) => {
+        if (!this.hasActionPerm(action)) {
+          return i18n.global.t('NoPermission')
+        }
+        if (checkRoot && this.currentOrgIsRoot) {
+          return i18n.global.t('NoPermissionInGlobal')
+        }
+        return true
+      }
       const formatterArgs = {
         'columnsMeta.actions.formatterArgs.canUpdate': () => {
-          return this.hasActionPerm('change') && (!checkRoot || !this.currentOrgIsRoot)
+          return checkPermAndRoot('change')
         },
         'columnsMeta.actions.formatterArgs.canDelete': 'delete',
         'columnsMeta.actions.formatterArgs.canClone': () => {
-          return this.hasActionPerm('add') && (!checkRoot || !this.currentOrgIsRoot)
+          return checkPermAndRoot('add')
         },
         'columnsMeta.name.formatterArgs.can': 'view'
       }
@@ -165,22 +262,143 @@ export default {
       deep: true
     }
   },
+  mounted() {
+    this.urlUpdated[this.tableUrl] = location.href
+    // Populate the provided context with component references.
+    // Note: $refs.dataTable is AutoDataTable, whose inner DataTable is rendered
+    // with `v-if="!loading"` and mounts only after its OPTIONS metadata loads —
+    // later than this parent's mounted(). Expose it as a live getter (not a
+    // one-time snapshot) so consumers like ExportDialog always resolve the
+    // real DataTable once it exists.
+    Object.defineProperty(this.listTableContext, 'dataTable', {
+      get: () => this.$refs.dataTable?.$refs.dataTable,
+      enumerable: true,
+      configurable: true
+    })
+    Object.defineProperty(this.listTableContext, 'tableConfig', {
+      get: () => this.tableConfig,
+      enumerable: true
+    })
+  },
+  deactivated() {
+    this.isDeactivated = true
+  },
+  activated() {
+    this.$nextTick(() => {
+      this.isDeactivated = false
+      const cleanUrl = this.tableUrl.split('?')[0]
+      const preURL = this.urlUpdated[cleanUrl]
+
+      if (!preURL || preURL === location.href) return
+
+      this.urlUpdated[this.tableUrl] = location.href
+      this.$log.debug('Reload the table get latest data: pre ', preURL, ' current: ', location.href)
+      this.reloadTable()
+    })
+  },
   methods: {
-    handleSelectionChange(val) {
-      this.selectedRows = val
+    getTableMetadata() {
+      if (!this.tableUrl) {
+        return Promise.resolve({})
+      }
+      const url =
+        this.tableUrl.indexOf('?') === -1
+          ? `${this.tableUrl}?display=1`
+          : `${this.tableUrl}&display=1`
+      if (this.metadataRequest && this.metadataRequestUrl === url) {
+        return this.metadataRequest
+      }
+
+      this.metadataRequestUrl = url
+      const request = this.tableMetadataProvider
+        ? this.tableMetadataProvider(url)
+        : this.$store.dispatch('common/getUrlMeta', { url })
+      const sharedRequest = request.catch((error) => {
+        if (this.metadataRequest === sharedRequest) {
+          this.metadataRequest = null
+          this.metadataRequestUrl = ''
+        }
+        throw error
+      })
+      this.metadataRequest = sharedRequest
+      return this.metadataRequest
     },
-    reloadTable() {
-      this.dataTable.getList()
+    focusSearch() {
+      return this.$refs.tableAction?.focusSearch()
+    },
+    closeNodeSearch() {
+      return this.$refs.tableAction?.closeNodeSearch()
+    },
+    handleTableSettingClick() {
+      this.$refs.dataTable?.openColumnSetting()
+    },
+    handleFilterExpandChanged(expand) {
+      this.filterExpand = expand
+    },
+    handleQuickFilter(option) {
+      if (option.route) {
+        this.$router.push(option.route)
+        return
+      }
+      if (option.filter) {
+        const filter = { ...option.filter }
+        if (option.active) {
+          for (const key in filter) {
+            filter[key] = ''
+          }
+        }
+        this.filter(option.filter)
+        return
+      }
+      if (option.callback) {
+        option.callback(option.active)
+      }
+    },
+    handleActionInitialDone() {
+      setTimeout(() => {
+        this.actionInit = true
+      }, 100)
+    },
+    handleSelectionChange(val) {
+      this.selectedRows = Array.isArray(val) ? [...val] : []
+      this.$emit('selection-change', this.selectedRows)
+    },
+    _reloadTable() {
+      this.dataTable?.getList()
+    },
+    updateInitQuery(attrs) {
+      if (!this.actionInit) {
+        this.initQuery = attrs
+        for (const key in attrs) {
+          this.extraQuery[key] = attrs[key]
+        }
+        return true
+      }
+      const removeKeys = Object.keys(this.initQuery).filter((key) => !attrs[key])
+      for (const key of removeKeys) {
+        delete this.extraQuery[key]
+      }
+    },
+    getMergedQuery() {
+      return { ...this.searchQuery, ...this.filterQuery }
     },
     search(attrs) {
+      const init = this.updateInitQuery(attrs)
+      if (init) {
+        return
+      }
+      this.searchQuery = attrs
+      const merged = this.getMergedQuery()
       this.$log.debug('ListTable: search table', attrs)
       this.$emit('TagSearch', attrs)
-      this.$refs.dataTable?.$refs.dataTable?.search(attrs, true)
+      this.$refs.dataTable?.$refs.dataTable?.search(merged, true)
     },
     filter(attrs) {
+      this.filterQuery = attrs
+      const merged = this.getMergedQuery()
       this.$emit('TagFilter', attrs)
       this.$log.debug('ListTable: found filter change', attrs)
-      this.search(attrs)
+      this.$refs.dataTable?.$refs.dataTable?.search(merged, true)
     },
     hasActionPerm(action) {
       const permRequired = this.permissions[action]
@@ -201,8 +419,8 @@ export default {
         dateTo.setDate(dateTo.getDate() + 1)
         dateTo = dateTo.toISOString()
       }
-      this.$set(this.extraQuery, 'date_from', dateFrom)
-      this.$set(this.extraQuery, 'date_to', dateTo)
+      this.extraQuery['date_from'] = dateFrom
+      this.extraQuery['date_to'] = dateTo
       const query = {
         date_from: dateFrom,
         date_to: dateTo
@@ -218,36 +436,38 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.list-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
 
 .table-content {
-  margin-top: 10px;
+  min-width: 0;
 
-  & > > > .el-card__body {
+  :deep(.el-card__body) {
     padding: 0;
   }
 
-  & > > > .el-table__header thead > tr > th {
-    background-color: white;
-  }
-
-  & > > > .el-table__row .cell {
+  :deep(.el-table__row .cell) {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
-  & > > > .el-table__expanded-cell pre {
+  :deep(.el-table__expanded-cell pre) {
     max-height: 500px;
     overflow-y: scroll;
   }
 
-  & > > > .el-button-ungroup .el-dropdown > .more-action {
-    height: 24.6px;
-  }
+  // .el-button-ungroup .el-dropdown > .more-action {
+  //   height: 24.6px;
+  // }
 }
 
 //修改颜色
 .el-button--text {
-  color: #409EFF;
+  color: var(--color-primary);
 }
 </style>

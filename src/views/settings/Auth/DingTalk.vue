@@ -1,14 +1,11 @@
 <template>
-  <BaseAuth
-    :config="settings"
-    enable-field="AUTH_DINGTALK"
-    v-on="$listeners"
-  />
+  <BaseAuth :config="settings" enable-field="AUTH_DINGTALK" />
 </template>
 
 <script>
 import BaseAuth from './Base'
-import { UpdateToken } from '@/components/Form/FormFields'
+import { JsonEditor, UpdateToken } from '@/components/Form/FormFields'
+import { getOrgSelect2Meta } from '@/views/settings/Auth/const'
 
 export default {
   name: 'DingTalk',
@@ -22,35 +19,46 @@ export default {
         url: '/api/v1/settings/setting/?category=dingtalk',
         moreButtons: [
           {
-            title: this.$t('setting.dingTalkTest'),
+            title: this.$t('DingTalkTest'),
             loading: false,
-            callback: function(value, form, btn) {
+            callback: function (value, form, btn) {
               btn.loading = true
-              vm.$axios.post(
-                '/api/v1/settings/dingtalk/testing/',
-                value
-              ).then(res => {
-                vm.$message.success(res['msg'])
-              }).catch(() => {
-                vm.$log.error('err occur')
-              }).finally(() => { btn.loading = false })
+              vm.$axios
+                .post('/api/v1/settings/dingtalk/testing/', value)
+                .then((res) => {
+                  vm.$message.success(res['msg'])
+                })
+                .catch(() => {
+                  vm.$log.error('err occur')
+                })
+                .finally(() => {
+                  btn.loading = false
+                })
             }
           }
         ],
         encryptedFields: ['DINGTALK_APPSECRET'],
         fields: [
           [
-            this.$t('common.BasicInfo'),
+            this.$t('Basic'),
             [
-              'AUTH_DINGTALK', 'DINGTALK_AGENTID',
-              'DINGTALK_APPKEY', 'DINGTALK_APPSECRET'
+              'AUTH_DINGTALK',
+              'DINGTALK_AGENTID',
+              'DINGTALK_APPKEY',
+              'DINGTALK_APPSECRET',
+              'DINGTALK_RENAME_ATTRIBUTES'
             ]
-          ]
+          ],
+          [this.$t('Other'), ['DINGTALK_ORG_IDS']]
         ],
         fieldsMeta: {
           DINGTALK_APPSECRET: {
             component: UpdateToken
-          }
+          },
+          DINGTALK_RENAME_ATTRIBUTES: {
+            component: JsonEditor
+          },
+          DINGTALK_ORG_IDS: getOrgSelect2Meta()
         },
         hasDetailInMsg: false,
         submitMethod() {
@@ -66,11 +74,8 @@ export default {
       }
     }
   },
-  methods: {
-  }
+  methods: {}
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

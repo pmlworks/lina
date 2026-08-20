@@ -1,10 +1,5 @@
 <template>
-  <GenericDetailPage
-    :active-menu.sync="config.activeMenu"
-    :object.sync="role"
-    v-bind="config"
-    v-on="$listeners"
-  >
+  <GenericDetailPage v-bind="config" v-model:active-menu="config.activeMenu" v-model:object="role">
     <keep-alive>
       <component :is="config.activeMenu" :object="role" />
     </keep-alive>
@@ -31,7 +26,10 @@ export default {
       scopeRole: scope + 'role',
       role: { name: '', comment: '', users: [] },
       config: {
-        titlePrefix: scope === 'org' ? vm.$t('route.OrgRole') : vm.$t('route.SystemRole'),
+        titlePrefix: scope === 'org' ? vm.$t('OrgRole') : vm.$t('SystemRole'),
+        getObjectName: (obj) => {
+          return obj.display_name
+        },
         url: `/api/v1/rbac/${scope}-roles`,
         activeMenu: 'RoleInfo',
         actions: {
@@ -49,11 +47,11 @@ export default {
         },
         submenu: [
           {
-            title: this.$t('users.RoleInfo'),
+            title: this.$t('Basic'),
             name: 'RoleInfo'
           },
           {
-            title: this.$t('users.RoleUsers'),
+            title: this.$t('RoleUsers'),
             name: 'RoleUsers',
             hidden: () => !this.$hasPerm(`rbac.view_${scope}rolebinding`)
           }
@@ -68,7 +66,3 @@ export default {
   }
 }
 </script>
-
-<style lang='scss' scoped>
-
-</style>

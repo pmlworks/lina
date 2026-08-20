@@ -1,9 +1,8 @@
 <template>
   <GenericDetailPage
-    :active-menu.sync="config.activeMenu"
-    :object.sync="applet"
     v-bind="config"
-    v-on="$listeners"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="applet"
   >
     <keep-alive>
       <component :is="config.activeMenu" :object="applet" />
@@ -30,8 +29,8 @@ export default {
         activeMenu: 'Detail',
         submenu: [
           {
-            'title': this.$t('common.Detail'),
-            'name': 'Detail'
+            title: this.$t('Basic'),
+            name: 'Detail'
           }
         ],
         hasRightSide: true,
@@ -42,15 +41,12 @@ export default {
           },
           deleteSuccessRoute: 'Applets'
         },
-        titlePrefix: this.$tc('route.AppletDetail')
+        titlePrefix: this.$tc('AppletDetail')
       }
     }
   },
-  mounted() {
-  }
+  mounted() {}
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

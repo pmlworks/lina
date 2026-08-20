@@ -1,12 +1,13 @@
 <template>
   <IBox>
-    <GenericCreateUpdateForm v-bind="iConfig" @submitSuccess="submitSuccess" />
+    <GenericCreateUpdateForm v-bind="iConfig" @submit-success="submitSuccess" />
   </IBox>
 </template>
 
 <script>
-import IBox from '@/components/IBox'
+import IBox from '@/components/Common/IBox'
 import { GenericCreateUpdateForm } from '@/layout/components'
+
 export default {
   name: 'Base',
   components: {
@@ -42,6 +43,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style lang="scss" scoped></style>

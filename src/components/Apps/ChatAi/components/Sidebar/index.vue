@@ -1,42 +1,61 @@
 <template>
   <div class="container">
     <div class="close-sidebar">
-      <i class="el-icon-close" @click="onClose" />
+      <i v-if="hasClose" class="close-icon" @click="onClose">
+        <el-icon-download />
+      </i>
     </div>
-    <el-tabs v-model="active" :tab-position="'right'" @tab-click="handleClick">
-      <el-tab-pane v-for="(item) in submenu" :key="item.name" :name="item.name">
-        <span slot="label">
-          <el-tooltip effect="dark" placement="left" :content="item.label">
-            <svg-icon :icon-class="item.icon" />
-          </el-tooltip>
-        </span>
-      </el-tab-pane>
-    </el-tabs>
+    <div v-if="!expanded" class="close-sidebar">
+      <i class="fa fa-expand" style="font-weight: 200" @click="$emit('expand')" />
+    </div>
+    <div v-if="expanded" class="close-sidebar">
+      <i class="fa fa-compress" style="font-weight: 200" @click="$emit('compress')" />
+    </div>
   </div>
 </template>
 
 <script>
+import { BASE_URL } from '@/utils/common/index'
+import { IS_PROD } from '@/utils/env'
+
 export default {
   props: {
     active: {
       type: String,
       default: 'chat'
     },
+    hasClose: {
+      type: Boolean,
+      default: true
+    },
     submenu: {
       type: Array,
       default: () => []
+    },
+    expanded: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
-    return {
-    }
+    return {}
   },
   methods: {
-    handleClick(tab, event) {
-      this.$emit('tab-click', tab)
-    },
     onClose() {
-      this.$parent.onClose()
+      this.$emit('close')
+    },
+    handleExpand() {
+      this.$emit('expand-full')
+    },
+    async openWebsite() {
+      let url = `${BASE_URL}/?_=${Date.now()}`
+      if (!IS_PROD) {
+        url = url.replace('9528', '5173')
+      }
+
+      const newUrl = new URL(url)
+      window.open(newUrl.toString(), '_blank')
+      return url
     }
   }
 }
@@ -47,16 +66,28 @@ export default {
   width: 100%;
   height: 100%;
   background-color: #f0f1f5;
+
   .close-sidebar {
-    text-align: center;
-    font-size: 14px;
+    height: 48px;
     padding: 12px 0;
+    text-align: center;
     cursor: pointer;
+
+    :deep(.el-icon),
+    :deep(.el-icon svg),
+    :deep(.svg-icon),
     i {
       font-size: 16px;
       font-weight: 600;
       padding: 4px;
+      box-sizing: content-box;
+    }
+
+    :deep(.el-icon),
+    :deep(.svg-icon),
+    i {
       border-radius: 2px;
+
       &:hover {
         color: var(--color-primary);
         background: var(--menu-hover);
@@ -64,10 +95,23 @@ export default {
     }
   }
 }
->>> .el-tabs {
+
+.close-icon {
+  display: inline-block;
+  transform: rotate(-90deg);
+}
+
+.close-icon :deep(svg) {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+:deep(.el-tabs) {
   .el-tabs__item {
-    padding: 0 13px;
-    font-size: 15px;
+    padding: 0 10px;
+    font-size: 14px;
+
     :hover {
       color: #7b8085;
     }

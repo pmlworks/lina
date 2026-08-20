@@ -1,27 +1,38 @@
 <template>
-  <GenericListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <DrawerListTable
+    :create-drawer="createDrawer"
+    :detail-drawer="detailDrawer"
+    :header-actions="headerActions"
+    :table-config="tableConfig"
+  />
 </template>
 
-<script type="text/jsx">
-import GenericListTable from '@/layout/components/GenericListTable'
+<script>
+import { DrawerListTable } from '@/components'
 import { DetailFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   name: 'StrategyList',
   components: {
-    GenericListTable
+    DrawerListTable
   },
   data() {
     return {
+      createDrawer: () => import('@/views/assets/Cloud/Strategy/StrategyCreateUpdate.vue'),
+      detailDrawer: () => import('@/views/assets/Cloud/Strategy/StrategyDetail/index.vue'),
       tableConfig: {
-        url: '/api/v1/xpack/cloud/strategies/',
+        url: '',
         permissions: {
           app: 'xpack',
           resource: 'strategy'
         },
         columns: [
-          'name', 'priority', 'strategy_rules',
-          'strategy_actions', 'actions', 'rule_relation'
+          'name',
+          'priority',
+          'strategy_rules',
+          'strategy_actions',
+          'actions',
+          'rule_relation'
         ],
         columnsMeta: {
           name: {
@@ -31,15 +42,29 @@ export default {
             }
           },
           strategy_rules: {
-            formatter: (row) => { return row.strategy_rules.length }
+            formatter: (row) => {
+              return row.strategy_rules.length
+            }
           },
           strategy_actions: {
-            formatter: (row) => { return row.strategy_actions.length }
+            formatter: (row) => {
+              return row.strategy_actions.length
+            }
           },
           actions: {
             formatterArgs: {
               updateRoute: 'CloudStrategyUpdate',
-              hasClone: false
+              hasClone: false,
+              canDelete: ({ row }) => {
+                return this.$hasPerm('xpack.delete_strategy') && row.name !== 'default'
+              },
+              canUpdate: ({ row }) => {
+                return (
+                  this.$hasPerm('xpack.change_strategy') &&
+                  row.name !== 'default' &&
+                  !this.$store.getters.currentOrgIsRoot
+                )
+              }
             }
           }
         }
@@ -52,12 +77,16 @@ export default {
       }
     }
   },
-  methods: {
-  }
-
+  computed: {
+    iCategory() {
+      return this.$route.query.category || 'host'
+    }
+  },
+  mounted() {
+    this.tableConfig.url = `/api/v1/xpack/cloud/strategies/?category=${this.iCategory}`
+  },
+  methods: {}
 }
 </script>
 
-<style lang='scss' scoped>
-
-</style>
+<style lang="scss" scoped></style>

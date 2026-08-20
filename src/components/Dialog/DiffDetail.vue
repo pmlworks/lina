@@ -1,36 +1,26 @@
 <template>
   <Dialog
     v-if="detailVisible"
+    v-model:visible="detailVisible"
+    :modal="false"
     :show-cancel="false"
     :show-confirm="false"
     :title="title"
-    :visible.sync="detailVisible"
   >
     <div>
       <div v-if="isEmpty()" style="text-align: center">
-        {{ this.$tc('common.NoContent') }}
+        {{ $tc('NoContent') }}
       </div>
       <div v-else>
-        <el-table
-          :data="diff"
-          class="diffTable"
-        >
+        <el-table :data="diff" class="diffTable">
           <el-table-column
-            :label="$tc('audits.ChangeField')"
+            :label="$tc('ChangeField')"
             :prop="fieldName"
             show-overflow-tooltip
-            width="100"
+            width="150"
           />
-          <el-table-column
-            :label="$tc('audits.BeforeChange')"
-            :prop="leftKeyName"
-            show-overflow-tooltip
-          />
-          <el-table-column
-            :label="$tc('audits.AfterChange')"
-            :prop="rightKeyName"
-            show-overflow-tooltip
-          />
+          <el-table-column :label="$tc('BeforeChange')" :prop="leftKeyName" show-overflow-tooltip />
+          <el-table-column :label="$tc('AfterChange')" :prop="rightKeyName" show-overflow-tooltip />
         </el-table>
       </div>
     </div>
@@ -80,26 +70,25 @@ export default {
     }
   }
 }
-
 </script>
 
-<style lang='scss' scoped>
-  .el-tag {
-    width: 100%;
-    white-space: normal;
-    height: auto;
-  }
+<style lang="scss" scoped>
+.el-tag {
+  width: 100%;
+  white-space: normal;
+  height: auto;
+}
 
-  .el-table::before {
-    background-color: inherit;
-  }
+.el-table::before {
+  background-color: inherit;
+}
 
-  .diffTable {
-    width: 100%;
-    max-height: 80vh;
+.diffTable {
+  width: 100%;
+  max-height: 80vh;
 
-    & >>> td {
-      padding: 5px 0 !important;
-    }
+  & :deep(td) {
+    padding: 5px 0 !important;
   }
+}
 </style>

@@ -1,13 +1,6 @@
 import i18n from '@/i18n/i18n'
-import { CronTab } from '@/components'
-import { PasswordRule, TagInput, UpdateToken } from '@/components/Form/FormFields'
-
-const validatorInterval = (rule, value, callback) => {
-  if (parseInt(value) < 1) {
-    return callback(new Error(i18n.t('accounts.AccountChangeSecret.validatorMessage.EnsureThisValueIsGreaterThanOrEqualTo1')))
-  }
-  callback()
-}
+import { PasswordRule, Select2, TagInput, UpdateToken } from '@/components/Form/FormFields'
+import { periodicMeta } from '@/components/const'
 
 export const getChangeSecretFields = () => {
   return {
@@ -18,44 +11,48 @@ export const getChangeSecretFields = () => {
     secret_strategy: {
       type: 'radio-group',
       options: [],
-      label: i18n.t('accounts.AccountChangeSecret.PasswordStrategy'),
-      on: ([value], updateForm) => {
-      }
+      label: i18n.t('PasswordStrategy'),
+      on: ([value], updateForm) => {}
     },
     secret: {
-      label: i18n.t('assets.Password'),
+      el: {
+        autocomplete: 'new-password'
+      },
+      label: i18n.t('Password'),
       hidden: ({ secret_strategy, secret_type }) => {
         return secret_strategy !== 'specific' || secret_type !== 'password'
       }
     },
     ssh_key: {
-      label: i18n.t('assets.PrivateKey'),
+      label: i18n.t('PrivateKey'),
       el: {
         type: 'textarea',
         rows: 4
       },
-      hidden: ({ secret_strategy, secret_type }) => (secret_strategy !== 'specific' || secret_type !== 'ssh_key')
+      hidden: ({ secret_strategy, secret_type }) =>
+        secret_strategy !== 'specific' || secret_type !== 'ssh_key'
     },
     ssh_key_change_strategy: {
       type: 'radio-group',
       options: [],
-      hidden: ({ secret_strategy, secret_type }) => (secret_type !== 'ssh_key')
+      hidden: ({ secret_strategy, secret_type }) => secret_type !== 'ssh_key'
     },
     passphrase: {
-      label: i18n.t('assets.Passphrase'),
+      label: i18n.t('Passphrase'),
       component: UpdateToken,
       hidden: ({ secret_strategy, secret_type }) => {
-        return (secret_strategy !== 'specific' || secret_type !== 'ssh_key')
+        return secret_strategy !== 'specific' || secret_type !== 'ssh_key'
       }
     },
     password_rules: {
       component: PasswordRule,
-      label: i18n.t('accounts.AccountChangeSecret.PasswordRule'),
-      hidden: ({ secret_strategy, secret_type }) => (secret_strategy === 'specific' || secret_type !== 'password')
+      label: i18n.t('PasswordRule'),
+      hidden: ({ secret_strategy, secret_type }) =>
+        secret_strategy === 'specific' || secret_type !== 'password'
     },
-    recipients: {
-      label: i18n.t('accounts.AccountChangeSecret.Addressee'),
-      helpText: i18n.t('accounts.AccountChangeSecret.OnlyMailSend'),
+    pre_notify: {
+      label: i18n.t('Pre Recipient'),
+      component: Select2,
       el: {
         value: [],
         ajax: {
@@ -66,31 +63,24 @@ export const getChangeSecretFields = () => {
         }
       }
     },
-    is_periodic: {
-      type: 'switch'
+    post_notify: {
+      label: i18n.t('Post Recipient'),
+      component: Select2,
+      el: {
+        value: [],
+        ajax: {
+          url: '/api/v1/users/users/?fields_size=mini',
+          transformOption: (item) => {
+            return { label: item.name + '(' + item.username + ')', value: item.id }
+          }
+        }
+      }
     },
-    crontab: {
-      type: 'cronTab',
-      component: CronTab,
-      label: i18n.t('xpack.RegularlyPerform'),
-      hidden: (formValue) => {
-        return formValue.is_periodic === false
-      },
-      helpText: i18n.t('xpack.HelpText.CrontabOfCreateUpdatePage')
-    },
-    interval: {
-      label: i18n.t('xpack.CyclePerform'),
-      hidden: (formValue) => {
-        return formValue.is_periodic === false
-      },
-      helpText: i18n.t('xpack.HelpText.IntervalOfCreateUpdatePage'),
-      rules: [
-        { validator: validatorInterval }
-      ]
-    },
+    ...periodicMeta,
     accounts: {
-      label: i18n.t('common.Username'),
-      component: TagInput
+      label: i18n.t('Accounts'),
+      component: TagInput,
+      helpText: i18n.t('ChangeSecretAccountHelpText')
     }
   }
 }

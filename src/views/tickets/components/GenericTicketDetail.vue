@@ -1,36 +1,42 @@
 <template>
   <el-row :gutter="20">
     <el-col :md="17" :sm="24">
-      <Details :detail-card-items="iDetailCardItems" :title="$tc('common.BasicInfo')" />
+      <Details :detail-card-items="iDetailCardItems" :title="$tc('BasicInfo')" />
       <Details
         v-if="specialCardItems.length > 0"
         :detail-card-items="specialCardItems"
-        :title="$tc('common.ApplyInfo')"
+        :title="$tc('ApplyInfo')"
       />
       <Details
         v-if="object.state.value === 'approved' && assignedCardItems.length > 0"
         :detail-card-items="assignedCardItems"
-        :title="$tc('tickets.AssignedInfo')"
+        :title="$tc('AssignedInfo')"
       />
       <slot id="MoreDetails" />
-      <Comments :object="object" v-bind="$attrs" />
+      <Comments v-bind="$attrs" :object="object" />
     </el-col>
     <el-col :md="7" :sm="24">
       <Steps :object="object" />
-      <Session v-perms="'tickets.view_ticket'" :object="object" />
+      <Session v-if="$hasPerm('tickets.view_ticket')" :object="object" />
     </el-col>
   </el-row>
 </template>
 
-<script>
-import Details from './Details'
+<script lang="jsx">
 import Comments from './Comments'
-import Steps from './Steps'
+import CcUsers from './CcUsers'
+import Details from './Details'
 import Session from './Session'
-
+import Steps from './Steps'
 export default {
   name: 'GenericTicketDetail',
-  components: { Steps, Comments, Details, Session },
+  components: {
+    Steps,
+    CcUsers,
+    Comments,
+    Details,
+    Session
+  },
   props: {
     object: {
       type: Object,
@@ -38,7 +44,7 @@ export default {
     },
     specialCardItems: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     detailCardItems: {
       type: Array,
@@ -46,7 +52,7 @@ export default {
     },
     assignedCardItems: {
       type: Array,
-      default: () => ([])
+      default: () => []
     }
   },
   data() {
@@ -68,44 +74,52 @@ export default {
       const { object } = this
       return [
         {
-          key: this.$tc('common.Number'),
+          key: this.$tc('Number'),
           value: object['serial_num']
         },
         {
-          key: this.$tc('tickets.status'),
+          key: this.$tc('Status'),
           value: object.state.value,
           formatter: (item, val) => {
             const tp = this.statusMap[val]
-            return <el-tag type={tp} size='small'>{this.object.state.label}</el-tag>
+            return (
+              <el-tag type={tp} size="small">
+                {this.object.state.label}
+              </el-tag>
+            )
           }
         },
         {
-          key: this.$tc('tickets.type'),
+          key: this.$tc('Type'),
           value: object.type.label
         },
         {
-          key: this.$tc('tickets.user'),
+          key: this.$t('TicketFlow'),
+          value: object.flow?.name || object.type.label
+        },
+        {
+          key: this.$tc('User'),
           value: object.rel_snapshot.applicant
         },
         {
-          key: this.$tc('tickets.OrgName'),
+          key: this.$t('CcUsers'),
+          value: object.cc_users,
+          formatter: (item, users) => <CcUsers users={users} />
+        },
+        {
+          key: this.$tc('OrgName'),
           value: object.org_name
         },
         {
-          key: this.$tc('common.DateCreated'),
+          key: this.$tc('DateCreated'),
           value: object.date_created
         },
         {
-          key: this.$tc('common.Comment'),
+          key: this.$tc('Comment'),
           value: object.comment
         }
       ]
     }
   }
-
 }
 </script>
-
-<style lang='less' scoped>
-
-</style>

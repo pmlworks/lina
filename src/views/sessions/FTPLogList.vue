@@ -4,7 +4,8 @@
 
 <script>
 import GenericListPage from '@/layout/components/GenericListPage'
-import { download } from '@/utils/common'
+import { download } from '@/utils/common/index'
+import store from '@/store'
 
 export default {
   components: {
@@ -15,23 +16,21 @@ export default {
       tableConfig: {
         columnsShow: {
           default: [
-            'id', 'user', 'remote_addr', 'asset', 'account', 'operate',
-            'filename', 'date_start', 'is_success', 'actions'
-          ]
+            'user',
+            'asset',
+            'account',
+            'operate',
+            'filename',
+            'date_start',
+            'is_success',
+            'actions'
+          ],
+          min: ['user', 'asset', 'filename']
         },
         url: '/api/v1/audits/ftp-logs/',
         columnsMeta: {
-          remote_addr: {
-            width: '140px'
-          },
-          operate: {
-            width: '100px'
-          },
-          is_success: {
-            width: '80px'
-          },
+          is_success: { width: '100px' },
           actions: {
-            width: '82px',
             formatterArgs: {
               hasUpdate: false,
               hasDelete: false,
@@ -39,13 +38,32 @@ export default {
               extraActions: [
                 {
                   name: 'download',
-                  title: this.$t('sessions.download'),
+                  title: this.$t('Download'),
                   type: 'primary',
-                  can: ({ row }) => { return row.has_file },
-                  tip: ({ row }) => {
-                    return row.has_file ? this.$t('sessions.download') : this.$t('sessions.DownloadFTPFileTip')
+                  can: ({ row }) => {
+                    return row.has_file
                   },
-                  callback: function({ row }) {
+                  tip: ({ row }) => {
+                    const ftpFileMaxStore = store.getters.publicSettings['FTP_FILE_MAX_STORE']
+
+                    const downloadTip = this.$t('Download')
+                    const fileNotStoredTip = this.$t('FTPFileNotStored')
+                    const storageNotEnabledTip = this.$t('FTPStorageNotEnabled')
+                    const unknownStorageStateTip = this.$t('FTPUnknownStorageState')
+
+                    if (row.has_file) {
+                      return downloadTip
+                    }
+
+                    if (ftpFileMaxStore === 0) {
+                      return storageNotEnabledTip
+                    } else if (ftpFileMaxStore > 0) {
+                      return fileNotStoredTip
+                    } else {
+                      return unknownStorageStateTip
+                    }
+                  },
+                  callback: function ({ row }) {
                     // 跳转下载页面
                     download(`/api/v1/audits/ftp-logs/${row.id}/file/download/`)
                   }
@@ -58,13 +76,15 @@ export default {
       headerActions: {
         hasLeftActions: false,
         hasImport: false,
-        hasDatePicker: true
+        hasReportExport: true,
+        hasDatePicker: true,
+        searchConfig: {
+          getUrlQuery: true
+        }
       }
     }
   }
 }
 </script>
 
-<style>
-
-</style>
+<style></style>

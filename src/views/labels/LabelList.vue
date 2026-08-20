@@ -1,22 +1,30 @@
 <template>
   <div>
-    <GenericListPage ref="GenericListPage" :header-actions="headerActions" :table-config="tableConfig" />
-    <BindDialog v-if="bindVisible" :label="label" :visible.sync="bindVisible" @bind-success="handleDialogConfirm" />
+    <GenericListPage
+      ref="GenericListPage"
+      :header-actions="headerActions"
+      :table-config="tableConfig"
+    />
+    <BindDialog
+      v-if="bindVisible"
+      v-model:visible="bindVisible"
+      :label="label"
+      @bind-success="handleDialogConfirm"
+    />
     <LabelResourcesDialog
       v-if="resDialogVisible"
+      v-model:visible="resDialogVisible"
       :label="label"
-      :visible.sync="resDialogVisible"
-      @addResource="handleAddResource"
+      @add-resource="handleAddResource"
     />
   </div>
 </template>
 
-<script>
+<script lang="jsx">
 import { GenericListPage } from '@/layout/components'
 import BindDialog from './BindDialog.vue'
 import LabelResourcesDialog from '@/views/labels/LabelResourcesDialog.vue'
 import { mapGetters } from 'vuex'
-
 export default {
   components: {
     LabelResourcesDialog,
@@ -32,7 +40,7 @@ export default {
       tableConfig: {
         url: '/api/v1/labels/labels/',
         columnsShow: {
-          default: ['name', 'value', 'res_count', 'date_created', 'actions'],
+          default: ['name', 'value', 'color', 'res_count', 'date_created', 'actions'],
           min: ['name', 'actions']
         },
         columnsMeta: {
@@ -45,7 +53,26 @@ export default {
                 vm.handleClickResCount(row)
               }
               return (
-                <el-link type='success' onClick={onClick}>{ row['res_count'] }</el-link>
+                <el-link type="success" onClick={onClick}>
+                  {row['res_count']}
+                </el-link>
+              )
+            }
+          },
+          color: {
+            formatter: (row) => {
+              const onChange = () => {
+                vm.$axios.patch(`/api/v1/labels/labels/${row.id}/`, {
+                  color: row.color
+                })
+              }
+              return (
+                <el-color-picker
+                  modelValue={row.color}
+                  onUpdate:modelValue={($event) => (row.color = $event)}
+                  size="small"
+                  onChange={onChange}
+                />
               )
             }
           },
@@ -53,20 +80,19 @@ export default {
             formatterArgs: {
               extraActions: [
                 {
-                  title: this.$t('labels.BindResource'),
+                  title: this.$t('BindResource'),
                   name: 'bind',
                   callback: ({ row }) => {
                     this.label = row
                     this.bindVisible = true
                   },
                   can: () => {
-                    return !this.currentOrgIsRoot
+                    return !this.currentOrgIsRoot && this.$hasPerm('labels.change_labeledresource')
                   }
                 }
               ]
             }
           }
-
         }
       },
       headerActions: {
@@ -83,8 +109,10 @@ export default {
       this.resDialogVisible = true
     },
     handleAddResource() {
-      this.bindVisible = true
       this.resDialogVisible = false
+      this.$nextTick(() => {
+        this.bindVisible = true
+      })
     },
     handleDialogConfirm() {
       this.bindVisible = false
@@ -94,6 +122,10 @@ export default {
 }
 </script>
 
-<style>
-
+<style lang="scss" scoped>
+.el-color-picker__trigger {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
 </style>

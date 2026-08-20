@@ -1,11 +1,17 @@
 <template>
-  <BaseList :url="url" :extra-actions="extraActions" />
+  <BaseList
+    :extra-actions="extraActions"
+    :url="url"
+    :columns-meta="columnsMeta"
+    :columns-exclude="columnsExclude"
+  />
 </template>
 
 <script>
 import BaseList from './BaseList'
 import { terminateSession, toggleLockSession } from '@/api/sessions'
-import { IsSupportPauseSessionType } from '@/utils/jms'
+import { IsSupportPauseSessionType } from '@/utils/jms/index'
+
 export default {
   name: 'OnlineList',
   components: {
@@ -18,25 +24,26 @@ export default {
       extraActions: [
         {
           name: 'terminate',
-          title: this.$t('sessions.terminate'),
+          title: this.$t('Terminate'),
+          icon: 'fa-solid fa-stop',
           type: 'danger',
           can: ({ row }) => row['can_terminate'] && vm.$hasPerm('terminal.terminate_session'),
-          callback: function({ reload, row }) {
+          callback: function ({ reload, row }) {
             // 终断 session reload
             const data = [row.id]
-            terminateSession(data).then(res => {
-              const msg = vm.$t('sessions.TerminateTaskSendSuccessMsg')
+            terminateSession(data).then((res) => {
+              const msg = vm.$t('TerminateTaskSendSuccessMsg')
               this.$message.success(msg)
-              window.setTimeout(function() {
+              window.setTimeout(function () {
                 reload()
               }, 50000)
-            }
-            )
+            })
           }
         },
         {
           name: 'pause',
-          title: this.$t('sessions.pause'),
+          title: this.$t('Pause'),
+          icon: 'fa-solid fa-pause',
           type: 'warning',
           can: ({ row }) => {
             const terminalType = row['terminal']['type']
@@ -45,22 +52,22 @@ export default {
             return supportedType && vm.$hasPerm('terminal.terminate_session')
           },
           has: ({ row }) => !row['is_locked'],
-          callback: function({ reload, row }) {
+          callback: function ({ reload, row }) {
             const data = {
-              'session_id': row.id,
-              'task_name': 'lock_session'
+              session_id: row.id,
+              task_name: 'lock_session'
             }
-            toggleLockSession(data).then(res => {
-              const msg = vm.$t('sessions.PauseTaskSendSuccessMsg')
+            toggleLockSession(data).then((res) => {
+              const msg = vm.$t('PauseTaskSendSuccessMsg')
               this.$message.success(msg)
               row['is_locked'] = !row['is_locked']
-            }
-            )
+            })
           }
         },
         {
           name: 'resume',
-          title: this.$t('sessions.resume'),
+          title: this.$t('Resume'),
+          icon: 'fa-solid fa-unlock',
           type: 'warning',
           can: ({ row }) => {
             const terminalType = row['terminal']['type']
@@ -69,13 +76,13 @@ export default {
             return supportedType && vm.$hasPerm('terminal.terminate_session')
           },
           has: ({ row }) => row['is_locked'],
-          callback: function({ reload, row }) {
+          callback: function ({ reload, row }) {
             const data = {
-              'session_id': row.id,
-              'task_name': 'unlock_session'
+              session_id: row.id,
+              task_name: 'unlock_session'
             }
-            toggleLockSession(data).then(res => {
-              const msg = vm.$t('sessions.ResumeTaskSendSuccessMsg')
+            toggleLockSession(data).then((res) => {
+              const msg = vm.$t('ResumeTaskSendSuccessMsg')
               this.$message.success(msg)
               row['is_locked'] = !row['is_locked']
             })
@@ -83,28 +90,35 @@ export default {
         },
         {
           name: 'join',
-          title: this.$t('sessions.Monitor'),
+          title: this.$t('Monitor'),
+          icon: 'fa-eye',
           type: 'primary',
           can: ({ row, cellValue }) => {
             return row['can_join'] && this.$hasPerm('terminal.monitor_session')
           },
           tip: ({ row }) => {
             if (row.login_from === 'RT') {
-              return this.$t('sessions.RazorNotSupport')
+              return this.$t('RazorNotSupport')
             }
             return ''
           },
-          callback: function({ row, tableData }) {
+          callback: function ({ row, tableData }) {
             const monitorUrl = '/luna/monitor/' + row.id
-            window.open(monitorUrl, '_blank', 'height=600, width=850, top=400, left=400, toolbar=no, menubar=no, scrollbars=no, location=no, status=no')
+            window.open(
+              monitorUrl,
+              '_blank',
+              'height=600, width=850, top=400, left=400, toolbar=no, menubar=no, scrollbars=no, location=no, status=no'
+            )
           }
         }
-      ]
+      ],
+      columnsExclude: ['has_command'],
+      columnsMeta: {
+        command_amount: {
+          label: this.$t('CommandsTotal')
+        }
+      }
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

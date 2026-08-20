@@ -1,7 +1,7 @@
 <template>
   <TabPage
     v-if="!loading"
-    :active-menu.sync="config.activeMenu"
+    v-model:active-menu="config.activeMenu"
     :submenu="config.submenu"
     @tab-click="handleTabClick"
   />
@@ -23,24 +23,24 @@ export default {
         submenu: [
           {
             name: 'all',
-            title: this.$t('assets.All'),
-            icon: 'fa-bars',
+            title: this.$t('All'),
+            icon: 'fa-solid fa-bars',
             component: () => import('@/views/assets/Asset/AssetList/AllList.vue')
           },
           {
-            icon: 'fa-inbox',
+            icon: 'fa-solid fa-inbox',
             name: 'host',
             component: () => import('@/views/assets/Asset/AssetList/HostList.vue'),
             hidden: true
           },
           {
             name: 'device',
-            icon: 'fa-microchip',
+            icon: 'fa-solid fa-network-wired',
             hidden: true,
             component: () => import('@/views/assets/Asset/AssetList/DeviceList.vue')
           },
           {
-            icon: 'fa-database',
+            icon: 'fa-solid fa-database',
             name: 'database',
             component: () => import('@/views/assets/Asset/AssetList/DatabaseList.vue')
           },
@@ -51,10 +51,16 @@ export default {
             component: () => import('@/views/assets/Asset/AssetList/CloudList.vue')
           },
           {
-            icon: 'fa-globe',
+            icon: 'fa-solid fa-globe',
             name: 'web',
             hidden: true,
             component: () => import('@/views/assets/Asset/AssetList/WebList.vue')
+          },
+          {
+            icon: 'fa-id-card',
+            name: 'ds',
+            hidden: true,
+            component: () => import('@/views/assets/Asset/AssetList/DSList.vue')
           },
           {
             icon: 'fa-comment',
@@ -63,7 +69,7 @@ export default {
             component: () => import('@/views/assets/Asset/AssetList/GPTList.vue')
           },
           {
-            icon: 'fa-th',
+            icon: 'fa-solid fa-cube',
             name: 'custom',
             hidden: true,
             component: () => import('@/views/assets/Asset/AssetList/CustomList.vue')
@@ -77,9 +83,13 @@ export default {
     for (const item of this.config.submenu) {
       nameComponentMap[item.name] = item
     }
-    this.$axios.get('/api/v1/assets/categories/').then(categories => {
+    this.$axios.get('/api/v1/assets/categories/').then((res) => {
+      const categories = Array.isArray(res) ? res : res?.results || []
       for (const item of categories) {
         const name = item.value
+        if (!nameComponentMap[name]) {
+          continue
+        }
         // 如果报错，需要在上面的 submenu 中添加对应的组件
         nameComponentMap[name]['hidden'] = false
         nameComponentMap[name]['title'] = item.label
@@ -89,19 +99,16 @@ export default {
   },
   methods: {
     handleTabClick(tab) {
-      const query = _.cloneDeep(this.$route.query)
-      const newQuery = {
-        ...query,
-        activeTab: tab.name
-      }
-      this.$nextTick(() => {
-        this.$router.replace({ query: newQuery })
-      })
+      // 这样不行，会闪
+      // const query = _.cloneDeep(this.$route.query)
+      // const newQuery = {
+      //   ...query,
+      //   tab: tab.name
+      // }
+      // this.$nextTick(() => {
+      //   this.$router.replace({ query: newQuery })
+      // })
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

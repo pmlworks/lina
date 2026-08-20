@@ -1,42 +1,37 @@
 <template>
   <Dialog
+    v-bind="$attrs"
+    v-model:visible="visible"
     :close-on-click-modal="false"
     :destroy-on-close="true"
     :show-cancel="false"
     :show-confirm="false"
     :title="title"
-    :visible.sync="visible"
-    class="dialog-content"
-    v-bind="$attrs"
+    class="user-confirm-dialog"
     width="600px"
+    @close="handleDialogClose"
     @confirm="visible = false"
-    v-on="$listeners"
   >
     <div v-if="confirmTypeRequired === 'relogin'">
-      <el-row :gutter="24" style="margin: 0 auto;">
+      <el-row class="user-confirm-dialog__row" :gutter="24">
         <el-col :md="24" :sm="24">
-          <el-alert
-            :title="$tc('auth.ReLoginTitle')"
-            center
-            style="margin-bottom: 20px;"
-            type="error"
-          />
+          <el-alert :title="$tc('ReLoginTitle')" center style="margin-bottom: 20px" type="error" />
         </el-col>
       </el-row>
-      <el-row :gutter="24" style="margin: 0 auto;">
+      <el-row class="user-confirm-dialog__row" :gutter="24">
         <el-col :md="24" :sm="24">
-          <el-button class="confirm-btn" size="mini" type="primary" @click="logout">
-            {{ this.$t('auth.ReLogin') }}
+          <el-button class="confirm-btn" type="primary" @click="logout">
+            {{ $t('ReLogin') }}
           </el-button>
         </el-col>
       </el-row>
     </div>
-    <div v-else>
-      <el-row :gutter="24" style="margin: 0 auto;">
+    <div v-else class="jms-form-controls">
+      <el-row class="user-confirm-dialog__row user-confirm-dialog__row--field" :gutter="24">
         <el-col :md="24" :sm="24" :span="24" class="add">
           <el-select
             v-model="subTypeSelected"
-            style="width: 100%; margin-bottom: 20px;"
+            class="user-confirm-dialog__select"
             @change="handleSubTypeChange"
           >
             <el-option
@@ -49,31 +44,73 @@
           </el-select>
         </el-col>
       </el-row>
-      <el-row :gutter="24" style="margin: 0 auto;">
-        <el-col :md="24" :sm="24" style="display: flex; margin-bottom: 20px;">
+      <el-row
+        v-if="!noCodeMFA.includes(subTypeSelected)"
+        class="user-confirm-dialog__row user-confirm-dialog__row--field"
+        :gutter="24"
+      >
+        <el-col :md="24" :sm="24" class="user-confirm-dialog__code-row">
           <el-input
             v-model="secretValue"
+            class="user-confirm-dialog__input"
             :placeholder="inputPlaceholder"
             :show-password="showPassword"
-            @keyup.enter.native="handleConfirm"
+            @keyup.enter="handleConfirm"
           />
-          <span v-if="subTypeSelected === 'sms'" style="margin: -1px 0 0 20px;">
+          <span
+            v-if="subTypeSelected === 'sms' || subTypeSelected === 'email'"
+            class="user-confirm-dialog__code-action"
+          >
             <el-button
               :disabled="smsBtnDisabled"
-              size="mini"
-              style="line-height:20px; float: right;"
+              class="user-confirm-dialog__code-button"
               type="primary"
-              @click="sendSMSCode"
+              @click="sendCode"
             >
               {{ smsBtnText }}
             </el-button>
           </span>
         </el-col>
       </el-row>
-      <el-row :gutter="24" style="margin: 10px auto;">
+      <el-row class="user-confirm-dialog__row user-confirm-dialog__row--face" :gutter="24">
+        <el-col>
+          <iframe v-if="passkeyVisible" :src="passkeyUrl" style="display: none" />
+          <iframe
+            v-if="isFaceCaptureVisible && subTypeSelected === 'face' && faceCaptureUrl"
+            class="user-confirm-dialog__face-frame"
+            :src="faceCaptureUrl"
+            allow="camera"
+            sandbox="allow-scripts allow-same-origin"
+          />
+        </el-col>
+      </el-row>
+      <el-row class="user-confirm-dialog__row user-confirm-dialog__row--actions" :gutter="24">
         <el-col :md="24" :sm="24">
-          <el-button class="confirm-btn" size="mini" type="primary" @click="handleConfirm">
-            {{ this.$t('common.Confirm') }}
+          <el-button
+            v-if="!noCodeMFA.includes(subTypeSelected)"
+            class="confirm-btn"
+            type="primary"
+            @click="handleConfirm"
+          >
+            {{ $t('Confirm') }}
+          </el-button>
+          <el-button
+            v-if="subTypeSelected === 'face'"
+            v-show="!isFaceCaptureVisible"
+            class="confirm-btn"
+            type="primary"
+            @click="handleFaceCapture"
+          >
+            {{ $tc('VerifyFace') }}
+          </el-button>
+          <el-button
+            v-if="subTypeSelected === 'passkey'"
+            :loading="passkeyVisible"
+            class="confirm-btn"
+            type="primary"
+            @click="handlePasskeyVerify"
+          >
+            {{ $tc('Next') }}
           </el-button>
         </el-col>
       </el-row>
@@ -81,7 +118,10 @@
   </Dialog>
 </template>
 <script>
+import { LOGOUT_PATH } from '@/utils/env'
 import Dialog from '@/components/Dialog/index.vue'
+import { encryptPassword } from '@/utils/secure'
+import _ from 'lodash'
 
 export default {
   name: 'UserConfirmDialog',
@@ -100,11 +140,11 @@ export default {
   },
   data() {
     return {
-      title: this.$t('common.CurrentUserVerify'),
+      title: this.$t('CurrentUserVerify'),
       smsWidth: 0,
       subTypeSelected: '',
       inputPlaceholder: '',
-      smsBtnText: this.$t('common.SendVerificationCode'),
+      smsBtnText: this.$t('SendVerificationCode'),
       smsBtnDisabled: false,
       confirmTypeRequired: '',
       subTypeChoices: [],
@@ -112,7 +152,15 @@ export default {
       visible: false,
       callback: null,
       cancel: null,
-      processing: false
+      processing: false,
+      isFaceCaptureVisible: false,
+      faceToken: null,
+      faceCaptureUrl: null,
+      noCodeMFA: ['face', 'passkey'],
+      sendCodeMFA: ['email', 'sms', 'otp'],
+      passkeyVisible: false,
+      passkeyUrl: '/api/v1/authentication/passkeys/login/?mfa=1',
+      closeReason: ''
     }
   },
   computed: {
@@ -123,12 +171,21 @@ export default {
   mounted() {
     this.$eventBus.$on('showConfirmDialog', this.performConfirm)
   },
+  beforeUnmount() {
+    this.$eventBus.$off('showConfirmDialog', this.performConfirm)
+  },
   methods: {
     handleSubTypeChange(val) {
-      this.inputPlaceholder = this.subTypeChoices.filter(item => item.name === val)[0]?.placeholder
+      if (val !== 'face') {
+        this.isFaceCaptureVisible = false
+      }
+
+      this.inputPlaceholder = this.subTypeChoices.filter(
+        (item) => item.name === val
+      )[0]?.placeholder
       this.smsWidth = val === 'sms' ? 6 : 0
     },
-    performConfirm({ response, callback, cancel }) {
+    performConfirm: _.debounce(function ({ response, callback, cancel }) {
       if (this.processing || this.visible) {
         return
       }
@@ -138,52 +195,145 @@ export default {
       this.$log.debug('perform confirm action')
       const confirmType = response.data?.code
       const confirmUrl = '/api/v1/authentication/confirm/'
-      this.$axios.get(confirmUrl, { params: { confirm_type: confirmType }}).then((data) => {
-        this.confirmTypeRequired = data.confirm_type
+      this.$axios
+        .get(confirmUrl, { params: { confirm_type: confirmType } })
+        .then((data) => {
+          this.confirmTypeRequired = data.confirm_type
 
-        if (this.confirmTypeRequired === 'relogin') {
-          this.$axios.post(confirmUrl, { 'confirm_type': 'relogin', 'secret_key': 'x' }).then(() => {
-            this.callback()
-            this.visible = false
-          }).catch(() => {
-            this.title = this.$t('auth.NeedReLogin')
-            this.visible = true
-          })
-          return
-        }
-        this.subTypeChoices = data.content
-        const defaultSubType = this.subTypeChoices.filter(item => !item.disabled)[0]
-        this.subTypeSelected = defaultSubType.name
-        this.inputPlaceholder = defaultSubType.placeholder
-        this.visible = true
-      }).catch((err) => {
-        const data = err.response?.data
-        const msg = data?.error || data?.detail || data?.msg || this.$t('common.GetConfirmTypeFailed')
-        this.$message.error(msg)
-        this.cancel(err)
-      }).finally(() => {
-        this.processing = false
-      })
-    },
-    logout() {
-      window.location.href = `${process.env.VUE_APP_LOGOUT_PATH}?next=${this.$route.fullPath}`
-    },
-    sendSMSCode() {
-      this.$axios.post(`/api/v1/authentication/mfa/select/`, { type: 'sms' }).then(res => {
-        this.$message.success(this.$tc('common.VerificationCodeSent'))
-        let time = 60
-        const interval = setInterval(() => {
-          const originText = this.smsBtnText
-          this.smsBtnText = this.$t('common.Pending') + `: ${time}`
-          this.smsBtnDisabled = true
-          time -= 1
-
-          if (time === 0) {
-            this.smsBtnText = originText
-            this.smsBtnDisabled = false
-            clearInterval(interval)
+          if (this.confirmTypeRequired === 'relogin') {
+            this.$axios
+              .post(confirmUrl, { confirm_type: 'relogin', secret_key: 'x' })
+              .then(() => {
+                this.closeReason = 'success'
+                this.callback()
+                this.visible = false
+              })
+              .catch(() => {
+                this.title = this.$t('NeedReLogin')
+                this.visible = true
+              })
+            return
           }
-        }, 1000)
+          this.subTypeChoices = data.content
+          const defaultSubType = this.subTypeChoices.filter((item) => !item.disabled)[0]
+          this.subTypeSelected = defaultSubType.name
+          this.inputPlaceholder = defaultSubType.placeholder
+          this.visible = true
+        })
+        .catch((err) => {
+          const data = err.response?.data
+          const msg = data?.error || data?.detail || data?.msg || this.$t('GetConfirmTypeFailed')
+          this.$message.error(msg)
+          this.cancel(err)
+        })
+        .finally(() => {
+          this.processing = false
+        })
+    }, 500),
+    logout() {
+      window.location.href = `${LOGOUT_PATH}?next=${this.$route.fullPath}`
+    },
+    sendCode() {
+      this.$axios
+        .post(`/api/v1/authentication/mfa/select/`, { type: this.subTypeSelected })
+        .then(() => {
+          this.$message.success(this.$tc('VerificationCodeSent'))
+          let time = 60
+          this.smsBtnDisabled = true
+
+          const interval = setInterval(() => {
+            time -= 1
+            this.smsBtnText = `${this.$t('Pending')}: ${time}`
+
+            if (time <= 0) {
+              clearInterval(interval)
+              this.smsBtnText = this.$t('SendVerificationCode')
+              this.smsBtnDisabled = false
+            }
+          }, 1000)
+        })
+        .catch(() => {
+          this.$message.error(this.$tc('FailedToSendVerificationCode'))
+        })
+    },
+    handlePasskeyVerify() {
+      this.passkeyVisible = true
+      this.checkPasskeyStatus()
+    },
+    checkPasskeyStatus() {
+      const url = '/api/v1/authentication/confirm/check/?confirm_type=mfa'
+      const t = setInterval(() => {
+        this.$axios.get(url).then(() => {
+          this.passkeyVisible = false
+          this.onSuccess()
+        })
+      }, 2000)
+      setTimeout(() => {
+        clearInterval(t)
+        if (this.passkeyVisible) {
+          this.passkeyVisible = false
+          this.$message.error(this.$tc('PasskeyTimeout'))
+        }
+      }, 20000)
+    },
+    startFaceCapture() {
+      const url = '/api/v1/authentication/face/context/'
+      this.$axios
+        .post(url)
+        .then((data) => {
+          const token = data['token']
+          this.faceCaptureUrl = '/facelive/capture?token=' + token
+          this.isFaceCaptureVisible = true
+
+          const timer = setInterval(() => {
+            this.$axios.get(url + `?token=${token}`).then((data) => {
+              if (data['is_finished']) {
+                clearInterval(timer)
+                this.isFaceCaptureVisible = false
+                this.handleConfirm()
+              }
+            })
+          }, 1000)
+        })
+        .catch(() => {
+          this.$message.error(this.$tc('FailedToStartFaceCapture'))
+        })
+    },
+    handleFaceCapture() {
+      this.startFaceCapture()
+    },
+    resetDialogState() {
+      this.secretValue = ''
+      this.smsBtnText = this.$t('SendVerificationCode')
+      this.smsBtnDisabled = false
+      this.passkeyVisible = false
+      this.faceCaptureUrl = null
+      this.isFaceCaptureVisible = false
+      this.processing = false
+    },
+    handleDialogClose() {
+      const shouldCancel = this.closeReason !== 'success'
+      this.resetDialogState()
+      this.visible = false
+      if (shouldCancel && this.cancel) {
+        this.cancel(new Error('confirm dialog closed'))
+      }
+      this.closeReason = ''
+      this.callback = null
+      this.cancel = null
+    },
+    onSuccess() {
+      this.closeReason = 'success'
+      this.secretValue = ''
+      // 先捕获 callback 引用：this.visible = false 会触发 Dialog @close →
+      // handleDialogClose，那里会把 this.callback 置 null,若在 nextTick 里再取
+      // this.callback 就会是 null，导致 "this.callback is not a function"。
+      const callback = this.callback
+      this.visible = false
+      this.$nextTick(() => {
+        if (typeof callback === 'function') {
+          callback()
+        }
       })
     },
     handleConfirm() {
@@ -191,40 +341,102 @@ export default {
         return this.logout()
       }
       if (this.subTypeSelected === 'otp' && this.secretValue.length !== 6) {
-        return this.$message.error(this.$tc('common.MFAErrorMsg'))
+        return this.$message.error(this.$tc('MFAErrorMsg'))
       }
+
       const data = {
         confirm_type: this.confirmTypeRequired,
         mfa_type: this.confirmTypeRequired === 'mfa' ? this.subTypeSelected : '',
-        secret_key: this.secretValue
+        secret_key:
+          this.confirmTypeRequired === 'password'
+            ? encryptPassword(this.secretValue)
+            : this.secretValue
       }
-      this.$axios.post(`/api/v1/authentication/confirm/`, data).then(res => {
-        this.callback()
-        this.secretValue = ''
-        this.visible = false
-      })
+
+      this.$axios
+        .post(`/api/v1/authentication/confirm/`, data)
+        .then(() => {
+          this.onSuccess()
+        })
+        .catch((err) => {
+          this.$message.error(err.message || this.$tc('ConfirmFailed'))
+          this.faceCaptureUrl = null
+          this.isFaceCaptureVisible = false
+        })
     }
   }
 }
 </script>
 
-<style lang="scss" scoped>
-  .dialog-content >>> .el-dialog__footer {
-    padding: 0;
+<style lang="scss">
+.el-dialog.dialog.user-confirm-dialog {
+  .el-dialog__body {
+    padding: 22px 40px 30px !important;
   }
+}
 
-  .dialog-content >>> .el-dialog {
-    padding: 8px;
+.user-confirm-dialog__row {
+  margin: 0 !important;
+}
 
-    .el-dialog__body {
-      padding-top: 30px;
-      padding-bottom: 30px;
-    }
-  }
+.user-confirm-dialog__row--field + .user-confirm-dialog__row--field {
+  margin-top: 16px !important;
+}
 
-  .confirm-btn {
-    width: 100%;
-    line-height: 20px;
-  }
+.user-confirm-dialog__row--face {
+  margin-top: 16px !important;
+}
 
+.user-confirm-dialog__row--actions {
+  margin-top: 20px !important;
+}
+
+.user-confirm-dialog__select,
+.user-confirm-dialog__input {
+  width: 100%;
+}
+
+.user-confirm-dialog__face-frame {
+  display: block;
+  width: 100%;
+  height: 600px;
+  border: 0;
+}
+
+// 验证码行:输入框自适应宽度 + 「发送验证码」按钮固定宽度,始终同一行(修复按钮掉到下一行)。
+// 用 .user-confirm-dialog 作用域提升优先级:既确保 .code-row 的 flex 生效(不被 .el-col 覆盖回 block),
+// 又覆盖 __input 的全局 width:100%,让输入框在 flex 行内自适应剩余空间。
+.user-confirm-dialog .user-confirm-dialog__code-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.user-confirm-dialog .user-confirm-dialog__code-row .user-confirm-dialog__input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.user-confirm-dialog__code-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.confirm-btn {
+  width: 100%;
+  min-height: 30px;
+  padding: 8px 12px;
+  line-height: 1;
+}
+
+.user-confirm-dialog__code-button {
+  width: auto;
+  min-width: 112px;
+  min-height: 30px;
+  padding: 8px 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
 </style>

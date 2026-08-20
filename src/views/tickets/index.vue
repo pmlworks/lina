@@ -1,13 +1,14 @@
 <template>
-  <TabPage :active-menu.sync="config.activeMenu" :submenu="config.submenu">
-    <el-badge
-      v-if="props.tab === 'AssignedTicketList'"
-      slot="badge"
-      v-slot="props"
-      :value="getBadgeValue(props)"
-      size="mini"
-      type="primary"
-    />
+  <TabPage v-model:active-menu="config.activeMenu" :submenu="config.submenu">
+    <template #badge>
+      <el-badge
+        v-if="props.tab === 'AssignedTicketList'"
+        v-slot="props"
+        :value="getBadgeValue(props)"
+        size="small"
+        type="primary"
+      />
+    </template>
     <keep-alive>
       <component :is="config.activeMenu" />
     </keep-alive>
@@ -20,6 +21,7 @@ import { mapGetters } from 'vuex'
 import { getTicketOpenCount } from '@/api/ticket'
 import AssignedTicketList from './AssignedTicketList'
 import MyTicketList from './MyTicketList'
+import i18n from '@/i18n/i18n'
 
 export default {
   name: 'Index',
@@ -35,11 +37,11 @@ export default {
         activeMenu: 'MyTicketList',
         submenu: [
           {
-            title: this.$t('tickets.MyTickets'),
+            title: i18n.global.t('MyTickets'),
             name: 'MyTicketList'
           },
           {
-            title: this.$t('tickets.AssignedMe'),
+            title: i18n.global.t('AwaitingMyApproval'),
             name: 'AssignedTicketList'
           }
         ]
@@ -47,16 +49,14 @@ export default {
     }
   },
   computed: {
-    ...mapGetters([
-      'currentUser'
-    ])
+    ...mapGetters(['currentUser'])
   },
   mounted() {
     this.getTicketOpenCount()
   },
   methods: {
     getTicketOpenCount() {
-      getTicketOpenCount(this.currentUser.id).then(data => {
+      getTicketOpenCount(this.currentUser.id).then((data) => {
         this.assignedTicketCount = data['count']
       })
     },
@@ -67,5 +67,4 @@ export default {
 }
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

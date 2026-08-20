@@ -1,15 +1,14 @@
 <template>
   <el-row :gutter="20">
-    <el-col :md="16" :sm="24">
+    <el-col :md="20" :sm="24">
       <ListTable :header-actions="headerConfig" :table-config="config" />
     </el-col>
   </el-row>
 </template>
 
-<script type="text/jsx">
-import { ListTable } from '@/components'
+<script lang="jsx">
+import { DrawerListTable as ListTable } from '@/components'
 import { DetailFormatter } from '@/components/Table/TableFormatters'
-
 export default {
   name: 'Apps',
   components: {
@@ -18,8 +17,7 @@ export default {
   props: {
     object: {
       type: Object,
-      default: () => {
-      }
+      default: () => {}
     }
   },
   data() {
@@ -31,41 +29,45 @@ export default {
       },
       config: {
         url: `/api/v1/terminal/virtual-app-publications/?provider=${this.object.id}`,
-        columns: [
-          'app.name', 'app.image_name', 'date_updated', 'status'
-        ],
+        columns: ['app.name', 'app.image_name', 'date_updated', 'status'],
         excludes: ['actions'],
         columnsMeta: {
           'app.name': {
-            label: this.$t('common.Name'),
+            label: this.$t('Name'),
             formatter: DetailFormatter,
             formatterArgs: {
               getTitle: ({ row }) => row.app.name,
               getRoute: ({ row }) => ({
                 name: 'VirtualAppDetail',
-                params: { id: row.app.id }
+                params: {
+                  id: row.app.id
+                }
               })
             },
             id: ({ row }) => row.app.id
           },
           'app.image_name': {
-            label: this.$t('common.ImageName')
+            label: this.$t('ImageName')
           },
           status: {
-            label: this.$t('applets.PublishStatus'),
+            label: this.$t('PublishStatus'),
             formatter: (row) => {
               const typeMapper = {
-                'pending': 'success',
-                'success': 'primary',
-                'failed': 'danger',
-                'unknown': 'warning'
+                pending: 'success',
+                success: 'primary',
+                failed: 'danger',
+                unknown: 'warning'
               }
               const tp = typeMapper[row.status.value] || 'warning'
-              return <el-tag size='mini' type={tp}>{row.status.label}</el-tag>
+              return (
+                <el-tag size="small" type={tp}>
+                  {row.status.label}
+                </el-tag>
+              )
             }
           },
           date_updated: {
-            label: this.$t('ops.date')
+            label: this.$t('Date')
           },
           actions: {
             hidden: true,
@@ -83,6 +85,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

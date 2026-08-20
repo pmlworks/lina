@@ -1,10 +1,10 @@
 <template>
-  <GenericCreateUpdatePage v-bind="config" @getObjectDone="handleObjectDone" />
+  <GenericCreateUpdatePage v-bind="config" @get-object-done="handleObjectDone" />
 </template>
 
 <script>
-import GenericCreateUpdatePage from '@/layout/components/GenericCreateUpdatePage/index.vue'
 import TextReadonly from '@/components/Form/FormFields/TextReadonly.vue'
+import GenericCreateUpdatePage from '@/layout/components/GenericCreateUpdatePage/index.vue'
 
 export default {
   name: 'CreateUpdate',
@@ -16,8 +16,8 @@ export default {
         url: '/api/v1/accounts/virtual-accounts/',
         object: {},
         fields: [
-          [this.$t('common.Basic'), ['name', 'username']],
-          [this.$t('assets.Secret'), ['secret_from_login']]
+          [this.$t('Basic'), ['name', 'username']],
+          [this.$t('Secret'), ['secret_from_login']]
         ],
         fieldsMeta: {
           name: {
@@ -45,6 +45,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

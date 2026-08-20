@@ -1,5 +1,11 @@
 <template>
-  <GenericListPage ref="GenericListPage" :header-actions="headerActions" :table-config="tableConfig" />
+  <GenericListPage
+    ref="GenericListPage"
+    :header-actions="headerActions"
+    :table-config="tableConfig"
+    :create-drawer="createDrawer"
+    :detail-drawer="detailDrawer"
+  />
 </template>
 
 <script>
@@ -14,30 +20,49 @@ export default {
   data() {
     const vm = this
     return {
+      createDrawer: () => import('@/views/tickets/TicketFlow/FlowCreateUpdate'),
+      detailDrawer: () => import('@/views/tickets/TicketFlow/Detail'),
       tableConfig: {
         url: '/api/v1/tickets/flows/',
+        permissions: {
+          resource: 'ticketflow'
+        },
         columnsExclude: ['rules'],
         columnsShow: {
-          min: ['type', 'actions'],
+          min: ['name', 'approval_level', 'actions'],
           default: [
-            'type', 'created_by', 'org_name',
-            'date_created', 'date_updated', 'actions'
+            'name',
+            'approval_level',
+            'created_by',
+            'org_name',
+            'date_created',
+            'date_updated',
+            'actions'
           ]
         },
         columnsMeta: {
           org_name: {
-            formatter: function(row, col, cell) {
+            formatter: function (row, col, cell) {
               const currentOrg = vm.$store.getters.currentOrg
               return currentOrg['is_root'] ? row.org_name : currentOrg.name
             }
           },
-          type: {
+          name: {
             formatter: DetailFormatter,
             formatterArgs: {
+              drawer: true,
               permissions: 'tickets.view_ticketflow',
-              route: 'FlowDetail',
-              getTitle: function({ row }) {
-                return row.type.label
+              getRoute: ({ row }) => ({
+                name: 'FlowDetail',
+                params: {
+                  id: row.id
+                }
+              }),
+              getDrawerTitle: ({ row }) => {
+                return row.name || row.type.label
+              },
+              getTitle: function ({ row }) {
+                return row.name || row.type.label
               }
             }
           },
@@ -46,28 +71,21 @@ export default {
             formatterArgs: {
               hasClone: false,
               hasDelete: false,
-              onClone: ({ row }) => {
-                vm.$router.push({ name: 'TicketFlowUpdate', query: { type: row.type, clone_from: row.id }})
-              },
               canUpdate: () => {
                 return vm.$hasPerm('tickets.change_ticketflow')
-              },
-              onUpdate: ({ row }) => {
-                vm.$router.push({ name: 'TicketFlowUpdate', params: { id: row.id }})
               }
             }
           }
         }
       },
       headerActions: {
-        hasLeftActions: false,
-        hasSearch: false
+        hasLeftActions: true,
+        hasBulkDelete: false,
+        createRoute: { name: 'TicketFlowCreate' },
+        hasSearch: false,
+        hasImport: false
       }
     }
   }
 }
 </script>
-
-<style>
-
-</style>

@@ -1,39 +1,48 @@
 <template>
-  <div id="tags-view-container" class="tags-view-container">
+  <el-alert v-show="show" id="tags-view-container" :closable="false" class="tags-view-container">
     <scroll-pane ref="scrollPane" class="tags-view-wrapper">
       <router-link
         v-for="tag in visitedViews"
-        ref="tag"
         :key="tag.path"
-        :class="isActive(tag)?'active':''"
+        v-slot="{ navigate }"
         :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }"
-        tag="span"
-        class="tags-view-item"
-        @click.middle.native="!isAffix(tag)?closeSelectedTag(tag):''"
-        @contextmenu.prevent.native="openMenu(tag,$event)"
+        custom
       >
-        {{ tag.title }}
         <span
-          v-if="!isAffix(tag)"
-          class="el-icon-close"
-          @click.prevent.stop="closeSelectedTag(tag)"
-        />
+          :class="isActive(tag) ? 'active' : ''"
+          class="tags-view-item"
+          @click="navigate"
+          @click.middle="!isAffix(tag) ? closeSelectedTag(tag) : ''"
+          @contextmenu.prevent="openMenu(tag, $event)"
+        >
+          {{ tag.title }}
+          <el-icon v-if="!isAffix(tag)" @click.prevent.stop="closeSelectedTag(tag)"
+            ><Close
+          /></el-icon>
+        </span>
       </router-link>
     </scroll-pane>
-    <ul v-show="visible" :style="{left:left+'px',top:top+'px'}" class="contextmenu">
+    <ul v-show="visible" :style="{ left: left + 'px', top: top + 'px' }" class="contextmenu">
       <li @click="refreshSelectedTag(selectedTag)">Refresh</li>
       <li v-if="!isAffix(selectedTag)" @click="closeSelectedTag(selectedTag)">Close</li>
       <li @click="closeOthersTags">Close Others</li>
       <li @click="closeAllTags(selectedTag)">Close All</li>
     </ul>
-  </div>
+  </el-alert>
 </template>
 
 <script>
 import ScrollPane from './ScrollPane'
-import path from 'path'
+import path from 'path-browserify'
+
 export default {
   components: { ScrollPane },
+  props: {
+    show: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
     return {
       visible: false,
@@ -52,7 +61,7 @@ export default {
     }
   },
   watch: {
-    $route() {
+    $route(iNew, iOld) {
       this.addTags()
       this.moveToCurrentTag()
     },
@@ -77,7 +86,7 @@ export default {
     },
     filterAffixTags(routes, basePath = '/') {
       let tags = []
-      routes.forEach(route => {
+      routes.forEach((route) => {
         if (route.meta && route.meta.affix) {
           const tagPath = path.resolve(basePath, route.path)
           tags.push({
@@ -113,13 +122,12 @@ export default {
       return false
     },
     moveToCurrentTag() {
-      const tags = this.$refs.tag
       this.$nextTick(() => {
-        for (const tag of tags) {
-          if (tag.to.path === this.$route.path) {
-            this.$refs.scrollPane.moveToTarget(tag)
+        for (const tag of this.visitedViews) {
+          if (tag.path === this.$route.path) {
+            this.$refs.scrollPane.moveToTarget()
             // when query is different then update
-            if (tag.to.fullPath !== this.$route.fullPath) {
+            if (tag.fullPath !== this.$route.fullPath) {
               this.$store.dispatch('tagsView/updateVisitedView', this.$route)
             }
             break
@@ -138,25 +146,21 @@ export default {
       })
     },
     closeSelectedTag(view) {
-      this.$store
-        .dispatch('tagsView/delView', view)
-        .then(({ visitedViews }) => {
-          if (this.isActive(view)) {
-            this.toLastView(visitedViews, view)
-          }
-        })
+      this.$store.dispatch('tagsView/delView', view).then(({ visitedViews }) => {
+        if (this.isActive(view)) {
+          this.toLastView(visitedViews, view)
+        }
+      })
     },
     closeOthersTags() {
       this.$router.push(this.selectedTag)
-      this.$store
-        .dispatch('tagsView/delOthersViews', this.selectedTag)
-        .then(() => {
-          this.moveToCurrentTag()
-        })
+      this.$store.dispatch('tagsView/delOthersViews', this.selectedTag).then(() => {
+        this.moveToCurrentTag()
+      })
     },
     closeAllTags(view) {
       this.$store.dispatch('tagsView/delAllViews').then(({ visitedViews }) => {
-        if (this.affixTags.some(tag => tag.path === view.path)) {
+        if (this.affixTags.some((tag) => tag.path === view.path)) {
           return
         }
         this.toLastView(visitedViews, view)
@@ -200,17 +204,32 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "~@/styles/variables.scss";
+@use '@/styles/variables' as *;
 .tags-view-container {
+  background-color: #f3f3f4 !important;
+  border: none !important;
   height: 34px;
   width: 100%;
-  margin-top: 5px;
-  background: #fff;
-  border-bottom: 1px solid #d8dce5;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.12), 0 0 3px 0 rgba(0, 0, 0, 0.04);
+  margin-top: 2px !important;
+  margin-bottom: 2px !important;
+  padding: 0;
+
+  :deep(.el-alert__content) {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+  }
+
   .tags-view-wrapper {
+    display: flex;
+    align-items: center;
+    height: 100%;
+
     .tags-view-item {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       position: relative;
       cursor: pointer;
       height: 26px;
@@ -221,7 +240,6 @@ export default {
       padding: 0 8px;
       font-size: 12px;
       margin-left: 5px;
-      margin-top: 4px;
       &:first-of-type {
         margin-left: 20px;
       }
@@ -229,11 +247,11 @@ export default {
         margin-right: 15px;
       }
       &.active {
-        background-color: $--color-primary;
+        background-color: $color-primary;
         color: #fff;
-        border-color: $--color-primary;
+        border-color: $color-primary;
         &::before {
-          content: "";
+          content: '';
           background: #fff;
           display: inline-block;
           width: 8px;
@@ -267,13 +285,11 @@ export default {
     }
   }
 }
-</style>
 
-<style lang="scss">
-//reset element css of el-icon-close
+// reset element css of el-icon-close
 .tags-view-wrapper {
   .tags-view-item {
-    .el-icon-close {
+    .el-icon {
       width: 16px;
       height: 16px;
       vertical-align: 2px;

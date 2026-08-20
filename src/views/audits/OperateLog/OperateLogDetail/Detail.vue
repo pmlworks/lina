@@ -1,19 +1,17 @@
 <template>
   <div>
-    <el-row :gutter="20">
-      <el-col :md="14" :sm="24">
-        <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
-      </el-col>
-      <el-col :md="10" :sm="24">
+    <TwoCol>
+      <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
+      <template #right>
         <QuickActions
           v-if="object.id"
           :actions="quickActions"
-          :title="$tc('common.ConvenientOperate')"
+          :title="$tc('ConvenientOperate')"
           type="primary"
         />
-      </el-col>
-    </el-row>
-    <DiffDetail ref="DetailDialog" :title="$tc('route.OperateLog')" />
+      </template>
+    </TwoCol>
+    <DiffDetail ref="DetailDialog" :title="$tc('OperateLog')" />
   </div>
 </template>
 
@@ -21,10 +19,12 @@
 import { QuickActions } from '@/components'
 import AutoDetailCard from '@/components/Cards/DetailCard/auto'
 import DiffDetail from '@/components/Dialog/DiffDetail'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'Detail',
   components: {
+    TwoCol,
     QuickActions,
     AutoDetailCard,
     DiffDetail
@@ -38,34 +38,29 @@ export default {
   data() {
     return {
       url: `/api/v1/audits/operate-logs/${this.object.id}`,
-      detailFields: [
-        'id', 'user', 'remote_addr', 'resource',
-        'resource_type_display', 'datetime'
-      ],
+      detailFields: ['id', 'user', 'remote_addr', 'resource', 'resource_type_display', 'datetime'],
       quickActions: [
         {
-          title: this.$t('audits.ChangeField'),
+          title: this.$t('ChangeField'),
           attrs: {
             type: 'primary',
-            label: this.$t('common.Detail')
+            label: this.$t('Detail')
           },
           callbacks: {
-            click: function() {
-              this.$axios.get(
-                `/api/v1/audits/operate-logs/${this.object.id}/?type=action_detail`
-              ).then(res => {
-                this.$refs.DetailDialog.show(res.diff)
-              })
+            click: function () {
+              this.$axios
+                .get(`/api/v1/audits/operate-logs/${this.object.id}/?type=action_detail`)
+                .then((res) => {
+                  this.$refs.DetailDialog.show(res.diff)
+                })
             }.bind(this)
           }
         }
       ]
     }
   },
-  computed: {
-  }
+  computed: {}
 }
 </script>
 
-<style lang="scss" scoped>
-</style>
+<style lang="scss" scoped></style>

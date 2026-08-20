@@ -1,49 +1,76 @@
 <template>
   <div>
-    <img v-if="icon" :src="icon" alt="icon" class="icon">
+    <img v-if="icon" :src="icon" alt="icon" class="icon" />
     <el-link
+      :class="{ clicked: linkClicked }"
       :disabled="disabled"
       :type="col.type || 'info'"
+      underline="never"
       class="detail"
-      @click="goDetail"
+      @click="handleClick"
     >
       <slot>
         {{ iTitle }}
       </slot>
     </el-link>
+    <Drawer
+      v-if="formatterArgs.drawer && drawerComponent && drawerVisible"
+      v-model:visible="drawerVisible"
+      :component="drawerComponent"
+      :has-footer="false"
+      :title="drawerTitle"
+      class="detail-drawer"
+    />
   </div>
 </template>
 
 <script>
+import Drawer from '@/components/Drawer/index.vue'
 import BaseFormatter from './base.vue'
 
 export default {
   name: 'DetailFormatter',
+  components: { Drawer },
   extends: BaseFormatter,
   props: {
     formatterArgsDefault: {
       type: Object,
       default() {
         return {
-          route: this.$route.name.replace('List', 'Detail'),
+          route: 'GroupDetail',
+          can: true,
           getRoute: null,
           routeQuery: null,
-          can: true,
+          drawer: false,
+          onClick: null,
           openInNewPage: false,
-          getTitle({ col, row, cellValue }) {
-            return cellValue
+          removeColorOnClick: false,
+          beforeClick: () => {},
+          getTitle({ row, cellValue }) {
+            return cellValue != null ? cellValue : row.name
           },
+          getDrawerTitle: null,
           getIcon({ col, row, cellValue }) {
             return null
           }
         }
       }
+    },
+    preventClick: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
-    const formatterArgs = Object.assign(this.formatterArgsDefault, this.col.formatterArgs)
+    const formatterArgs = Object.assign({}, this.formatterArgsDefault, this.col.formatterArgs)
     return {
-      formatterArgs: formatterArgs
+      drawerTitle: '',
+      linkClicked: false,
+      drawerComponent: '',
+      showTableDetailDrawer: false,
+      currentTemplate: null,
+      formatterArgs: formatterArgs,
+      drawerVisible: false
     }
   },
   computed: {
@@ -51,13 +78,14 @@ export default {
       return this.formatterArgs.getTitle({
         col: this.col,
         row: this.row,
-        cellValue: this.cellValue
+        cellValue: this.cellValue,
+        index: this.index
       })
     },
     disabled() {
       let can = this.formatterArgs.can
       if (typeof can === 'function') {
-        can = can(this.col)
+        can = can({ col: this.col, row: this.row })
       }
       return !can
     },
@@ -68,20 +96,61 @@ export default {
         cellValue: this.cellValue
       })
     },
-    detailRoute() {
+    callbackArgs() {
+      return {
+        col: this.col,
+        row: this.row,
+        cellValue: this.cellValue
+      }
+    }
+  },
+  watch: {
+    drawerVisible(val) {
+      this.$log.debug('>>> DetailFormatter drawerVisible: ', val)
+      if (!val) {
+        this.drawerComponent = ''
+      }
+    }
+  },
+  methods: {
+    getTitle() {
+      return this.formatterArgs.getTitle({
+        col: this.col,
+        row: this.row,
+        cellValue: this.cellValue,
+        index: this.index
+      })
+    },
+    handleClick() {
+      if (this.formatterArgs.beforeClick) {
+        this.formatterArgs.beforeClick(this.callbackArgs)
+      }
+
+      if (this.formatterArgs.onClick) {
+        return this.formatterArgs.onClick({
+          ...this.callbackArgs,
+          detailRoute: this.getDetailRoute(),
+          formatterArgs: this.formatterArgs
+        })
+      }
+
+      if (this.preventClick) {
+        return
+      }
+
+      this.goDetail()
+    },
+    getDetailRoute() {
       // const defaultRoute = this.$route.name.replace('List', 'Detail')
       let route = this.formatterArgs.route
       if (this.formatterArgs.getRoute && typeof this.formatterArgs.getRoute === 'function') {
-        route = this.formatterArgs.getRoute({
-          row: this.row,
-          col: this.col,
-          cellValue: this.cellValue
-        })
+        route = this.formatterArgs.getRoute(this.callbackArgs)
       }
       if (!route) {
         console.error('No route found')
         return
       }
+
       let detailRoute = { replace: true }
       if (typeof route === 'string') {
         detailRoute.name = route
@@ -95,22 +164,23 @@ export default {
         detailRoute.query = this.formatterArgs.routeQuery
       }
       return detailRoute
-    }
-  },
-  methods: {
+    },
     goDetail() {
+      const detailRoute = this.getDetailRoute()
+
       if (this.formatterArgs.openInNewPage) {
-        const { href } = this.$router.resolve(this.detailRoute)
-        window.open(href, '_blank')
-      } else {
-        this.$router.push(this.detailRoute)
+        const { href } = this.$router.resolve(detailRoute)
+        this.linkClicked = this.formatterArgs.removeColorOnClick
+        return window.open(href, '_blank')
       }
+
+      this.$router.push(detailRoute)
     }
   }
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .detail {
   display: inline-block;
   max-width: 100%;
@@ -123,10 +193,33 @@ export default {
 .detail {
   line-height: 25px;
   font-size: 13px;
+
+  &:hover {
+    :deep(.el-link__inner) {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+  }
+}
+
+.clicked,
+.el-link.el-link--info.clicked {
+  color: inherit !important;
 }
 
 .icon {
   width: 28px;
   height: 28px;
+}
+
+:deep(.go-back) {
+  display: none;
+}
+
+.detail-drawer {
+  :deep(.el-drawer__header) {
+    border-bottom: none;
+    padding-bottom: 1px;
+  }
 }
 </style>

@@ -1,23 +1,29 @@
 <template>
-  <AutoDataForm
-    v-if="!loading"
-    ref="form"
-    :form="form"
-    :has-reset="iHasReset"
-    :has-save-continue="iHasSaveContinue"
-    :is-submitting="isSubmitting"
-    :method="method"
-    :url="iUrl"
-    v-bind="$attrs"
-    @afterRemoteMeta="handleAfterRemoteMeta"
-    @submit="handleSubmit"
-    v-on="$listeners"
-  />
+  <div v-loading="loading">
+    <AutoDataForm
+      v-bind="$attrs"
+      v-if="!loading"
+      ref="form"
+      :fields-meta="fieldsMeta"
+      :form="form"
+      :can-submit="canSubmit"
+      :has-reset="iHasReset"
+      :has-save-continue="iHasSaveContinue"
+      :is-submitting="isSubmitting"
+      :method="method"
+      :url="iUrl"
+      @after-remote-meta="handleAfterRemoteMeta"
+      @submit="handleSubmit"
+    />
+  </div>
 </template>
 <script>
+import { h } from 'vue'
+import { ElLink } from 'element-plus'
 import AutoDataForm from '@/components/Form/AutoDataForm'
-import { getUpdateObjURL } from '@/utils/common'
-import { encryptPassword } from '@/utils/crypto'
+import { getUpdateObjURL } from '@/utils/common/index'
+import { encryptPassword } from '@/utils/secure'
+import { getRuntimeActionMeta } from '@/libs/context/runtime'
 import deepmerge from 'deepmerge'
 
 export default {
@@ -25,6 +31,14 @@ export default {
   components: {
     AutoDataForm
   },
+  emits: [
+    'afterRemoteMeta',
+    'getObjectDone',
+    'performError',
+    'performFinished',
+    'submitSuccess',
+    'update:object'
+  ],
   props: {
     // 创建对象的地址
     url: {
@@ -50,6 +64,10 @@ export default {
       type: Function,
       default: (value) => value
     },
+    fieldsMeta: {
+      type: Object,
+      default: () => ({})
+    },
     // 获取 meta
     afterGetRemoteMeta: {
       type: Function,
@@ -64,6 +82,10 @@ export default {
       type: Boolean,
       default: null
     },
+    canSubmit: {
+      type: Boolean,
+      default: true
+    },
     // 如何提交数据
     performSubmit: {
       type: Function,
@@ -74,45 +96,47 @@ export default {
     // 创建成功的msg
     createSuccessMsg: {
       type: String,
-      default: function() {
-        return this.$t('common.createSuccessMsg')
+      default: function () {
+        return 'CreateSuccessMsg'
       }
     },
     // 保存成功，继续添加的msg
     saveSuccessContinueMsg: {
       type: String,
-      default: function() {
-        return this.$t('common.saveSuccessContinueMsg')
+      default: function () {
+        return 'SaveSuccessContinueMsg'
       }
     },
     // 更新成功的msg
     updateSuccessMsg: {
       type: String,
-      default: function() {
-        return this.$t('common.updateSuccessMsg')
+      default: function () {
+        return 'UpdateSuccessMsg'
       }
     },
     // 创建成功的跳转路由
     createSuccessNextRoute: {
       type: Object,
-      default: function() {
-        const routeName = this.$route.name?.replace('Create', 'List')
+      default: function () {
+        // const routeName = this.$route.name?.replace('Create', 'List')
+        const routeName = 'GroupCreate'
         return { name: routeName }
       }
     },
     // 更新成功的跳转路由
     updateSuccessNextRoute: {
       type: Object,
-      default: function() {
-        const routeName = this.$route.name?.replace('Update', 'List')
+      default: function () {
+        // const routeName = this.$route.name?.replace('Update', 'List')
+        const routeName = 'GroupUpdate'
         return { name: routeName }
       }
     },
     objectDetailRoute: {
       type: Object,
-      default: function() {
-        const routeName = this.$route.name?.replace('Update', 'Detail')
-          .replace('Create', 'Detail')
+      default: function () {
+        // const routeName = this.$route.name?.replace('Update', 'Detail').replace('Create', 'Detail')
+        const routeName = 'GroupDetail'
         return { name: routeName }
       }
     },
@@ -120,32 +144,32 @@ export default {
     getNextRoute: {
       type: Function,
       default(res, method) {
-        return method === 'post' ? this.createSuccessNextRoute : this.updateSuccessNextRoute
+        return { name: 'GroupList' }
+        // return method === 'post' ? this.createSuccessNextRoute : this.updateSuccessNextRoute
+      }
+    },
+    cloneNameSuffix: {
+      type: [String, Number],
+      default: function () {
+        return 'Duplicate'.toLowerCase()
       }
     },
     // 获取提交的方法
     submitMethod: {
       type: [Function, String],
-      default: function() {
-        const params = this.$route.params
-        if (params.id) {
-          return 'put'
-        } else {
-          return 'post'
-        }
-      }
+      default: null
     },
     // 获取创建和更新的url function
     getUrl: {
       type: Function,
-      default: function() {
-        const params = this.$route.params
+      default: function () {
+        const objectId = this.getUpdateId()
         let url = this.url
-        if (params.id) {
-          url = getUpdateObjURL(url, params.id)
+        if (objectId) {
+          url = getUpdateObjURL(url, objectId)
         }
 
-        const clone_from = this.$route.query['clone_from']
+        const clone_from = this.getCloneId()
         const query = clone_from ? `clone_from=${clone_from}` : ''
         if (query) {
           if (url.indexOf('?') === -1) {
@@ -168,31 +192,28 @@ export default {
         if (addContinue) {
           msg = this.saveSuccessContinueMsg
         }
+        // 这些默认值是原始英文 key（如 CreateSuccessMsg），在此翻译；缺 key 时原样返回，
+        // 调用方传入已翻译的文案也不受影响。
+        msg = this.$t(msg)
         let msgLinkName = ''
         if (res.name) {
           msgLinkName = res.name
         }
-        const h = this.$createElement
         const detailRoute = this.objectDetailRoute
         detailRoute.params = { id: res.id }
         if (this.hasDetailInMsg) {
+          msg = msg[0].toLowerCase() + msg.slice(1)
           this.$message({
             message: h('p', null, [
-              h('el-link', {
-                on: {
-                  click: () => this.$router.push(detailRoute)
+              h(
+                ElLink,
+                {
+                  onClick: () => this.$router.push(detailRoute),
+                  style: { 'vertical-align': 'top', 'margin-right': '5px' }
                 },
-                style: { 'vertical-align': 'top' }
-              }, msgLinkName),
-              h('span', {
-                style: {
-                  'padding-left': '5px',
-                  'height': '18px',
-                  'line-height': '18px',
-                  'font-size': '13.5px',
-                  'font-weight': ' 400'
-                }
-              }, msg)
+                () => msgLinkName
+              ),
+              h('span', {}, msg)
             ]),
             type: 'success'
           })
@@ -206,15 +227,26 @@ export default {
       default(res, method, vm, addContinue) {
         const route = this.getNextRoute(res, method)
         if (!(route.params && route.params.id)) {
-          route['params'] = deepmerge(route['params'] || {}, { 'id': res.id, order: this.extraQueryOrder })
-        } else {
-          route['params'] = deepmerge(route['params'], { order: this.extraQueryOrder })
+          route['params'] = deepmerge(route['params'] || {}, { id: res.id })
         }
+        route['query'] = deepmerge(route['query'], {
+          order: this.extraQueryOrder,
+          updated: new Date().getTime()
+        })
+
         this.$emit('submitSuccess', res)
 
         this.emitPerformSuccessMsg(method, res, addContinue)
-        if (!addContinue) {
-          setTimeout(() => this.$router.push(route), 100)
+        if (addContinue) {
+          return
+        }
+
+        if (!vm.drawer) {
+          if (this.$router.currentRoute.name !== route?.name) {
+            setTimeout(() => this.$router.push(route), 100)
+          }
+        } else {
+          this.$store.dispatch('common/finishDrawerActionMeta', { action: vm.action, row: res })
         }
       }
     },
@@ -223,25 +255,11 @@ export default {
       default(error, method, vm) {
         const response = error.response
         const data = response.data
-        if (response.status === 400) {
-          for (const key of Object.keys(data)) {
-            let err = ''
-            let errorTips = data[key]
-            if (errorTips instanceof Array) {
-              errorTips = _.filter(errorTips, (item) => Object.keys(item).length > 0)
-              for (const i of errorTips) {
-                if (i instanceof Object) {
-                  err += i?.port?.join(',')
-                } else {
-                  err += i
-                }
-              }
-            } else {
-              err = errorTips
-            }
-            this.$refs.form.setFieldError(key, err)
-          }
+        if (response.status === 400 && data && typeof data === 'object') {
+          // 覆盖式设置错误映射，避免触发表单内容重建
+          this.$refs.form.setErrors(data)
         }
+        this.$emit('performError', data)
       }
     },
     hasSaveContinue: {
@@ -258,7 +276,7 @@ export default {
     },
     needGetObjectDetail: {
       type: Boolean,
-      default: true
+      default: null
     }
   },
   data() {
@@ -266,17 +284,16 @@ export default {
       form: {},
       loading: true,
       isSubmitting: false,
-      clone: false
+      clone: false,
+      drawer: false,
+      action: '',
+      actionId: '',
+      row: {},
+      method: 'post',
+      initialFormValue: {}
     }
   },
   computed: {
-    method() {
-      if (this.submitMethod instanceof Function) {
-        return this.submitMethod(this)
-      } else {
-        return this.submitMethod
-      }
-    },
     iUrl() {
       // 更新或创建的url
       return this.getUrl()
@@ -295,18 +312,68 @@ export default {
     }
   },
   async created() {
-    this.$log.debug('Object init is: ', this.object)
     this.loading = true
+    this.$log.debug('Object init is: ', this.object, this.method)
+    await this.setDrawerMeta()
+    this.setMethod()
+    // this.$log.debug('Set method: ', this.method, this.action)
+
     try {
       const values = await this.getFormValue()
       this.$log.debug('Final object is: ', values)
       const formValue = Object.assign(this.form, values)
       this.form = this.afterGetFormValue(formValue)
+      this.initialFormValue = _.cloneDeep(this.form)
     } finally {
       this.loading = false
     }
   },
   methods: {
+    validateField(...args) {
+      return this.$refs.form?.dataForm?.elForm?.validateField(...args)
+    },
+    async getDrawerMeta() {
+      return getRuntimeActionMeta(this)
+    },
+    async setDrawerMeta() {
+      const drawActionMeta = await this.getDrawerMeta()
+      if (drawActionMeta && drawActionMeta.action) {
+        this.drawer = true
+        this.action = drawActionMeta.action
+        this.row = drawActionMeta.row
+        this.actionId = drawActionMeta.id || this.row?.id
+      }
+    },
+    setMethod() {
+      if (this.submitMethod instanceof Function) {
+        this.method = this.submitMethod(this)
+      } else {
+        this.method = this.submitMethod
+      }
+      // this.$log.debug('Drawer: ', this.drawer, this.submitMethod, this.action)
+      if (!this.drawer && !this.method) {
+        this.method = this.$context.get('id') ? 'put' : 'post'
+      }
+      if (this.drawer && !this.submitMethod) {
+        if (this.action === 'clone' || this.action === 'create') {
+          this.method = 'post'
+        } else {
+          this.method = 'put'
+        }
+      }
+    },
+    getUpdateId() {
+      if (this.actionId && this.action === 'update') {
+        return this.actionId
+      }
+      return this.$context.get('id')
+    },
+    getCloneId() {
+      if (this.actionId && this.action === 'clone') {
+        return this.actionId
+      }
+      return this.$context.get('clone_from')
+    },
     isUpdateMethod() {
       return ['put', 'patch'].indexOf(this.method.toLowerCase()) > -1
     },
@@ -327,9 +394,12 @@ export default {
       return values
     },
     handleAfterRemoteMeta(meta) {
+      let result
       if (this.afterGetRemoteMeta) {
-        return this.afterGetRemoteMeta(meta)
+        result = this.afterGetRemoteMeta(meta)
       }
+      this.$emit('afterRemoteMeta', meta)
+      return result
     },
     handleSubmit(values, formName, addContinue) {
       let handler = this.onSubmit || this.defaultOnSubmit
@@ -344,28 +414,48 @@ export default {
         .then((res) => this.onPerformSuccess.bind(this)(res, this.method, this, addContinue))
         .catch((error) => this.onPerformError(error, this.method, this))
         .finally(() => {
-          this.isSubmitting = false
+          setTimeout(() => {
+            this.isSubmitting = false
+            this.$emit('performFinished')
+          }, 200)
         })
     },
+    async getCloneForm(cloneFrom) {
+      const [curUrl, query] = this.url.split('?')
+      const url = `${curUrl}${cloneFrom}/${query ? '?' + query : ''}`
+      try {
+        const object = await this.getObjectDetail(url)
+        let name = ''
+        let attr = ''
+        if (object['name']) {
+          name = object['name']
+          attr = 'name'
+        } else if (object['hostname']) {
+          name = object['hostname']
+          attr = 'hostname'
+        }
+        object[attr] = name + '-' + this.cloneNameSuffix.toString()
+        return object
+      } catch (e) {
+        throw new Error(`Error for reason: ${e.message}`)
+      }
+    },
     async getFormValue() {
-      const cloneFrom = this.$route.query['clone_from']
-      if ((!this.isUpdateMethod() && !cloneFrom) || !this.needGetObjectDetail) {
+      let needGetObjectDetail = this.needGetObjectDetail
+      if (needGetObjectDetail === null) {
+        needGetObjectDetail = this.isUpdateMethod() || this.action === 'clone'
+      }
+      // this.$log.debug('Get form value: ', needGetObjectDetail, this.needGetObjectDetail, this.isUpdateMethod(), this.action)
+      if (!needGetObjectDetail) {
         return Object.assign(this.form, this.initial)
       }
       let object = this.object
+
       if (!object || Object.keys(object).length === 0) {
-        if (cloneFrom) {
-          const [curUrl, query] = this.url.split('?')
-          const url = `${curUrl}${cloneFrom}/${query ? ('?' + query) : ''}`
-          object = await this.getObjectDetail(url)
-          if (object['name']) {
-            object.name = this.$t('common.cloneFrom') + object.name
-          } else if (object['hostname']) {
-            object.hostname = this.$t('common.cloneFrom') + object.hostname
-            object.name = this.$t('common.cloneFrom') + '' + object.name
-          }
+        if (this.action === 'clone') {
+          object = await this.getCloneForm(this.actionId)
         } else {
-          object = await this.getObjectDetail(this.iUrl)
+          object = await this.getObjectDetail(this.iUrl, this.actionId)
         }
       }
       if (object) {
@@ -375,17 +465,16 @@ export default {
       }
       return object
     },
-    async getObjectDetail(url) {
+    async getObjectDetail(url, id) {
       this.$log.debug('Get object detail: ', url)
-      return this.$axios.get(url)
+      let data = await this.$axios.get(url, { params: { id } })
+      if (Array.isArray(data)) {
+        data = {}
+      }
+      return data
     }
   }
 }
 </script>
 
-<style scoped>
-  .ibox >>> .el-card__body {
-    padding-top: 30px;
-  }
-
-</style>
+<style scoped></style>

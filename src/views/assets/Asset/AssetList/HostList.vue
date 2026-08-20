@@ -1,19 +1,16 @@
 <template>
   <div>
     <BaseList v-bind="config" />
-    <GatewayDialog
-      :cell="GatewayCell"
-      :port="GatewayPort"
-      :visible.sync="GatewayVisible"
-    />
+    <GatewayDialog v-model:visible="GatewayVisible" :cell="GatewayCell" :port="GatewayPort" />
   </div>
 </template>
 
 <script>
+import { getActionMeta } from '@/api/common'
 import BaseList from './components/BaseList'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
-import GatewayDialog from '@/components/Apps/GatewayDialog'
-import { openTaskPage } from '@/utils/jms'
+import GatewayDialog from '@/components/Apps/GatewayTestDialog'
+import { openTaskPage } from '@/utils/jms/index'
 
 export default {
   components: {
@@ -33,10 +30,12 @@ export default {
         headerActions: {
           extraActions: [
             {
-              name: this.$t('xpack.Cloud.CloudSync'),
-              title: this.$t('xpack.Cloud.CloudSync'),
+              name: this.$t('CloudSync'),
+              title: this.$t('CloudSync'),
+              icon: 'cloud-provider',
               has: () => vm.$hasPerm('xpack.view_account') && vm.$hasLicense(),
-              callback: () => this.$router.push({ name: 'CloudCenter' })
+              callback: () =>
+                this.$router.push({ name: 'CloudAccountList', query: { category: 'host' } })
             }
           ]
         },
@@ -53,29 +52,28 @@ export default {
                 extraActions: [
                   {
                     name: 'Test',
-                    title: this.$t('common.Test'),
+                    title: this.$t('Test'),
                     can: ({ row }) =>
                       this.$hasPerm('assets.test_assetconnectivity') &&
                       !this.$store.getters.currentOrgIsRoot &&
                       row['auto_config'].ansible_enabled &&
                       row['auto_config'].ping_enabled,
                     callback: ({ row }) => {
-                      if (row.platform.name === 'Gateway') {
+                      if (row.platform.name.startsWith('Gateway')) {
                         this.GatewayVisible = true
-                        const port = row.protocols.find(item => item.name === 'ssh').port
+                        const port = row.protocols.find((item) => item.name === 'ssh').port
                         if (!port) {
-                          return this.$message.error(this.$tc('common.BadRequestErrorMsg'))
+                          return this.$message.error(this.$tc('BadRequestErrorMsg'))
                         } else {
                           this.GatewayPort = port
                           this.GatewayCell = row.id
                         }
                       } else {
-                        this.$axios.post(
-                          `/api/v1/assets/assets/${row.id}/tasks/`,
-                          { action: 'test' }
-                        ).then(res => {
-                          openTaskPage(res['task'])
-                        })
+                        this.$axios
+                          .post(`/api/v1/assets/assets/${row.id}/tasks/`, { action: 'test' })
+                          .then((res) => {
+                            openTaskPage(res['task'])
+                          })
                       }
                     }
                   }
@@ -93,7 +91,7 @@ export default {
   methods: {
     async optionAndGenFields() {
       const data = await this.$store.dispatch('common/getUrlMeta', { url: this.config.url })
-      const remoteMeta = data.actions['GET'] || {}
+      const remoteMeta = getActionMeta(data, 'GET')
       const remoteMetaFields = remoteMeta['info']?.children || {}
       const fields = Object.keys(remoteMetaFields)
       const info = {}
@@ -105,7 +103,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>

@@ -1,11 +1,11 @@
 <template>
   <IBox>
-    <GenericCreateUpdateForm submit-method="patch" v-bind="config" />
+    <GenericCreateUpdateForm v-bind="config" submit-method="patch" />
   </IBox>
 </template>
 
 <script>
-import IBox from '@/components/IBox/index.vue'
+import IBox from '@/components/Common/IBox/index.vue'
 import { GenericCreateUpdateForm } from '@/layout/components'
 
 export default {
@@ -16,22 +16,12 @@ export default {
       config: {
         url: '/api/v1/settings/setting/?category=security_basic',
         hasDetailInMsg: false,
-        fields: [
-          [
-            this.$t('common.Basic'),
-            [
-              'SECURITY_SERVICE_ACCOUNT_REGISTRATION'
-            ]
-          ]
-        ],
-        fieldsMeta: {
-        }
+        fields: [[this.$t('Basic'), ['SECURITY_SERVICE_ACCOUNT_REGISTRATION']]],
+        fieldsMeta: {}
       }
     }
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

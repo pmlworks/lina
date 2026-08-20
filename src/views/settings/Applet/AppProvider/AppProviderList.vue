@@ -1,11 +1,11 @@
 <template>
   <div>
-    <ListTable class="App-Provider" v-bind="$data" />
+    <ListTable v-bind="$data" class="App-Provider" />
   </div>
 </template>
 
 <script>
-import { ListTable } from '@/components'
+import { DrawerListTable as ListTable } from '@/components'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
 
 export default {
@@ -19,9 +19,7 @@ export default {
         url: '/api/v1/terminal/app-providers/',
         columnsShow: {
           min: ['name'],
-          default: [
-            'name', 'hostname', 'load', 'actions'
-          ]
+          default: ['name', 'hostname', 'load', 'actions']
         },
         columnsMeta: {
           name: {
@@ -67,7 +65,6 @@ export default {
         hasExport: false,
         hasImport: false,
         canBulkDelete: false
-
       }
     }
   }
@@ -75,8 +72,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.App-Provider > > > .protocol {
+.App-Provider :deep(.protocol) {
   margin-left: 3px;
 }
-
 </style>

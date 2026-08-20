@@ -6,14 +6,14 @@
       <PasswordExpireTip />
     </slot>
     <div class="page-heading">
-      <el-row :gutter="0">
+      <el-row :gutter="0" type="flex">
         <el-col :span="16" class="page-heading-left">
-          <slot><h2>{{ title }}</h2></slot>
+          <slot
+            ><h2>{{ title }}</h2></slot
+          >
         </el-col>
-        <el-col :span="8">
-          <div class="page-heading-right">
-            <slot name="rightSide" />
-          </div>
+        <el-col :span="8" class="page-heading-right">
+          <slot name="rightSide" />
         </el-col>
       </el-row>
     </div>
@@ -24,6 +24,8 @@
 import LicenseRelatedTip from './LicenseRelatedTip'
 import PasswordExpireTip from './PasswordExpireTip'
 import SqlQueryTip from './SqlQueryTip'
+import { mapGetters } from 'vuex'
+import { IS_DEV } from '@/utils/env'
 
 export default {
   name: 'PageHeading',
@@ -40,35 +42,45 @@ export default {
   },
   data() {
     return {
-      debug: process.env.NODE_ENV === 'development'
+      debug: IS_DEV
     }
+  },
+  computed: {
+    ...mapGetters(['inDrawer'])
   }
 }
 </script>
 
 <style lang="scss" scoped>
-  .page-heading {
-    position: relative;
-    height: 50px;
-    line-height: 50px;
-    background-color: #ffffff;
-    .el-row {
-      width: 100%;
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      padding: 0 24px;
+$origin-color: #ffffff;
+
+.page-heading {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  background-color: $origin-color;
+  border-bottom: 1px solid rgba(31, 35, 41, 0.15);
+
+  .el-row {
+    width: 100%;
+    padding: 0 20px;
+
+    .page-heading-left,
+    h2 {
+      display: flex;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--color-text-primary);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .page-heading-right {
+      display: flex;
+      justify-content: flex-end;
     }
   }
-
-  .page-heading-left, h2 {
-    font-size: 16px;
-    font-weight: 500;
-    line-height: 32px;
-    color: #1F2329;
-  }
-
-  .page-heading-right {
-    float: right;
-  }
+}
 </style>

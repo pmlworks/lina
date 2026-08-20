@@ -1,20 +1,20 @@
 <template>
   <IBox>
     <GenericCreateUpdateForm
+      v-bind="$data"
       :fields="fields"
       :fields-meta="fieldsMeta"
       :has-detail-in-msg="false"
       :submit-method="submitMethod"
       :url="url"
-      v-bind="$data"
     />
   </IBox>
 </template>
 
 <script>
-import GenericCreateUpdateForm from '@/layout/components/GenericCreateUpdateForm'
-import IBox from '@/components/IBox/index.vue'
 import { BlockedIPs } from '@/components'
+import IBox from '@/components/Common/IBox/index.vue'
+import GenericCreateUpdateForm from '@/layout/components/GenericCreateUpdateForm'
 
 export default {
   name: 'EmailContent',
@@ -29,15 +29,9 @@ export default {
       },
       visible: false,
       fields: [
+        [this.$t('User'), ['SECURITY_LOGIN_LIMIT_COUNT', 'SECURITY_LOGIN_LIMIT_TIME']],
         [
-          this.$t('common.UserLoginLimit'),
-          [
-            'SECURITY_LOGIN_LIMIT_COUNT',
-            'SECURITY_LOGIN_LIMIT_TIME'
-          ]
-        ],
-        [
-          this.$t('common.IPLoginLimit'),
+          this.$t('IP'),
           [
             'SECURITY_LOGIN_IP_LIMIT_COUNT',
             'SECURITY_LOGIN_IP_LIMIT_TIME',
@@ -47,7 +41,7 @@ export default {
           ]
         ],
         [
-          this.$t('common.Other'),
+          this.$t('Other'),
           [
             'USER_LOGIN_SINGLE_MACHINE_ENABLED',
             'ONLY_ALLOW_EXIST_USER_AUTH',
@@ -55,17 +49,16 @@ export default {
           ]
         ]
       ],
-      successUrl: { name: 'Settings', params: { activeMenu: 'EmailContent' }},
+      successUrl: { name: 'Settings', params: { activeMenu: 'EmailContent' } },
       fieldsMeta: {
         SECURITY_VIEW_BLOCKED_IPS: {
           component: BlockedIPs,
-          label: this.$t('setting.BlockedIPS'),
+          label: this.$t('BlockedIPS'),
           el: {
             method: 'push_account_method',
             assets: this.asset_ids,
             nodes: this.node_ids
-          },
-          helpText: this.$t('setting.ViewBlockedIPSHelpText')
+          }
         }
       },
       cleanFormValue(value) {
@@ -86,12 +79,9 @@ export default {
     submitMethod() {
       return 'patch'
     },
-    onConfirm() {
-    }
+    onConfirm() {}
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

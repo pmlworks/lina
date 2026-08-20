@@ -1,26 +1,35 @@
-import { getUuidUpdateFromUrl } from '@/utils/common'
-import { PasswordRule, UpdateToken } from '@/components/Form/FormFields'
+import { getUuidUpdateFromUrl } from '@/utils/common/index'
+import { PasswordRule, UpdateToken, UploadSecret } from '@/components/Form/FormFields'
 import Select2 from '@/components/Form/FormFields/Select2'
 import AutomationParams from '@/components/Apps/AutomationParams'
 import i18n from '@/i18n/i18n'
+import { ref } from 'vue'
 
 export const templateFields = (vm) => {
   return [
-    [vm.$t('common.Basic'), ['name', 'username', 'privileged', 'su_from']],
-    [vm.$t('assets.Secret'), [
-      'secret_type', 'secret_strategy', 'password_rules',
-      'secret', 'ssh_key', 'token', 'access_key', 'passphrase', 'api_key'
-    ]],
-    [vm.$t('accounts.AutoPush'), [
-      'auto_push', 'platforms', 'push_params'
-    ]],
-    [vm.$t('common.Other'), ['comment']]
+    [vm.$t('Basic'), ['name', 'username', 'privileged', 'su_from']],
+    [
+      vm.$t('Secret'),
+      [
+        'secret_type',
+        'secret_strategy',
+        'password_rules',
+        'secret',
+        'ssh_key',
+        'token',
+        'access_key',
+        'passphrase',
+        'api_key'
+      ]
+    ],
+    [vm.$t('AutoPush'), ['auto_push', 'platforms', 'push_params']],
+    [vm.$t('Other'), ['comment']]
   ]
 }
 
 export const templateFieldsMeta = (vm) => {
   const id = getUuidUpdateFromUrl(vm.$route.path)
-  const platformIds = []
+  const platformIds = ref([])
   const canRandomSecretTypes = ['password', 'ssh_key']
   const autoPushEl = { disabled: false }
   return {
@@ -30,7 +39,9 @@ export const templateFieldsMeta = (vm) => {
         multiple: false,
         clearable: true,
         ajax: {
-          url: `/api/v1/accounts/account-templates/su-from-account-templates/?${id ? 'template_id=' + id : ''}`,
+          url: `/api/v1/accounts/account-templates/su-from-account-templates/?${
+            id ? 'template_id=' + id : ''
+          }`,
           transformOption: (item) => {
             return { label: `${item.name}(${item.username})`, value: item.id }
           }
@@ -38,6 +49,7 @@ export const templateFieldsMeta = (vm) => {
       }
     },
     secret_type: {
+      type: 'radio-group',
       on: {
         change: ([event], updateForm) => {
           if (!canRandomSecretTypes.includes(event)) {
@@ -56,53 +68,60 @@ export const templateFieldsMeta = (vm) => {
       }
     },
     secret: {
-      label: vm.$t('assets.Password'),
+      label: vm.$t('Password'),
       component: UpdateToken,
       hidden: (formValue) => {
         return formValue.secret_type !== 'password' || formValue.secret_strategy === 'random'
       }
     },
     ssh_key: {
-      label: vm.$t('assets.PrivateKey'),
+      label: vm.$t('PrivateKey'),
       el: {
         type: 'textarea',
         rows: 4
       },
-      hidden: (formValue) => formValue.secret_type !== 'ssh_key' || formValue.secret_strategy === 'random'
+      component: UploadSecret,
+      hidden: (formValue) =>
+        formValue.secret_type !== 'ssh_key' || formValue.secret_strategy === 'random'
     },
     passphrase: {
-      label: vm.$t('assets.Passphrase'),
+      label: vm.$t('Passphrase'),
       component: UpdateToken,
-      hidden: (formValue) => formValue.secret_type !== 'ssh_key' || formValue.secret_strategy === 'random'
+      hidden: (formValue) =>
+        formValue.secret_type !== 'ssh_key' || formValue.secret_strategy === 'random'
     },
     token: {
-      label: vm.$t('assets.Token'),
+      label: vm.$t('Token'),
       el: {
         type: 'textarea',
         rows: 4
       },
-      hidden: (formValue) => formValue.secret_type !== 'token' || formValue.secret_strategy === 'random'
+      hidden: (formValue) =>
+        formValue.secret_type !== 'token' || formValue.secret_strategy === 'random'
     },
     access_key: {
-      label: vm.$t('assets.AccessKey'),
+      label: vm.$t('AccessKey'),
       el: {
         type: 'textarea',
         rows: 4
       },
-      hidden: (formValue) => formValue.secret_type !== 'access_key' || formValue.secret_strategy === 'random'
+      hidden: (formValue) =>
+        formValue.secret_type !== 'access_key' || formValue.secret_strategy === 'random'
     },
     api_key: {
-      label: vm.$t('assets.ApiKey'),
+      label: vm.$t('ApiKey'),
       el: {
         type: 'textarea',
         rows: 4
       },
-      hidden: (formValue) => formValue.secret_type !== 'api_key' || formValue.secret_strategy === 'random'
+      hidden: (formValue) =>
+        formValue.secret_type !== 'api_key' || formValue.secret_strategy === 'random'
     },
     password_rules: {
       component: PasswordRule,
-      label: i18n.t('accounts.AccountChangeSecret.PasswordRule'),
-      hidden: ({ secret_strategy, secret_type }) => (secret_strategy === 'specific' || secret_type !== 'password')
+      label: i18n.t('PasswordRule'),
+      hidden: ({ secret_strategy, secret_type }) =>
+        secret_strategy === 'specific' || secret_type !== 'password'
     },
     platforms: {
       el: {
@@ -116,8 +135,7 @@ export const templateFieldsMeta = (vm) => {
       },
       on: {
         input: ([event], updateForm) => {
-          platformIds.splice(0, platformIds.length)
-          platformIds.push(...event)
+          platformIds.value.splice(0, platformIds.value.length, ...event)
         }
       },
       hidden: (formValue) => {
@@ -130,7 +148,7 @@ export const templateFieldsMeta = (vm) => {
     push_params: {
       component: AutomationParams,
       el: {
-        platforms: platformIds,
+        platforms: platformIds.value,
         method: 'push_account_method'
       },
       hidden: (formValue) => {

@@ -1,31 +1,34 @@
 <template>
-  <DataForm
-    v-if="!loading"
-    ref="dataForm"
-    :fields="totalFields"
-    :form="iForm"
-    v-bind="$attrs"
-    v-on="$listeners"
-  >
-    <span
-      v-for="(group, i) in groups"
-      :key="'group-'+group.name"
-      :slot="'id:'+group.name"
+  <div>
+    <DataForm
+      v-bind="forwardedAttrs"
+      v-if="!loading"
+      ref="dataForm"
+      :fields="totalFields"
+      :form="iForm"
+      :server-errors="serverErrors"
+      @submit="handleSubmit"
+      @invalid="handleInvalid"
     >
-      <FormGroupHeader
-        v-if="!groupHidden(group, i)"
-        :group="group"
-        :index="i"
-        :line="i !== 0 && !groupHidden(groups[i - 1], i - 1)"
-      />
-    </span>
-  </DataForm>
+      <template v-for="(group, i) in groups" #[`id:${group.name}`]>
+        <FormGroupHeader
+          v-if="!groupHidden(group, i)"
+          :key="'group-' + group.name"
+          :group="group"
+          :index="i"
+          :line="i !== 0 && !groupHidden(groups[i - 1], i - 1)"
+        />
+      </template>
+    </DataForm>
+  </div>
 </template>
 
 <script>
-import DataForm from '../DataForm/index.vue'
-import FormGroupHeader from '@/components/Form/FormGroupHeader/index.vue'
+import { getActionMeta } from '@/api/common'
 import { FormFieldGenerator } from '@/components/Form/AutoDataForm/utils'
+import { UniqueCheck } from '@/components/Form/DataForm/rules'
+import FormGroupHeader from '@/components/Form/FormGroupHeader/index.vue'
+import DataForm from '../DataForm/index.vue'
 
 export default {
   name: 'AutoDataForm',
@@ -33,6 +36,8 @@ export default {
     DataForm,
     FormGroupHeader
   },
+  inheritAttrs: false,
+  emits: ['submit', 'invalid', 'afterRemoteMeta', 'afterGenerateColumns'],
   props: {
     url: {
       type: String,
@@ -63,10 +68,17 @@ export default {
       totalFields: [],
       loading: true,
       groups: [],
-      errors: {}
+      errors: {},
+      serverErrors: {}
     }
   },
   computed: {
+    forwardedAttrs() {
+      const attrs = { ...this.$attrs }
+      delete attrs.onSubmit
+      delete attrs.onInvalid
+      return attrs
+    },
     dataForm() {
       return this.$refs.dataForm
     },
@@ -76,9 +88,14 @@ export default {
         // 初始值是 choice 对象
         if (value && typeof value === 'object' && value.label && value.value !== undefined) {
           iForm[key] = value.value
-        } else if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' &&
-          value[0].label && value[0].value !== undefined) {
-          iForm[key] = value.map(item => item.value)
+        } else if (
+          Array.isArray(value) &&
+          value.length > 0 &&
+          typeof value[0] === 'object' &&
+          value[0].label &&
+          value[0].value !== undefined
+        ) {
+          iForm[key] = value.map((item) => item.value)
         } else {
           iForm[key] = value
         }
@@ -87,26 +104,84 @@ export default {
     }
   },
   mounted() {
+    // this.$log.debug('>>> Method: ', this.method)
     this.optionUrlMetaAndGenerateColumns()
   },
   methods: {
+    handleSubmit(...args) {
+      this.$emit('submit', ...args)
+    },
+    handleInvalid(...args) {
+      this.$emit('invalid', ...args)
+    },
     async optionUrlMetaAndGenerateColumns() {
-      let data = { actions: {}}
+      let data = { actions: {} }
       if (this.url) {
         data = await this.$store.dispatch('common/getUrlMeta', { url: this.url })
       }
-      this.remoteMeta = data.actions[this.method.toUpperCase()] || {}
+      this.remoteMeta = getActionMeta(data, this.method)
       this.$emit('afterRemoteMeta', this.remoteMeta)
       this.generateColumns()
       this.$emit('afterGenerateColumns', this.totalFields)
       this.cleanFormValue()
+      // 初始化时清空错误
+      this.serverErrors = {}
       this.loading = false
     },
     generateColumns() {
-      const generator = new FormFieldGenerator(this.$emit)
+      const generator = new FormFieldGenerator()
       this.totalFields = generator.generateFields(this.fields, this.fieldsMeta, this.remoteMeta)
       this.groups = generator.groups
       this.$log.debug('Total fields: ', this.totalFields)
+      this.applyUniqueRules()
+    },
+    applyUniqueRules() {
+      const fields = this.totalFields || []
+      const currentIdGetter = () => {
+        return this.$route?.params?.id || this.form?.id || this.iForm?.id
+      }
+
+      // 移除 url 后拼接的参数
+      const defaultListUrl = (() => {
+        try {
+          const u = new URL(this.url, location.origin)
+          u.pathname = u.pathname.replace(
+            /\/(\d+|[0-9a-fA-F-]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})\/?$/,
+            '/'
+          )
+          return u.origin ? u.origin + u.pathname : u.pathname
+        } catch (e) {
+          return (this.url || '').replace(
+            /\/(\d+|[0-9a-fA-F-]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})\/?($|\?)/,
+            '/$2'
+          )
+        }
+      })()
+
+      fields.forEach((field) => {
+        const conf = field?.uniqueCheck
+
+        if (!conf) return
+
+        const confObj = typeof conf === 'object' ? conf : {}
+        const param = confObj.param || field.prop || field.id
+        const url = confObj.url || defaultListUrl
+        const label = confObj.label || field.label || param
+        const entityName = confObj.entityName || ''
+
+        if (!Array.isArray(field.rules)) field.rules = []
+
+        field.rules.push(
+          UniqueCheck({
+            url,
+            param,
+            label,
+            entityName,
+            getIgnoreId: currentIdGetter,
+            fieldName: field.prop || field.id
+          })
+        )
+      })
     },
     _cleanFormValue(form, remoteMeta) {
       if (!form) {
@@ -136,19 +211,89 @@ export default {
     cleanFormValue() {
       this._cleanFormValue(this.iForm, this.remoteMeta)
     },
+    _getElFormInstance() {
+      try {
+        return this.$refs?.dataForm?.$refs?.form?.$refs?.elForm || null
+      } catch (e) {
+        return null
+      }
+    },
+    /**
+     * @description 仅清理 UI 的错误展示,不触发表单内容重建
+     */
+    clearAllFieldErrors() {
+      const elForm = this._getElFormInstance()
+      if (elForm && Array.isArray(elForm.fields)) {
+        elForm.fields.forEach((item) => {
+          item.validateMessage = ''
+          item.validateState = ''
+        })
+      }
+      // 不修改 totalFields/attrs，避免触发 content 重建导致输入丢失
+      this.serverErrors = {}
+    },
     setFieldError(name, error) {
-      const field = this.totalFields.find((v) => v.prop === name)
-      if (!field) {
-        return
+      error = (error || '').toString().replace(/[。.]+$/, '')
+      const elForm = this._getElFormInstance()
+      if (elForm && Array.isArray(elForm.fields)) {
+        const item = elForm.fields.find((f) => f.prop === name)
+        if (item) {
+          item.validateMessage = error
+          item.validateState = error ? 'error' : ''
+        }
       }
-      if (field.attrs.error === error) {
-        error += '.'
+      // 不写入 totalFields，避免触发 innerContent 变化导致表单值被覆盖
+      this.serverErrors = {
+        ...this.serverErrors,
+        [name]: error
       }
-      if (field.type === 'nestedField') {
-        field.el.errors = error
-      } else {
-        field.attrs.error = error
+    },
+    setErrors(errors) {
+      const mapped = {}
+      Object.entries(errors || {}).forEach(([k, v]) => {
+        mapped[k] = this.normalizeError(v)
+      })
+      this.serverErrors = mapped
+      const elForm = this._getElFormInstance()
+      if (elForm && Array.isArray(elForm.fields)) {
+        elForm.fields.forEach((item) => {
+          const error = mapped[item.prop]
+          const msg = typeof error === 'string' ? error : ''
+          item.validateMessage = msg
+          item.validateState = msg ? 'error' : ''
+        })
       }
+    },
+    normalizeError(error) {
+      // DRF nested serializers return objects such as
+      // { meta: { SFTP_HOST: ['This field is required.'] } }.
+      // Keep that structure so NestedField can route each message to its input.
+      if (_.isPlainObject(error)) {
+        return Object.fromEntries(
+          Object.entries(error).map(([key, value]) => [key, this.normalizeError(value)])
+        )
+      }
+      // Join ordinary field messages while preserving the existing list-serializer fallback.
+      if (Array.isArray(error) && error.every((item) => typeof item === 'string')) {
+        return error.join('; ')
+      }
+      if (Array.isArray(error) && error.every((item) => _.isPlainObject(item))) {
+        const messages = []
+        error.forEach((item) => {
+          Object.values(item).forEach((value) => {
+            if (Array.isArray(value)) {
+              messages.push(...value)
+            }
+          })
+        })
+        return messages.join(' ')
+      }
+      // Preserve the previous JSON fallback for unsupported arrays and other
+      // object-shaped errors instead of exposing values such as "[object Object]".
+      if (typeof error === 'object' && error !== null) {
+        return JSON.stringify(error) || ''
+      }
+      return String(error || '')
     },
     groupHidden(group, i) {
       for (const field of group.fields) {
@@ -165,7 +310,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

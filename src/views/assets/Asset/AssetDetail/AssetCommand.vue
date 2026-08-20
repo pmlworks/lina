@@ -1,9 +1,5 @@
 <template>
-  <el-row :gutter="24">
-    <el-col :md="24" :sm="24">
-      <BaseList :asset-id="object.id" :is-page="false" />
-    </el-col>
-  </el-row>
+  <BaseList :asset-id="object.id" :is-page="false" />
 </template>
 
 <script>
@@ -26,6 +22,5 @@ export default {
       url: `/api/v1/terminal/command-storages/tree/?real=1&asset_id=${this.object.id}&order=-date_end&is_finished=1`
     }
   }
-
 }
 </script>

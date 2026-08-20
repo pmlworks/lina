@@ -15,21 +15,16 @@ export default {
         category: 'custom',
         url: '/api/v1/assets/customs/',
         tableConfig: {
-          columnsExclude: [
-          ],
+          columnsExclude: [],
           columnsMeta: {
             autofill: {
               width: '100px'
             }
           }
         },
-        helpMessage: this.$t('assets.CustomHelpMessage')
+        helpMessage: this.$t('CustomHelpMessage')
       }
     }
   }
 }
 </script>
-
-<style>
-
-</style>

@@ -18,14 +18,14 @@ export function toggleLockSession(data) {
 
 export function getAllCommandStorage() {
   return request({
-    url: `/api/v1/terminal/command-storages/`,
+    url: '/api/v1/terminal/command-storages/',
     method: 'get'
   })
 }
 
 export function getAllReplayStorage() {
   return request({
-    url: `/api/v1/terminal/replay-storages/`,
+    url: '/api/v1/terminal/replay-storages/',
     method: 'get'
   })
 }
@@ -48,20 +48,16 @@ function SetToDefaultStorage(url) {
   return request({
     url: url,
     method: 'patch',
-    data: { 'is_default': true }
+    data: { is_default: true }
   })
 }
 
 export function SetToDefaultCommandStorage(id) {
-  return SetToDefaultStorage(
-    `/api/v1/terminal/command-storages/${id}/`,
-  )
+  return SetToDefaultStorage(`/api/v1/terminal/command-storages/${id}/`)
 }
 
 export function SetToDefaultReplayStorage(id) {
-  return SetToDefaultStorage(
-    `/api/v1/terminal/replay-storages/${id}/`,
-  )
+  return SetToDefaultStorage(`/api/v1/terminal/replay-storages/${id}/`)
 }
 
 export function getReplayStorage(id) {

@@ -1,11 +1,15 @@
 import { getProfile as apiGetProfile, logout } from '@/api/users'
-import { getCurrentOrgLocal, getPreOrgLocal, getTokenFromCookie, saveCurrentOrgLocal, setPreOrgLocal } from '@/utils/auth'
-import orgUtil from '@/utils/org'
-import { resetRouter } from '@/router'
-import Vue from 'vue'
+import {
+  getCurrentOrgLocal,
+  getPreOrgLocal,
+  getTokenFromCookie,
+  saveCurrentOrgLocal,
+  setPreOrgLocal
+} from '@/utils/jms/auth'
+import orgUtil from '@/utils/jms/org'
 import store from '@/store'
-
-const _ = require('lodash')
+import { resetRegisteredRouter } from '@/router/registry'
+import _ from 'lodash'
 
 const getDefaultState = () => {
   return {
@@ -43,8 +47,9 @@ const mutations = {
     state.perms = profile.perms
     state.isSuperAdmin = profile['is_superuser']
     state.consoleOrgs = profile['console_orgs']
+    state.pamOrgs = profile['pam_orgs']
     state.workbenchOrgs = profile['workbench_orgs']
-    state.noRootWorkbenchOrgs = profile['workbench_orgs'].filter(item => {
+    state.noRootWorkbenchOrgs = profile['workbench_orgs'].filter((item) => {
       return item.id !== '00000000-0000-0000-0000-000000000000'
     })
     state.auditOrgs = profile['audit_orgs']
@@ -55,7 +60,7 @@ const mutations = {
     state.usingOrgs = orgs
   },
   MODIFY_ORG: (state, org) => {
-    state.consoleOrgs = state.consoleOrgs.map(oldOrg => {
+    state.consoleOrgs = state.consoleOrgs.map((oldOrg) => {
       if (oldOrg.id === org.id) {
         oldOrg.name = org.name
       }
@@ -66,19 +71,20 @@ const mutations = {
     state.consoleOrgs.push(org)
   },
   DELETE_ORG: (state, org) => {
-    state.consoleOrgs = state.consoleOrgs.filter(i => i.id !== org.id)
+    state.consoleOrgs = state.consoleOrgs.filter((i) => i.id !== org.id)
   },
   SET_CURRENT_ORG(state, org) {
-    // 系统组织和全局组织不设置成 Pre org
-    if (!state.currentOrg?.autoEnter) {
-      state.preOrg = state.currentOrg
-      setPreOrgLocal(state.username, state.currentOrg)
+    // 系统组织不设置成 Pre org
+    const currentOrg = state.currentOrg
+    if (currentOrg && !currentOrg.autoEnter && !currentOrg.is_system) {
+      state.preOrg = currentOrg
+      setPreOrgLocal(state.username, currentOrg)
     }
     state.currentOrg = org
     saveCurrentOrgLocal(state.username, org)
   },
   SET_MFA_VERIFY(state) {
-    state.MFAVerifyAt = (new Date()).valueOf()
+    state.MFAVerifyAt = new Date().valueOf()
   },
   ADD_WORKBENCH_ORGS(state, org) {
     state.workbenchOrgs.push(org)
@@ -96,21 +102,23 @@ const actions = {
         resolve(state.profile)
         return
       }
-      apiGetProfile().then(response => {
-        if (!response) {
-          reject('Verification failed, please Login again.')
-        }
-        if (typeof response !== 'object') {
-          // 后端 middleware 对 API 做了校验，这里返回可能是 302 重定向, response 为 string 类型
+      apiGetProfile()
+        .then((response) => {
+          if (!response) {
+            reject('Verification failed, please Login again.')
+          }
+          if (typeof response !== 'object') {
+            // 后端 middleware 对 API 做了校验，这里返回可能是 302 重定向, response 为 string 类型
+            resolve(response)
+            return
+          }
+          commit('SET_PROFILE', response)
           resolve(response)
-          return
-        }
-        commit('SET_PROFILE', response)
-        resolve(response)
-      }).catch(error => {
-        // debug(error)
-        reject(error)
-      })
+        })
+        .catch((error) => {
+          // debug(error)
+          reject(error)
+        })
     })
   },
   addAdminOrg({ commit, state }, org) {
@@ -125,14 +133,16 @@ const actions = {
   // user logout
   logout({ commit, state }) {
     return new Promise((resolve, reject) => {
-      logout(state.token).then(() => {
-        // removeToken() // must remove  token  first
-        resetRouter()
-        commit('RESET_STATE')
-        resolve()
-      }).catch(error => {
-        reject(error)
-      })
+      logout(state.token)
+        .then(() => {
+          // removeToken() // must remove  token  first
+          resetRegisteredRouter()
+          commit('RESET_STATE')
+          resolve()
+        })
+        .catch((error) => {
+          reject(error)
+        })
     })
   },
   setCurrentOrg({ commit }, data) {
@@ -142,7 +152,8 @@ const actions = {
     const systemOrg = {
       id: orgUtil.SYSTEM_ORG_ID,
       name: 'SystemSetting',
-      autoEnter: true
+      is_system: true,
+      autoEnter: new Date().getTime()
     }
     commit('SET_CURRENT_ORG', systemOrg)
   },
@@ -157,7 +168,8 @@ const actions = {
     const globalOrg = {
       id: orgUtil.GLOBAL_ORG_ID,
       name: 'Global',
-      autoEnter: true
+      is_root: true,
+      autoEnter: new Date().getTime()
     }
     commit('SET_CURRENT_ORG', globalOrg)
   },
@@ -193,7 +205,7 @@ const actions = {
       settings: state.consoleOrgs
     }
     const usingOrgs = mapper[viewName] || state.consoleOrgs
-    Vue.$log.debug('Set using orgs: ', viewName, usingOrgs)
+    console.debug('Set using orgs: ', viewName, usingOrgs)
     commit('SET_USING_ORGS', usingOrgs)
   },
   ifFirstLogin({ commit }, flag) {

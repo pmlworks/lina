@@ -1,53 +1,39 @@
 <template>
   <div>
-    <el-alert type="success">
-      <span v-html="$t('terminal.AppletHostSelectHelpMessage')" />
+    <el-alert type="info">
+      <span ref="helpRef" class="applet-host-help" />
     </el-alert>
-    <ListTable class="applet-host" v-bind="$data" />
+    <DrawerListTable
+      v-bind="$data"
+      ref="table"
+      class="applet-host"
+      :create-drawer="createDrawer"
+      :resource="$t('AppletHosts')"
+    />
   </div>
 </template>
 
 <script>
-import { ListTable } from '@/components'
-import { openTaskPage } from '@/utils/jms'
+import { DrawerListTable } from '@/components'
 import { ProtocolsFormatter } from '@/components/Table/TableFormatters'
+import { openTaskPage } from '@/utils/jms/index'
 
 export default {
   name: 'AppletHost',
   components: {
-    ListTable
+    DrawerListTable
   },
   data() {
-    const vm = this
-    const onAction = (row, action) => {
-      let routeAction = action
-      if (action === 'Clone') {
-        routeAction = 'Create'
-      }
-      const routeName = 'AppletHost' + routeAction
-      const route = {
-        name: routeName,
-        params: {},
-        query: {}
-      }
-      if (action === 'Clone') {
-        route.query.clone_from = row.id
-      } else if (action === 'Update') {
-        route.params.id = row.id
-        route.query.platform = row.platform.id
-      }
-      vm.$router.push(route)
-    }
+    const appletRouteQuery = { type: 'windows', category: 'host', platform: 'RemoteAppHost' }
     return {
+      createDrawer: () => import('./AppletHostCreateUpdate.vue'),
+      detailDrawer: () => import('./AppletHostDetail/index.vue'),
       tableConfig: {
         url: '/api/v1/terminal/applet-hosts/',
-        columnsExclude: ['info'],
+        columnsExclude: ['info', 'auto_config', 'gathered_info', 'deploy_options'],
         columnsShow: {
           min: ['name', 'actions'],
-          default: [
-            'name', 'address', 'protocols', 'load',
-            'comment', 'actions'
-          ]
+          default: ['name', 'address', 'protocols', 'load', 'comment', 'actions']
         },
         columnsMeta: {
           name: {
@@ -72,30 +58,29 @@ export default {
             }
           },
           protocols: {
-            label: this.$t('assets.Protocols'),
             formatter: ProtocolsFormatter
           },
           actions: {
             formatterArgs: {
-              onUpdate: ({ row }) => onAction(row, 'Update'),
-              onClone: ({ row }) => onAction(row, 'Clone'),
               performDelete: ({ row }) => {
                 const id = row.id
                 const url = `/api/v1/terminal/applet-hosts/${id}/`
                 return this.$axios.delete(url)
               },
+              onUpdate: ({ row }) => {
+                this.$refs.table.onUpdate({ row: row, query: appletRouteQuery })
+              },
               extraActions: [
                 {
                   name: 'Test',
-                  title: this.$t('common.Test'),
+                  title: this.$t('Test'),
                   can: this.$hasPerm('assets.test_assetconnectivity'),
                   callback: ({ row }) => {
-                    this.$axios.post(
-                      `/api/v1/assets/assets/${row.id}/tasks/`,
-                      { action: 'refresh' },
-                    ).then(res => {
-                      openTaskPage(res['task'])
-                    })
+                    this.$axios
+                      .post(`/api/v1/assets/assets/${row.id}/tasks/`, { action: 'refresh' })
+                      .then((res) => {
+                        openTaskPage(res['task'])
+                      })
                   }
                 }
               ]
@@ -107,16 +92,36 @@ export default {
         createRoute: 'AppletHostCreate',
         hasRefresh: true,
         hasExport: false,
-        hasImport: false
+        hasImport: false,
+        onCreate: () => {
+          this.$refs.table.onCreate({ query: appletRouteQuery })
+        }
       }
+    }
+  },
+  mounted() {
+    this.renderHelp()
+  },
+  activated() {
+    // keep-alive 切回该 tab 时也重渲，确保帮助文案一定出现
+    this.renderHelp()
+  },
+  methods: {
+    // 命令式渲染帮助文案：绕开 v-html 编译转换在 keep-alive/时序下对内联 $t 不重算的问题。
+    renderHelp() {
+      this.$nextTick(() => {
+        const el = this.$refs.helpRef
+        if (el) {
+          el.innerHTML = this.$xss.process(String(this.$t('AppletHostSelectHelpMessage') || ''))
+        }
+      })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.applet-host > > > .protocol {
+.applet-host :deep(.protocol) {
   margin-left: 3px;
 }
-
 </style>

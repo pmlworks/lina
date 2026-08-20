@@ -1,23 +1,23 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <DetailCard v-if="object" :items="detailItems" />
-    </el-col>
-    <el-col :md="10" :sm="24">
+  <TwoCol>
+    <DetailCard v-if="object" :items="detailItems" />
+    <template #right>
       <QuickActions v-if="object" :actions="quickActions" type="primary" />
-    </el-col>
-  </el-row>
+    </template>
+  </TwoCol>
 </template>
 
 <script>
 import DetailCard from '@/components/Cards/DetailCard/index'
-import QuickActions from '@/components/QuickActions'
+import { QuickActions } from '@/components'
 import { terminateSession } from '@/api/sessions'
-import { toSafeLocalDateStr } from '@/utils/common'
+import { toSafeLocalDateStr } from '@/composables/useDateTime'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'SessionDetailInfo',
   components: {
+    TwoCol,
     DetailCard,
     QuickActions
   },
@@ -37,19 +37,19 @@ export default {
       const vm = this
       return [
         {
-          title: this.$t('sessions.sessionTerminate'),
+          title: this.$t('SessionTerminate'),
           attrs: {
             type: 'danger',
-            label: this.$t('sessions.terminate'),
+            label: this.$t('Terminate'),
             disabled: !this.session['can_terminate'] || !vm.$hasPerm('terminal.terminate_session')
           },
           callbacks: {
-            click: function() {
+            click: function () {
               // 终断 session reload
-              terminateSession(vm.session.id).then(res => {
-                const msg = vm.$t('sessions.TerminateTaskSendSuccessMsg')
+              terminateSession(vm.session.id).then((res) => {
+                const msg = vm.$t('TerminateTaskSendSuccessMsg')
                 vm.$message.success(msg)
-                window.setTimeout(function() {
+                window.setTimeout(function () {
                   window.location.reload()
                 }, 50000)
               })
@@ -57,17 +57,23 @@ export default {
           }
         },
         {
-          title: this.$t('sessions.sessionMonitor'),
+          title: this.$t('SessionMonitor'),
           attrs: {
             type: 'primary',
-            label: this.$t('sessions.Monitor'),
-            disabled: !this.session['can_join'] || !vm.$hasPerm('terminal.monitor_session')
+            label: this.$t('Monitor'),
+            disabled:
+              !this.session['can_join'] ||
+              !vm.$hasPerm('terminal.monitor_session') ||
+              vm.session.type.value === 'sftp'
           },
           callbacks: {
-            click: function() {
+            click: function () {
               // 跳转到luna页面
               const joinUrl = '/luna/monitor/' + vm.session.id
-              window.open(joinUrl, 'height=600, width=800, top=400, left=400, toolbar=no, menubar=no, scrollbars=no, location=no, status=no')
+              window.open(
+                joinUrl,
+                'height=600, width=800, top=400, left=400, toolbar=no, menubar=no, scrollbars=no, location=no, status=no'
+              )
             }
           }
         }
@@ -77,28 +83,28 @@ export default {
       const vm = this
       return [
         {
-          title: this.$t('sessions.replaySession'),
+          title: this.$t('ReplaySession'),
           attrs: {
             type: 'primary',
-            label: this.$t('sessions.replay'),
+            label: this.$t('Replay'),
             disabled: !this.session['can_replay'] || !vm.$hasPerm('terminal.view_sessionreplay')
           },
           callbacks: {
-            click: function() {
+            click: function () {
               const replayUrl = '/luna/replay/' + vm.session.id
               window.open(replayUrl)
             }
           }
         },
         {
-          title: this.$t('sessions.downloadReplay'),
+          title: this.$t('DownloadReplay'),
           attrs: {
             type: 'primary',
-            label: this.$t('sessions.download'),
+            label: this.$t('Download'),
             disabled: !this.session['can_replay'] || !vm.$hasPerm('terminal.download_sessionreplay')
           },
           callbacks: {
-            click: function() {
+            click: function () {
               const oid = vm.session.org_id || ''
               const downloadUrl = `/api/v1/terminal/sessions/${vm.session.id}/replay/download/${oid ? '?oid=' + oid : ''}`
               window.open(downloadUrl)
@@ -110,36 +116,35 @@ export default {
     detailItems() {
       return [
         {
-          key: this.$t('sessions.user'),
+          key: this.$t('User'),
           value: this.session.user
         },
         {
-          key: this.$t('sessions.host'),
+          key: this.$t('Host'),
           value: this.session.asset
         },
         {
-          key: this.$t('assets.Account'),
+          key: this.$t('Account'),
           value: this.session.account
-
         },
         {
-          key: this.$t('sessions.protocol'),
+          key: this.$t('Protocol'),
           value: this.session.protocol
         },
         {
-          key: this.$t('sessions.loginFrom'),
+          key: this.$t('LoginFrom'),
           value: this.session.login_from?.label || '-'
         },
         {
-          key: this.$t('sessions.remoteAddr'),
+          key: this.$t('RemoteAddr'),
           value: this.session.remote_addr
         },
         {
-          key: this.$t('common.DateStart'),
+          key: this.$t('DateStart'),
           value: toSafeLocalDateStr(this.session.date_start)
         },
         {
-          key: this.$t('sessions.dateEnd'),
+          key: this.$t('DateEnd'),
           value: this.session.date_end ? toSafeLocalDateStr(this.session.date_end) : ''
         }
       ]
@@ -156,6 +161,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

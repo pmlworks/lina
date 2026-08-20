@@ -1,5 +1,9 @@
 <template>
-  <GenericDetailPage :object.sync="Organization" :active-menu.sync="config.activeMenu" v-bind="config" v-on="$listeners">
+  <GenericDetailPage
+    v-bind="config"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="Organization"
+  >
     <keep-alive>
       <component :is="config.activeMenu" :object="Organization" />
     </keep-alive>
@@ -9,7 +13,8 @@
 <script>
 import { GenericDetailPage, TabPage } from '@/layout/components'
 import OrganizationDetail from './OrganizationDetail'
-const performDelete = function() {
+
+const performDelete = function () {
   const url = `${this.url}/${this.$route.params.id}/`
   return this.$axios.delete(url)
 }
@@ -27,7 +32,7 @@ export default {
         url: '/api/v1/orgs/orgs',
         submenu: [
           {
-            title: this.$t('xpack.Organization.OrganizationDetail'),
+            title: this.$t('Basic'),
             name: 'OrganizationDetail'
           }
         ],
@@ -35,19 +40,19 @@ export default {
           deleteApiUrl: `${this.url}/${this.$route.params.id}/`,
           canUpdate: this.$hasPerm('orgs.change_organization'),
           canDelete: this.$hasPerm('orgs.delete_organization'),
-          deleteCallback: function() {
-            const msg = this.$t('xpack.Organization.DeleteOrgMsg')
-            const title = this.$t('xpack.Organization.DeleteOrgTitle')
+          deleteCallback: function () {
+            const msg = this.$t('DeleteOrgMsg')
+            const title = this.$t('DeleteOrgTitle')
             this.$alert(msg, title, {
               type: 'warning',
               confirmButtonClass: 'el-button--danger',
               showCancelButton: true,
-              beforeClose: async(action, instance, done) => {
+              beforeClose: async (action, instance, done) => {
                 if (action !== 'confirm') return done()
                 instance.confirmButtonLoading = true
                 try {
                   await performDelete.bind(this)()
-                  this.$message.success(this.$tc('common.deleteSuccessMsg'))
+                  this.$message.success(this.$tc('DeleteSuccessMsg'))
                   this.$router.push({ name: 'OrganizationList' })
                   return done()
                 } catch (error) {
@@ -67,6 +72,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

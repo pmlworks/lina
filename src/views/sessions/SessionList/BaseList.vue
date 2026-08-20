@@ -1,11 +1,20 @@
 <template>
-  <ListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <ListTable
+    :detail-drawer="detailDrawer"
+    :header-actions="headerActions"
+    :table-config="tableConfig"
+  />
 </template>
 
-<script type="text/jsx">
-import ListTable from '@/components/Table/ListTable'
-import { timeOffset } from '@/utils/common'
-import { ActionsFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
+<script>
+import { DrawerListTable as ListTable } from '@/components'
+import {
+  ActionsFormatter,
+  ChoicesFormatter,
+  DetailFormatter
+} from '@/components/Table/TableFormatters'
+import { timeOffset } from '@/composables/useDateTime'
+import prettyBytes from 'pretty-bytes'
 
 export default {
   name: 'BaseList',
@@ -25,42 +34,65 @@ export default {
       type: Object,
       default: () => {
         return {
-          min: ['id', 'actions'],
-          default: [
-            'id', 'user', 'asset', 'account', 'remote_addr', 'protocol',
-            'command_amount', 'date_start', 'duration', 'actions'
-          ]
+          min: ['number', 'actions'],
+          default: ['number', 'user', 'asset', 'account', 'protocol', 'date_start', 'actions']
         }
       }
+    },
+    columnsMeta: {
+      type: Object,
+      default: () => {}
+    },
+    columnsExclude: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
     return {
+      detailDrawer: () => import('../SessionDetail/index.vue'),
       tableConfig: {
         url: this.url,
-        columnsExtra: ['index', 'duration'],
-        columnsExclude: ['terminal'],
+        columnsExclude: ['terminal', ...this.columnsExclude],
+        columnsAdd: ['number'],
         columnsShow: this.columnsShow,
         columnsMeta: {
-          id: {
-            prop: 'id',
-            label: this.$t('common.Number'),
-            align: 'center',
+          number: {
+            prop: 'number',
+            type: 'index',
+            label: this.$t('RowNumber'),
             width: '80px',
-            formatter: function(row, column, cellValue, index) {
-              const label = index + 1
-              const route = { to: { name: 'SessionDetail', params: { id: row.id }}}
-              return <router-link {...{ attrs: route }} class='link'>{ label }</router-link>
+            align: 'center',
+            formatter: DetailFormatter,
+            formatterArgs: {
+              drawer: true,
+              can: this.$hasPerm('assets.view_asset'),
+              getTitle: ({ row, col, cellValue, index }) => {
+                return index + 1
+              },
+              getDrawerTitle: ({ row }) => {
+                return row.id
+              },
+              getRoute: ({ row }) => {
+                return {
+                  name: 'SessionDetail',
+                  params: { id: row.id }
+                }
+              }
             }
           },
           user: {
             formatter: DetailFormatter,
             formatterArgs: {
+              drawer: true,
+              getTitle: ({ row }) => {
+                return row.user
+              },
               getRoute: ({ row }) => {
                 return {
                   name: 'UserDetail',
                   params: {
-                    id: row['user_id']
+                    id: row.user_id
                   }
                 }
               }
@@ -87,7 +119,6 @@ export default {
             }
           },
           is_finished: {
-            width: '86px',
             formatterArgs: {
               showFalse: false
             }
@@ -98,54 +129,47 @@ export default {
             }
           },
           asset: {
-            label: this.$t('sessions.target'),
+            label: this.$t('Target'),
             formatter: DetailFormatter,
             formatterArgs: {
-              getRoute: ({ row }) => {
-                return {
-                  name: 'AssetDetail',
-                  params: {
-                    id: row['asset_id']
-                  }
-                }
-              }
+              drawer: true,
+              can: this.$hasPerm('assets.view_asset'),
+              getTitle: ({ row }) => row.asset,
+              getRoute: ({ row }) => ({
+                name: 'AssetDetail',
+                params: { id: row.asset_id },
+                query: { tab: 'Basic' }
+              })
             }
           },
-          command_amount: {
-            width: '90px'
-          },
-          login_from: {
-            width: '115px'
-          },
-          remote_addr: {
-            width: '140px'
-          },
           protocol: {
-            label: this.$t('sessions.protocol'),
-            width: '80px',
             sortable: false,
             formatter: null
           },
-          date_start: {
-            width: '150px'
-          },
-          date_end: {
-            width: '150px'
-          },
           duration: {
-            label: this.$t('sessions.duration'),
-            formatter: function(row) {
+            label: this.$t('Duration'),
+            formatter: function (row) {
               return timeOffset(row.date_start, row.date_end)
-            },
-            width: '80px'
+            }
           },
           is_locked: {
-            label: this.$t('sessions.is_locked')
+            label: this.$t('IsLocked'),
+            formatter: ChoicesFormatter,
+            formatterArgs: {
+              showFalse: true
+            }
+          },
+          replay_size: {
+            width: '120px',
+            formatter: (row) => {
+              return prettyBytes(Number(row.replay_size))
+            }
           },
           actions: {
             prop: 'actions',
-            label: this.$t('common.Actions'),
-            width: '160px',
+            label: this.$t('Actions'),
+            // data 初始化早于 computed，不能在这里读取 dynamicActionWidth。
+            width: this.$i18n.locale === 'pt-br' ? '160px' : '130px',
             formatter: ActionsFormatter,
             formatterArgs: {
               hasEdit: false,
@@ -154,27 +178,26 @@ export default {
               hasUpdate: false,
               extraActions: this.extraActions
             }
-          }
+          },
+          ...this.columnsMeta
         }
       },
       headerActions: {
         hasLeftActions: false,
         hasImport: false,
+        hasReportExport: true,
         hasDatePicker: true,
         searchConfig: {
-          getUrlQuery: false,
-          exclude: ['is_finished']
+          getUrlQuery: false
         }
       }
     }
-  },
-  methods: {
   }
 }
 </script>
 
 <style scoped>
-  .link {
-    color: var(--color-info);
-  }
+.link {
+  color: var(--color-info);
+}
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <TabPage :active-menu.sync="activeMenu" :submenu="submenu">
+  <TabPage v-model:active-menu="activeMenu" :submenu="submenu">
     <keep-alive>
       <component :is="activeMenu" />
     </keep-alive>
@@ -19,11 +19,11 @@ export default {
       activeMenu: 'TaskList',
       submenu: [
         {
-          title: this.$t('setting.TaskList'),
+          title: this.$t('TaskList'),
           name: 'TaskList'
         },
         {
-          title: this.$t('setting.Cleaning'),
+          title: this.$t('Cleaning'),
           name: 'Clean',
           hidden: !this.$hasPerm('settings.change_clean')
         }
@@ -32,7 +32,3 @@ export default {
   }
 }
 </script>
-
-<style lang='scss' scoped>
-
-</style>

@@ -1,25 +1,27 @@
 <template>
   <TreeTable
+    v-bind="$attrs"
     ref="TreeList"
-    :active-menu.sync="treeTableConfig.activeMenu"
+    v-model:active-menu="treeTableConfig.activeMenu"
+    :component="treeComponent"
     :table-config="tableConfig"
     :tree-tab-config="treeTableConfig"
-    component="TabTree"
-    v-bind="$attrs"
-    v-on="$listeners"
+    :tree-width="treeWidth"
   >
     <template #table>
       <slot name="table" />
     </template>
-    <div slot="rMenu" slot-scope="{data}">
-      <slot :data="data" name="rMenu" />
-    </div>
+    <template #rMenu="{ data }">
+      <div>
+        <slot :data="data" name="rMenu" />
+      </div>
+    </template>
   </TreeTable>
 </template>
 
 <script>
 import TreeTable from '../../Table/TreeTable/index.vue'
-import { setRouterQuery, setUrlParam } from '@/utils/common'
+import { getShowCurrentAssetValue, setRouterQuery, setUrlParam } from '@/utils/common/index'
 import $ from '@/utils/jquery-vendor'
 
 export default {
@@ -30,6 +32,10 @@ export default {
     url: {
       type: String,
       default: '/api/v1/assets/assets/'
+    },
+    typeUrl: {
+      type: String,
+      default: '/api/v1/assets/nodes/category/tree/'
     },
     nodeUrl: {
       type: String,
@@ -63,12 +69,14 @@ export default {
     const vm = this
 
     return {
+      treeComponent: 'TabTree',
       treeTabConfig: {
         activeMenu: 'CustomTree',
         submenu: [
           {
-            title: this.$t('assets.AssetTree'),
+            title: this.$t('AssetTree'),
             name: 'CustomTree',
+            icon: 'fa-solid fa-tree',
             treeSetting: {
               showAssets,
               showMenu: false,
@@ -84,9 +92,9 @@ export default {
               callback: {
                 onSelected: (event, treeNode) => this.getAssetsUrl(treeNode),
                 beforeRefresh: () => {
-                  const query = { ...this.$route.query, node_id: '', asset_id: '' }
+                  const query = { ...vm.$route.query, node_id: '', asset_id: '' }
                   setTimeout(() => {
-                    vm.$router.replace({ query: query })
+                    setRouterQuery(vm, `?${new URLSearchParams(query)}`, { browserOnly: true })
                   }, 100)
                 }
               },
@@ -94,18 +102,24 @@ export default {
             }
           },
           {
-            title: this.$t('assets.BuiltinTree'),
+            title: this.$t('TypeTree'),
+            icon: 'fa-solid fa-list-ul',
             name: 'BuiltinTree',
             treeSetting: {
               showRefresh: true,
               showAssets: false,
               showSearch: false,
-              customTreeHeaderName: this.$t('assets.BuiltinTree'),
-              url: '/api/v1/assets/nodes/category/tree/',
+              customTreeHeaderName: this.$t('TypeTree'),
+              url: this.typeUrl,
               nodeUrl: this.treeSetting?.nodeUrl || this.nodeUrl,
-              treeUrl: `/api/v1/assets/nodes/category/tree/?assets=${showAssets ? '1' : '0'}&count_resource=${this.treeSetting.countResource || 'asset'}`,
+              treeUrl: `${this.typeUrl}?assets=${showAssets ? '1' : '0'}&count_resource=${this.treeSetting.countResource || 'asset'}`,
               callback: {
                 onSelected: (event, treeNode) => this.getAssetsUrl(treeNode)
+              },
+              edit: {
+                drag: {
+                  isMove: false
+                }
               }
             }
           }
@@ -114,6 +128,9 @@ export default {
     }
   },
   computed: {
+    treeWidth() {
+      return '23.6%'
+    },
     treeTableConfig() {
       if (this.treeSetting.notShowBuiltinTree) {
         // eslint-disable-next-line vue/no-side-effects-in-computed-properties
@@ -131,6 +148,9 @@ export default {
     treeSetting.showDelete = this.$hasPerm('assets.delete_node')
   },
   methods: {
+    reloadTable() {
+      this.$refs.TreeList.reloadTable()
+    },
     setTreeUrlQuery() {
       let str = ''
       for (const key in this.treeUrlQuery) {
@@ -141,7 +161,7 @@ export default {
       return str
     },
     decorateRMenu() {
-      const show_current_asset = this.$cookie.get('show_current_asset') || '0'
+      const show_current_asset = getShowCurrentAssetValue(this.$cookie)
       if (show_current_asset === '1') {
         $('#m_show_asset_all_children_node').css('color', '#606266')
         $('#m_show_asset_only_current_node').css('color', 'green')
@@ -150,16 +170,35 @@ export default {
         $('#m_show_asset_only_current_node').css('color', '#606266')
       }
     },
+    updateTableUrl(url) {
+      const treeList = this.$refs.TreeList
+      if (treeList?.handleUrlChange) {
+        treeList.handleUrlChange(url)
+      } else {
+        this.tableConfig.url = url
+      }
+    },
+    appendTreeUrlQuery(url) {
+      for (const [key, value] of Object.entries(this.treeUrlQuery)) {
+        url = setUrlParam(url, key, value)
+      }
+      return url
+    },
+
     getAssetsUrl(treeNode) {
       let url = this.treeSetting?.url || this.url
+      const showCurrentAsset = getShowCurrentAssetValue(this.$cookie)
+
       if (treeNode.meta.type === 'node') {
         const nodeId = treeNode.meta.data.id
         url = setUrlParam(url, 'node_id', nodeId)
         url = setUrlParam(url, 'asset_id', '')
+        url = setUrlParam(url, 'show_current_asset', showCurrentAsset)
       } else if (treeNode.meta.type === 'asset') {
         const assetId = treeNode.meta.data?.id || treeNode.id
         url = setUrlParam(url, 'node_id', '')
         url = setUrlParam(url, 'asset_id', assetId)
+        url = setUrlParam(url, 'show_current_asset', showCurrentAsset)
       } else if (treeNode.meta.type === 'category') {
         url = setUrlParam(url, 'category', treeNode.meta.category)
       } else if (treeNode.meta.type === 'type') {
@@ -168,15 +207,13 @@ export default {
       } else if (treeNode.meta.type === 'platform') {
         url = setUrlParam(url, 'platform', treeNode.id)
       }
-      const query = this.setTreeUrlQuery()
-      url = query ? `${url}&${query}` : url
-      this.$set(this.tableConfig, 'url', url)
-      setRouterQuery(this, url)
+      url = this.appendTreeUrlQuery(url)
+      this.updateTableUrl(url)
+
+      if (this.treeSetting.selectSyncToRoute !== false) {
+        setRouterQuery(this, url, { browserOnly: true })
+      }
     }
   }
 }
 </script>
-
-<style lang='scss' scoped>
-
-</style>

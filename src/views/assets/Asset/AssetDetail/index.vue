@@ -1,17 +1,18 @@
 <template>
   <GenericDetailPage
-    :active-menu.sync="config.activeMenu"
-    :object.sync="asset"
     v-bind="config"
-    v-on="$listeners"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="asset"
+    :has-right-side="!inDrawer"
   >
-    <keep-alive>
+    <keep-alive v-if="config.activeMenu">
       <component :is="config.activeMenu" :exclude="'Account'" :object="asset" />
     </keep-alive>
   </GenericDetailPage>
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import { GenericDetailPage, TabPage } from '@/layout/components'
 import Detail from './Detail.vue'
 import Account from './Account.vue'
@@ -34,54 +35,54 @@ export default {
     return {
       asset: {},
       config: {
+        url: '/api/v1/assets/assets',
         activeMenu: 'Detail',
         submenu: [
           {
-            title: this.$t('assets.AssetDetail'),
+            title: this.$t('Basic'),
             name: 'Detail'
           },
           {
-            title: this.$t('assets.AccountList'),
+            title: this.$t('Accounts'),
             name: 'Account',
             hidden: () => !this.$hasPerm('accounts.view_account')
           },
           {
-            title: this.$t('assets.PermUserList'),
+            title: this.$t('PermUserList'),
             name: 'PermUserList',
             hidden: () => !this.$hasPerm('perms.view_assetpermission')
           },
           {
-            title: this.$t('route.SessionList'),
+            title: this.$t('SessionList'),
             name: 'AssetSession',
             hidden: () => !this.$hasPerm('terminal.view_session')
           },
           {
-            title: this.$t('route.Commands'),
+            title: this.$t('Commands'),
             name: 'AssetCommand',
             hidden: () => !this.$hasPerm('terminal.view_command')
           }
         ],
         hasRightSide: true,
         actions: {
-          updateCallback: () => {
+          updateRoute: () => {
             const category = this.asset.category.value || 'host'
             const routerName = _.capitalize(category) + 'Update'
-            this.$router.push({
+            return {
               name: routerName,
-              params: { id: this.$route.params.id },
+              params: { id: this.asset.id },
               query: {
                 platform: this.asset.platform.id,
                 type: this.asset.type.value
               }
-            })
+            }
           }
         }
       }
     }
+  },
+  computed: {
+    ...mapGetters(['inDrawer'])
   }
 }
 </script>
-
-<style scoped>
-
-</style>

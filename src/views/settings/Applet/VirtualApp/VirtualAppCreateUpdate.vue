@@ -1,11 +1,11 @@
 <template>
-  <GenericCreateUpdatePage v-if="!loading" v-bind="config" />
+  <GenericCreateUpdatePage v-bind="config" v-if="!loading" />
 </template>
 
 <script>
-import GenericCreateUpdatePage from '@/layout/components/GenericCreateUpdatePage'
 import { MatchExcludeParenthesis, Required } from '@/components/Form/DataForm/rules'
 import { ProtocolsFormatter } from '@/components/Table/TableFormatters'
+import GenericCreateUpdatePage from '@/layout/components/GenericCreateUpdatePage'
 
 export default {
   components: {
@@ -17,16 +17,16 @@ export default {
       config: {
         url: '/api/v1/terminal/virtual-apps/',
         fields: [
-          [this.$t('common.Basic'), ['name', 'image_name']],
-          [this.$t('assets.Protocol'), ['protocols']],
-          [this.$t('common.Other'), ['is_active', 'comment']]
+          [this.$t('Basic'), ['name', 'image_name']],
+          [this.$t('Protocol'), ['protocols']],
+          [this.$t('Other'), ['is_active', 'comment']]
         ],
         addFieldsMeta: {
           name: {
             rules: [Required, MatchExcludeParenthesis]
           },
           protocols: {
-            label: this.$t('assets.Protocols'),
+            label: this.$t('Protocols'),
             formatter: ProtocolsFormatter
           }
         },
@@ -42,6 +42,4 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
-
-</style>
+<style lang="scss" scoped></style>

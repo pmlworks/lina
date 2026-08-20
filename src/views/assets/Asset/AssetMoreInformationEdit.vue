@@ -14,15 +14,25 @@ export default {
     return {
       initial: {},
       fields: [
-        [this.$t('common.Basic'), ['name', 'address']],
-        [this.$t('assets.Hardware'), ['gathered_info']]
+        [this.$t('Basic'), ['name', 'address']],
+        [this.$t('Hardware'), ['gathered_info']]
       ],
       fieldsMeta: {
         gathered_info: {
           fields: [
-            'vendor', 'model', 'sn', 'cpu_model', 'cpu_count',
-            'cpu_cores', 'cpu_vcpus', 'memory', 'disk_total',
-            'distribution', 'distribution_version', 'arch'
+            'vendor',
+            'model',
+            'sn',
+            'cpu_model',
+            'cpu_count',
+            'cpu_cores',
+            'cpu_vcpus',
+            'memory',
+            'disk_total',
+            'distribution',
+            'distribution_version',
+            'arch',
+            'gpu_model'
           ]
         }
       },
@@ -34,10 +44,10 @@ export default {
   },
   methods: {
     getUrl() {
-      const params = this.$route.params
       let url = this.url
-      if (params.id) {
-        url = `${url}${params.id}/`
+      const id = this.$context.get('id')
+      if (id) {
+        url = `${url}${id}/`
       }
       return url
     },
@@ -48,6 +58,4 @@ export default {
 }
 </script>
 
-<style>
-
-</style>
+<style></style>

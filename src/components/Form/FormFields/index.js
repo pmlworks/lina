@@ -2,6 +2,7 @@ import Link from './Link.vue'
 import Select2 from './Select2.vue'
 import TagInput from './TagInput.vue'
 import Switcher from './Switcher.vue'
+import Checkbox from './Checkbox.vue'
 import AttrInput from './AttrInput.vue'
 import UploadKey from './UploadKey.vue'
 import JsonEditor from './JsonEditor.vue'
@@ -19,10 +20,13 @@ import NestedObjectSelect2 from './NestedObjectSelect2.vue'
 import DatetimeRangePicker from './DatetimeRangePicker.vue'
 import JSONManyToManySelect from './JSONManyToManySelect/index.vue'
 import PasswordRule from './PasswordRule.vue'
+import ResourceSelect from './ResourceSelect/index.vue'
+import TreeResourceSelect from './TreeResourceSelect/index.vue'
 
 export default {
   Link,
   Switcher,
+  Checkbox,
   Select2,
   TagInput,
   AttrInput,
@@ -41,12 +45,15 @@ export default {
   BoolTextReadonly,
   NestedObjectSelect2,
   DatetimeRangePicker,
-  JSONManyToManySelect
+  JSONManyToManySelect,
+  ResourceSelect,
+  TreeResourceSelect
 }
 
 export {
   Link,
   Switcher,
+  Checkbox,
   Select2,
   TagInput,
   AttrInput,
@@ -65,5 +72,7 @@ export {
   BoolTextReadonly,
   NestedObjectSelect2,
   DatetimeRangePicker,
-  JSONManyToManySelect
+  JSONManyToManySelect,
+  ResourceSelect,
+  TreeResourceSelect
 }

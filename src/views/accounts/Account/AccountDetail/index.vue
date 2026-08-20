@@ -1,10 +1,9 @@
 <template>
   <div>
     <GenericDetailPage
-      :active-menu.sync="config.activeMenu"
-      :object.sync="account"
       v-bind="config"
-      v-on="$listeners"
+      v-model:active-menu="config.activeMenu"
+      v-model:object="account"
     >
       <keep-alive>
         <component :is="config.activeMenu" :object="account" />
@@ -12,10 +11,10 @@
     </GenericDetailPage>
     <AccountCreateUpdate
       v-if="AccountVisible"
+      v-model:visible="AccountVisible"
       :account="account"
       :asset="account.asset"
-      :title="$tc('assets.UpdateAccount')"
-      :visible.sync="AccountVisible"
+      :title="$tc('UpdateAccount')"
       @add="addAccountSuccess"
     />
   </div>
@@ -38,10 +37,11 @@ export default {
       AccountVisible: false,
       account: {},
       config: {
+        url: '/api/v1/accounts/accounts',
         activeMenu: 'Detail',
         submenu: [
           {
-            title: this.$t('common.BasicInfo'),
+            title: this.$t('Basic'),
             name: 'Detail'
           }
         ],
@@ -61,11 +61,10 @@ export default {
   methods: {
     addAccountSuccess() {
       this.$store.commit('common/reload')
+    },
+    getPageTitle({ row }) {
+      return `${row.username}@${row.asset.name}`
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

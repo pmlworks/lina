@@ -1,15 +1,11 @@
 <template>
-  <BaseAuth
-    :config="settings"
-    :title="$tc('setting.Slack')"
-    enable-field="AUTH_SLACK"
-    v-on="$listeners"
-  />
+  <BaseAuth :config="settings" :title="$tc('Slack')" enable-field="AUTH_SLACK" />
 </template>
 
 <script>
 import BaseAuth from './Base'
-import { UpdateToken } from '@/components/Form/FormFields'
+import { JsonEditor, UpdateToken } from '@/components/Form/FormFields'
+import { getOrgSelect2Meta } from '@/views/settings/Auth/const'
 
 export default {
   name: 'Slack',
@@ -24,29 +20,37 @@ export default {
         hasDetailInMsg: false,
         moreButtons: [
           {
-            title: this.$t('common.Test'),
+            title: this.$t('Test'),
             loading: false,
-            callback: function(value, form, btn) {
+            callback: function (value, form, btn) {
               btn.loading = true
-              vm.$axios.post(
-                '/api/v1/settings/slack/testing/',
-                value
-              ).then(res => {
-                vm.$message.success(res['msg'])
-              }).catch(() => {
-                vm.$log.error('err occur')
-              }).finally(() => { btn.loading = false })
+              vm.$axios
+                .post('/api/v1/settings/slack/testing/', value)
+                .then((res) => {
+                  vm.$message.success(res['msg'])
+                })
+                .catch(() => {
+                  vm.$log.error('err occur')
+                })
+                .finally(() => {
+                  btn.loading = false
+                })
             }
           }
         ],
         encryptedFields: ['SLACK_SECRET'],
         fields: [
           [
-            this.$t('common.BasicInfo'),
+            this.$t('Basic'),
             [
-              'AUTH_SLACK', 'SLACK_CLIENT_ID', 'SLACK_CLIENT_SECRET', 'SLACK_BOT_TOKEN'
+              'AUTH_SLACK',
+              'SLACK_CLIENT_ID',
+              'SLACK_CLIENT_SECRET',
+              'SLACK_BOT_TOKEN',
+              'SLACK_RENAME_ATTRIBUTES'
             ]
-          ]
+          ],
+          [this.$t('Other'), ['SLACK_ORG_IDS']]
         ],
         fieldsMeta: {
           SLACK_APP_SECRET: {
@@ -54,7 +58,11 @@ export default {
           },
           SLACK_BOT_TOKEN: {
             component: UpdateToken
-          }
+          },
+          SLACK_RENAME_ATTRIBUTES: {
+            component: JsonEditor
+          },
+          SLACK_ORG_IDS: getOrgSelect2Meta()
         },
         // 不清理的话，编辑secret，在删除提交会报错
         cleanFormValue(data) {
@@ -76,6 +84,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

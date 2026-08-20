@@ -16,9 +16,9 @@ export function getSystemUserList(data) {
   })
 }
 
-export function getDomainList(data) {
+export function getZoneList(data) {
   return request({
-    url: '/api/v1/assets/domains/',
+    url: '/api/v1/assets/zones/',
     method: 'get',
     params: data
   })
@@ -44,8 +44,7 @@ export function getCategoryTypes() {
   return request({
     url: '/api/v1/assets/categories/?limit=1000',
     method: 'get'
-  }).then(res => {
+  }).then((res) => {
     return res.results
   })
 }
-

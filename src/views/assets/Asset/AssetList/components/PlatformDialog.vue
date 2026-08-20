@@ -1,14 +1,27 @@
 <template>
-  <Dialog
-    v-if="iVisible"
+  <el-drawer
+    class="drawer"
+    :modal="true"
+    :close-on-click-modal="true"
     :show-cancel="false"
     :show-confirm="false"
-    :title="$tc('assets.SelectPlatforms')"
-    :visible.sync="iVisible"
+    :title="$tc('SelectPlatform')"
+    :model-value="visible"
+    custom-class="drawer"
+    size="700px"
     top="1vh"
-    width="60%"
+    @update:model-value="$emit('update:visible', $event)"
   >
-    <div style="margin: 0 10px">
+    <template #header>
+      <div class="drawer-title">
+        <span>{{ $tc('SelectPlatform') }}</span>
+        <el-link underline="never" size="small" type="primary" @click="handleManagePlatform">
+          <i class="fa fa-external-link" />
+          {{ $tc('ManagePlatform') }}
+        </el-link>
+      </div>
+    </template>
+    <div v-loading="loading" class="platform-content">
       <el-row :gutter="20">
         <el-collapse v-model="activeType" accordion>
           <el-collapse-item
@@ -17,35 +30,33 @@
             :name="cName"
             :title="cName"
           >
-            <el-col
-              v-for="(platform, index) of ps"
-              :key="platform.id"
-              :span="6"
-            >
-              <el-card
-                :style="{ borderLeftColor: randomBorderColor(index) }"
-                class="platform-item"
-                shadow="hover"
-                @click.native="createAsset(platform)"
-              >
-                {{ platform.name }}
-              </el-card>
+            <el-col v-for="(platform, index) of ps" :key="platform.id" :span="8">
+              <el-tooltip :content="platform.name">
+                <el-card
+                  :style="{ borderLeftColor: randomBorderColor(index) }"
+                  class="platform-item"
+                  shadow="never"
+                  @click="handleSelect(platform)"
+                >
+                  <div class="icon-zone">
+                    <img :src="getPlatformLogo(platform)" alt="icon" class="asset-icon" />
+                  </div>
+                  <span class="platform-name">{{ platform.name }}</span>
+                </el-card>
+              </el-tooltip>
             </el-col>
           </el-collapse-item>
         </el-collapse>
       </el-row>
     </div>
-  </Dialog>
+  </el-drawer>
 </template>
-
 <script>
-import Dialog from '@/components/Dialog'
+import { loadPlatformIcon } from '@/utils/jms/index'
 
 export default {
-  name: 'PlatformDialog',
-  components: {
-    Dialog
-  },
+  name: 'PlatformDrawer',
+  components: {},
   props: {
     visible: {
       type: Boolean,
@@ -56,33 +67,25 @@ export default {
       default: 'all'
     }
   },
+  emits: ['update:visible', 'select-platform'],
   data() {
     return {
       platforms: [],
       recentPlatformIds: [],
-      activeType: 'host',
-      recentUsedLabel: this.$t('assets.RecentlyUsed'),
+      loading: true,
+      activeType: [],
+      recentUsedLabel: this.$t('RecentlyUsed'),
       typeIconMapper: {
         linux: 'fa-linux',
         windows: 'fa-windows',
         unix: '',
         macos: 'fa-apple'
       },
-      bottomColors: [
-        '#1c84c6', '#23c6c8', '#1ab394', '#f8ac59',
-        '#783887', '#fc6554'
-      ]
+      bottomColors: ['#1c84c6', '#23c6c8', '#1ab394', '#f8ac59', '#783887', '#fc6554'],
+      allRecentPlatforms: []
     }
   },
   computed: {
-    iVisible: {
-      set(val) {
-        this.$emit('update:visible', val)
-      },
-      get() {
-        return this.visible
-      }
-    },
     iPlatforms() {
       let recentPlatforms = {}
       let platforms = {}
@@ -103,35 +106,25 @@ export default {
       return _.groupBy(this.platforms, (item) => item.category.label)
     },
     typeSortedPlatforms() {
-      const typedPlatforms = this.platforms.filter(item => item.category.value === this.category)
+      const typedPlatforms = this.platforms.filter((item) => item.category.value === this.category)
       return _.groupBy(typedPlatforms, (item) => item.type.label)
     },
-    allRecentPlatforms() {
-      return this.recentPlatformIds
-        .map(i => this.platforms.find(p => p.id === i))
-        .filter(p => p)
-    },
     typeRecentPlatforms() {
-      return this.allRecentPlatforms.filter(item => item.category.value === this.category)
+      return this.allRecentPlatforms.filter((item) => item.category.value === this.category)
     }
   },
-  created() {
-    this.$axios.get('/api/v1/assets/platforms/').then(data => {
-      this.platforms = data
-      this.loadRecentPlatformIds()
-      this.activeType = Object.keys(this.iPlatforms)[0]
-    })
+  async created() {
+    this.platforms = await this.$store.dispatch('assets/getPlatforms')
+    this.allRecentPlatforms = await this.$store.dispatch('assets/getRecentPlatforms')
+    this.activeType = Object.keys(this.iPlatforms)[0]
+    this.loading = false
   },
   methods: {
-    loadRecentPlatformIds() {
-      const recentPlatformIds = JSON.parse(localStorage.getItem('RecentPlatforms')) || []
-      this.recentPlatformIds = recentPlatformIds
-        .map(i => this.platforms.find(p => p.id === i))
-        .filter(p => p)
-        .map(p => p.id)
+    getPlatformLogo(platform) {
+      return loadPlatformIcon(platform.name, platform.type.value)
     },
     onConfirm() {
-      this.iVisible = false
+      this.$emit('update:visible', false)
     },
     randomBorderColor(i) {
       const length = this.bottomColors.length
@@ -139,44 +132,43 @@ export default {
       const color = this.bottomColors[colorIndex]
       return color
     },
-    addToRecentPlatforms(platform) {
-      const recentPlatformIds = this.recentPlatformIds.filter(i => i !== platform.id)
-      recentPlatformIds.unshift(platform.id)
-      if (recentPlatformIds.length > 8) {
-        recentPlatformIds.pop()
-      }
-      this.recentPlatformIds = recentPlatformIds
-      localStorage.setItem('RecentPlatforms', JSON.stringify(recentPlatformIds))
+    handleSelect(platform) {
+      this.$store.dispatch('assets/addToRecentPlatforms', platform)
+      this.$emit('select-platform', platform)
     },
-    createAsset(platform) {
-      const route = _.capitalize(platform.category.value) + 'Create' || 'HostCreate'
-      this.addToRecentPlatforms(platform)
-      this.iVisible = false
-      const query = {
-        node: this.$route.query?.node || this.$route.query?.node_id || '',
-        platform: platform.id,
-        type: platform.type.value,
-        category: platform.category.value
-      }
-
-      const router = { name: route, query }
-      if (this.$route.query.node_id) {
-        const { href } = this.$router.resolve(router)
-        window.open(href, '_blank')
-      } else {
-        this.$router.push(router)
-      }
+    handleManagePlatform() {
+      this.$router.push({ name: 'PlatformList' })
+      this.$emit('update:visible', false)
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.platform-item {
-  margin: 5px 0;
+:deep(.el-drawer__body) {
+  padding: 0;
+  overflow-y: auto;
+}
 
-  & >>> .el-card__body {
-    padding: 10px
+.platform-content {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 30px 22px;
+}
+
+.platform-item {
+  width: 100%;
+  margin: 5px 0;
+  // 每个平台卡片显式描一圈边框（左侧 4px 为随机强调色）。el-card 默认边框在部分主题/
+  // 场景下不可见，这里固定给一圈浅色边框，保证卡片轮廓始终存在。
+  border: 1px solid var(--color-border);
+
+  & :deep(.el-card__body) {
+    padding: 10px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   border-left: solid 4px;
@@ -190,15 +182,86 @@ export default {
   font-weight: 500;
   color: #303133;
 }
->>> .el-collapse {
+
+:deep(.el-collapse) {
+  width: 100%;
   border: none;
+
+  .el-collapse-item__content {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    margin: 0 -10px;
+    padding-bottom: 10px;
+  }
+
+  .el-collapse-item__content > .el-col {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+    padding: 0 10px;
+    box-sizing: border-box;
+  }
+
   .el-collapse-item:last-child {
     .el-collapse-item__header {
       border: none;
     }
+
     .el-collapse-item__wrap {
       border-bottom: none;
     }
+  }
+}
+
+@media (max-width: 992px) {
+  :deep(.el-collapse .el-collapse-item__content > .el-col) {
+    flex-basis: 50%;
+    max-width: 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  :deep(.el-collapse .el-collapse-item__content > .el-col) {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+}
+
+:deep(.el-card__body) {
+  display: flex;
+  align-items: center;
+}
+
+.icon-zone {
+  width: 2em;
+}
+
+.asset-icon {
+  height: 2em;
+  vertical-align: -0.2em;
+  width: 26px;
+  fill: currentColor;
+}
+
+.platform-name {
+  margin-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-right: 40px;
+
+  .el-link {
+    font-size: 14px;
+    font-weight: 400;
+    margin-left: 15px;
+    color: var(--color-link);
   }
 }
 </style>

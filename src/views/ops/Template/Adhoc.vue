@@ -1,9 +1,14 @@
 <template>
-  <GenericListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <GenericListTable
+    :create-drawer="createDrawer"
+    :detail-drawer="detailDrawer"
+    :header-actions="headerActions"
+    :table-config="tableConfig"
+  />
 </template>
 
 <script>
-import GenericListTable from '@/layout/components/GenericListTable'
+import GenericListTable from '@/components/Table/DrawerListTable'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
 
 export default {
@@ -11,12 +16,25 @@ export default {
     GenericListTable
   },
   data() {
+    const currentUserID = this.$store.state.users.profile.id
+    const isSuperuser = this.$store.state.users.profile.is_superuser
     return {
+      createDrawer: () => import('@/views/ops/Template/Adhoc/AdhocUpdateCreate.vue'),
+      detailDrawer: () => import('@/views/ops/Template/Adhoc/AdhocDetail/index.vue'),
       tableConfig: {
         url: '/api/v1/ops/adhocs/',
         columnsShow: {
           min: ['name', 'actions'],
-          default: ['name', 'module', 'comment', 'args', 'comment', 'date_created', 'actions']
+          default: [
+            'name',
+            'module',
+            'args',
+            'comment',
+            'scope',
+            'date_created',
+            'actions',
+            'created_by'
+          ]
         },
         columnsMeta: {
           name: {
@@ -29,11 +47,19 @@ export default {
             formatter: ActionsFormatter,
             formatterArgs: {
               hasUpdate: true,
-              canUpdate: this.$hasPerm('ops.change_adhoc'),
+              canUpdate: ({ row }) => {
+                return this.$hasPerm('ops.change_adhoc') && row.creator === currentUserID
+              },
               updateRoute: 'AdhocUpdate',
               hasDelete: true,
-              canDelete: this.$hasPerm('ops.delete_adhoc'),
-              hasClone: false
+              canDelete: ({ row }) => {
+                return (
+                  (this.$hasPerm('ops.delete_adhoc') && row.creator === currentUserID) ||
+                  isSuperuser
+                )
+              },
+              hasClone: true,
+              cloneRoute: 'AdhocCreate'
             }
           }
         }
@@ -49,7 +75,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>

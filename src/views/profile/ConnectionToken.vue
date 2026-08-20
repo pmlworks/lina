@@ -2,14 +2,14 @@
   <GenericListPage
     ref="GenericListTable"
     :header-actions="headerActions"
-    :help-message="helpMessage"
+    :help-tip="helpMessage"
     :table-config="tableConfig"
   />
 </template>
 
 <script>
 import { GenericListPage } from '@/layout/components'
-import { ShowKeyCopyFormatter } from '@/components/Table/TableFormatters'
+import { SecretViewerFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   name: 'ConnectionToken',
@@ -19,27 +19,27 @@ export default {
   data() {
     const ajaxUrl = '/api/v1/authentication/connection-token/'
     return {
-      helpMessage: this.$t('setting.helpText.ConnectionTokenList'),
+      helpMessage: this.$t('ConnectionTokenList'),
       tableConfig: {
         url: ajaxUrl,
         columnsExtra: ['action'],
         columnsShow: {
-          min: ['id', 'actions'],
-          default: [
-            'id', 'type_display', 'date_expired', 'is_valid', 'actions'
-          ]
+          min: ['id', 'actions', 'asset_display'],
+          default: ['id', 'asset_display', 'date_expired', 'is_active', 'actions']
         },
         columnsMeta: {
           id: {
             label: 'Token ID',
-            formatter: ShowKeyCopyFormatter
+            formatter: SecretViewerFormatter
           },
           action: {
-            label: this.$t('common.Action'),
-            formatter: function(row) {
-              return row.actions.map(item => {
-                return item.label
-              }).join(', ')
+            label: this.$t('PermAction'),
+            formatter: function (row) {
+              return row.actions
+                .map((item) => {
+                  return item.label
+                })
+                .join(', ')
             }
           },
           actions: {
@@ -50,17 +50,20 @@ export default {
               extraActions: [
                 {
                   name: 'Expired',
-                  title: this.$t('setting.Expire'),
+                  title: this.$t('Expire'),
                   type: 'info',
-                  can: ({ row }) => !row['is_expired'] && this.$hasPerm('authentication.expire_connectiontoken'),
-                  callback: function({ row }) {
-                    this.$axios.patch(`${ajaxUrl}${row.id}/expire/`,
-                    ).then(res => {
-                      this.reloadTable()
-                      this.$message.success(this.$tc('common.updateSuccessMsg'))
-                    }).catch(error => {
-                      this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + error))
-                    })
+                  can: ({ row }) =>
+                    !row['is_expired'] && this.$hasPerm('authentication.expire_connectiontoken'),
+                  callback: function ({ row }) {
+                    this.$axios
+                      .patch(`${ajaxUrl}${row.id}/expire/`)
+                      .then((res) => {
+                        this.reloadTable()
+                        this.$message.success(this.$tc('UpdateSuccessMsg'))
+                      })
+                      .catch((error) => {
+                        this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + error))
+                      })
                   }.bind(this)
                 }
               ]
@@ -77,13 +80,11 @@ export default {
         hasImport: false,
         hasBulkDelete: false,
         hasCreate: false,
-        extraActions: [
-        ]
+        extraActions: []
       }
     }
   },
-  computed: {
-  },
+  computed: {},
   methods: {
     reloadTable() {
       return this.$refs.GenericListTable.reloadTable()
@@ -91,7 +92,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

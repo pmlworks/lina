@@ -1,14 +1,14 @@
 <template>
   <div>
     <IBox>
-      <GenericCreateUpdateForm v-bind="$data" @submitSuccess="submitSuccess" />
+      <GenericCreateUpdateForm v-bind="$data" @submit-success="submitSuccess" />
     </IBox>
   </div>
 </template>
 
 <script>
 import { GenericCreateUpdateForm } from '@/layout/components'
-import IBox from '@/components/IBox/index.vue'
+import IBox from '@/components/Common/IBox/index.vue'
 import { mapGetters } from 'vuex'
 
 export default {
@@ -23,48 +23,119 @@ export default {
       hasReset: false,
       moreButtons: [
         {
-          title: this.$t('common.Test'),
+          title: this.$t('Test'),
           loading: false,
-          callback: function(value, form, btn) {
+          callback: function (value, form, btn) {
             btn.loading = true
-            vm.$axios.post(
-              '/api/v1/settings/chatai/testing/',
-              value
-            ).then(res => {
-              vm.$message.success(res['msg'])
-            }).catch(() => {
-              vm.$log.error('err occur')
-            }).finally(() => { btn.loading = false })
+            vm.$axios
+              .post('/api/v1/settings/chatai/testing/', value)
+              .then((res) => {
+                vm.$message.success(res['msg'])
+              })
+              .catch(() => {
+                vm.$log.error('err occur')
+              })
+              .finally(() => {
+                btn.loading = false
+              })
           }
         }
       ],
       encryptedFields: ['VAULT_HCP_TOKEN'],
       fields: [
-        [
-          this.$t('setting.ChatAI'),
-          [
-            'CHAT_AI_ENABLED',
-            'GPT_MODEL',
-            'GPT_BASE_URL',
-            'GPT_API_KEY',
-            'GPT_PROXY'
-          ]
-        ]
+        'CHAT_AI_ENABLED',
+        'CHAT_AI_METHOD',
+        'CHAT_AI_EMBED_URL',
+        'CHAT_AI_TYPE',
+        'DEEPSEEK_BASE_URL',
+        'DEEPSEEK_API_KEY',
+        'DEEPSEEK_PROXY',
+        'DEEPSEEK_MODEL',
+        'GPT_BASE_URL',
+        'GPT_API_KEY',
+        'GPT_PROXY',
+        'GPT_MODEL',
+        'CUSTOM_GPT_MODEL',
+        'CUSTOM_DEEPSEEK_MODEL'
       ],
       fieldsMeta: {
+        CHAT_AI_TYPE: {
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api'
+          }
+        },
         GPT_BASE_URL: {
           el: {
             autocomplete: 'new-password'
           },
-          helpText: this.$t('setting.Example', { example: 'https://api.openai.com/v1' })
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'gpt'
+          }
         },
         GPT_API_KEY: {
           el: {
             autocomplete: 'new-password'
+          },
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'gpt'
           }
         },
         GPT_PROXY: {
-          helpText: this.$t('setting.Example', { example: 'http://ip:port' })
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'gpt'
+          }
+        },
+        GPT_MODEL: {
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'gpt'
+          }
+        },
+        DEEPSEEK_BASE_URL: {
+          el: {
+            autocomplete: 'new-password'
+          },
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'deep-seek'
+          }
+        },
+        DEEPSEEK_API_KEY: {
+          el: {
+            autocomplete: 'new-password'
+          },
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'deep-seek'
+          }
+        },
+        DEEPSEEK_PROXY: {
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'deep-seek'
+          }
+        },
+        DEEPSEEK_MODEL: {
+          hidden: (formValue) => {
+            return formValue.CHAT_AI_METHOD !== 'api' || formValue.CHAT_AI_TYPE !== 'deep-seek'
+          }
+        },
+        CHAT_AI_EMBED_URL: {
+          hidden: (formValue) => formValue.CHAT_AI_METHOD !== 'embed'
+        },
+        CUSTOM_GPT_MODEL: {
+          hidden: (formValue) => {
+            return (
+              formValue.CHAT_AI_METHOD !== 'api' ||
+              formValue.CHAT_AI_TYPE !== 'gpt' ||
+              formValue.GPT_MODEL !== 'custom'
+            )
+          }
+        },
+        CUSTOM_DEEPSEEK_MODEL: {
+          hidden: (formValue) => {
+            return (
+              formValue.CHAT_AI_METHOD !== 'api' ||
+              formValue.CHAT_AI_TYPE !== 'deep-seek' ||
+              formValue.DEEPSEEK_MODEL !== 'custom'
+            )
+          }
         }
       },
       submitMethod() {
@@ -73,9 +144,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters([
-      'publicSettings'
-    ])
+    ...mapGetters(['publicSettings'])
   },
   methods: {
     submitSuccess(res) {
@@ -89,6 +158,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

@@ -1,83 +1,74 @@
 <template>
-  <IBox v-if="session.id" v-loading="loading" class="box">
-    <div slot="header" class="clearfix ibox-title">
-      <i class="fa fa-rocket" />
-      {{ $t('sessions.session') }}
-    </div>
-    <div class="content">
-      <el-row class="item">
-        <el-col>
-          <span class="item-label">{{ $t('sessions.SessionID') }}：</span>
-          <span class="item-value">{{ session.id }}</span>
-        </el-col>
-        <el-col>
-          <span class="item-label">{{ $t('sessions.TargetResources') }}：</span>
-          <span class="item-value">{{ session.asset }}</span>
-        </el-col>
-        <el-col>
-          <span class="item-label">{{ $t('assets.Account') }}：</span>
-          <span class="item-value">{{ session.account }}</span>
-        </el-col>
-        <el-col>
-          <span class="item-label">{{ $t('sessions.UseProtocol') }}：</span>
-          <span class="item-value">{{ session.protocol }}</span>
-        </el-col>
-        <el-col>
-          <span class="item-label">{{ $t('sessions.remoteAddr') }}：</span>
-          <span class="item-value">{{ session.remote_addr }}</span>
-        </el-col>
-        <el-col>
-          <span class="item-label">{{ $t('sessions.SessionState') }}：</span>
-          <span class="item-value cur-color" :style="{ 'background': session.is_finished ? '#ed5565' : '#1ab394' }" />
-        </el-col>
-      </el-row>
-    </div>
-    <el-divider />
-    <div class="bottom-btn">
-      <el-button
-        type="danger"
-        size="small"
-        :disabled="!session.can_terminate"
-        @click="onConnect"
-      >
-        {{ $t('sessions.terminate') }}
-      </el-button>
-      <el-button
-        type="warning"
-        size="small"
-        :disabled="!supportedLock"
-        @click="onToggleLock"
-      >
-        <template v-if="session.is_locked">
-          {{ $t('sessions.resume') }}
-        </template>
-        <template v-else>
-          {{ $t('sessions.pause') }}
-        </template>
-      </el-button>
-      <el-button
-        type="primary"
-        size="small"
-        :disabled="!session.can_join"
-        @click="onMonitor"
-      >
-        {{ $t('sessions.Monitor') }}
-      </el-button>
-    </div>
-  </IBox>
+  <div v-if="session.id" v-loading="loading">
+    <IBox class="box">
+      <template #header>
+        <div class="clearfix ibox-title">
+          <i class="fa fa-rocket" />
+          {{ $t('Session') }}
+        </div>
+      </template>
+      <div class="content">
+        <el-row class="item">
+          <el-col>
+            <span class="item-label">{{ $t('SessionID') }}：</span>
+            <span class="item-value">{{ session.id }}</span>
+          </el-col>
+          <el-col>
+            <span class="item-label">{{ $t('TargetResources') }}：</span>
+            <span class="item-value">{{ session.asset }}</span>
+          </el-col>
+          <el-col>
+            <span class="item-label">{{ $t('Account') }}：</span>
+            <span class="item-value">{{ session.account }}</span>
+          </el-col>
+          <el-col>
+            <span class="item-label">{{ $t('UseProtocol') }}：</span>
+            <span class="item-value">{{ session.protocol }}</span>
+          </el-col>
+          <el-col>
+            <span class="item-label">{{ $t('RemoteAddr') }}：</span>
+            <span class="item-value">{{ session.remote_addr }}</span>
+          </el-col>
+          <el-col>
+            <span class="item-label">{{ $t('SessionState') }}：</span>
+            <span
+              :style="{ background: session.is_finished ? '#ed5565' : '#1ab394' }"
+              class="item-value cur-color"
+            />
+          </el-col>
+        </el-row>
+      </div>
+      <el-divider />
+      <div v-if="!isAuditRoute" class="bottom-btn">
+        <el-button :disabled="!session.can_terminate" size="small" type="danger" @click="onConnect">
+          {{ $t('Terminate') }}
+        </el-button>
+        <el-button :disabled="!supportedLock" size="small" type="warning" @click="onToggleLock">
+          <template v-if="session.is_locked">
+            {{ $t('Resume') }}
+          </template>
+          <template v-else>
+            {{ $t('Pause') }}
+          </template>
+        </el-button>
+        <el-button :disabled="!session.can_join" size="small" type="primary" @click="onMonitor">
+          {{ $t('Monitor') }}
+        </el-button>
+      </div>
+    </IBox>
+  </div>
 </template>
 
 <script>
-import IBox from '@/components/IBox'
-import { IsSupportPauseSessionType } from '@/utils/jms'
+import IBox from '@/components/Common/IBox'
+import { IsSupportPauseSessionType } from '@/utils/jms/index'
 
 export default {
   components: { IBox },
   props: {
     object: {
       type: Object,
-      default: () => {
-      }
+      default: () => {}
     }
   },
   data() {
@@ -88,13 +79,20 @@ export default {
       supportedLock: false
     }
   },
-
+  computed: {
+    isAuditRoute() {
+      return this.$route.name === 'AuditTicketList'
+    }
+  },
   created() {
-    if (this.object.state.value === 'approved' && this.object.type.value === 'login_asset_confirm') {
+    if (
+      this.object.state.value === 'approved' &&
+      this.object.type.value === 'login_asset_confirm'
+    ) {
       this.init()
     }
   },
-  beforeDestroy() {
+  beforeUnmount() {
     clearTimeout(this.curTimer)
     this.curTimer = null
   },
@@ -106,95 +104,107 @@ export default {
         url,
         method: 'get',
         disableFlashErrorMsg: true
-      }).then(res => {
-        this.session = res || {}
-        const terminalType = res['terminal']['type']
-        const isNormalSession = res['type']['value'] === 'normal'
-        this.supportedLock = IsSupportPauseSessionType(terminalType) && isNormalSession
-      }).catch(err => {
-        this.curTimer = setTimeout(() => {
-          this.init()
-        }, 1400)
-        this.$log.debug('error', err)
-      }).finally(() => {
-        this.loading = false
       })
+        .then((res) => {
+          this.session = res || {}
+          const terminalType = res['terminal']['type']
+          const isNormalSession = res['type']['value'] === 'normal'
+          this.supportedLock = IsSupportPauseSessionType(terminalType) && isNormalSession
+        })
+        .catch((err) => {
+          this.curTimer = setTimeout(() => {
+            this.init()
+          }, 1400)
+          this.$log.debug('error', err)
+        })
+        .finally(() => {
+          this.loading = false
+        })
     },
     onConnect() {
       const url = '/api/v1/terminal/tasks/kill-session-for-ticket/'
       const data = [this.session.id] || []
-      this.$axios.post(url, data).then(res => {
-        this.$message.success(this.$tc('sessions.TerminateTaskSendSuccessMsg'))
-        this.curTimer = setTimeout(() => {
-          this.init()
-        }, 50000)
-      }).catch(err => {
-        this.$message.error(err)
-      })
+      this.$axios
+        .post(url, data)
+        .then((res) => {
+          this.$message.success(this.$tc('TerminateTaskSendSuccessMsg'))
+          this.curTimer = setTimeout(() => {
+            this.init()
+          }, 50000)
+        })
+        .catch((err) => {
+          this.$message.error(err)
+        })
     },
     onMonitor() {
       const joinUrl = `/luna/monitor/${this.session.id}?ticket_id=${this.object.id}`
-      window.open(joinUrl, 'height=600, width=850, top=400, left=400, toolbar=no, menubar=no, scrollbars=no, location=no, status=no')
+      window.open(
+        joinUrl,
+        '_blank',
+        'height=600, width=850, top=400, left=400, toolbar=no, menubar=no, scrollbars=no, location=no, status=no'
+      )
     },
     onToggleLock() {
       const url = '/api/v1/terminal/tasks/toggle-lock-session-for-ticket/'
       const task_name = this.session.is_locked ? 'unlock_session' : 'lock_session'
       const data = {
-        'session_id': this.session.id,
-        'task_name': task_name
+        session_id: this.session.id,
+        task_name: task_name
       }
-      const resumeMsg = this.$tc('sessions.ResumeTaskSendSuccessMsg')
-      const pauseMsg = this.$tc('sessions.PauseTaskSendSuccessMsg')
+      const resumeMsg = this.$tc('ResumeTaskSendSuccessMsg')
+      const pauseMsg = this.$tc('PauseTaskSendSuccessMsg')
       const msg = this.session.is_locked ? resumeMsg : pauseMsg
-      this.$axios.post(url, data).then(res => {
-        this.$message.success(msg)
-        this.session.is_locked = !this.session.is_locked
-      }).catch(err => {
-        this.$message.error(err)
-      })
+      this.$axios
+        .post(url, data)
+        .then((res) => {
+          this.$message.success(msg)
+          this.session.is_locked = !this.session.is_locked
+        })
+        .catch((err) => {
+          this.$message.error(err)
+        })
     }
   }
-
 }
 </script>
 
-<style lang='scss' scoped>
-  .box {
-    margin-top: 15px;
-    margin-bottom: 15px;
+<style lang="scss" scoped>
+.box {
+  margin-top: 15px;
+  margin-bottom: 15px;
 
-    & >>> .el-divider--horizontal {
-      margin: 10px 0;
-    }
+  & :deep(.el-divider--horizontal) {
+    margin: 10px 0;
+  }
+}
+
+.content {
+  line-height: 2.5;
+  font-size: 13px;
+  color: #676a6c;
+
+  .item-label {
+    font-weight: 700;
   }
 
-  .content {
-    line-height: 2.5;
-    font-size: 13px;
-    color: #676A6C;
-
-    .item-label {
-      font-weight: 700;
-    }
-
-    .item-value {
-      color: #676A6C;
-    }
-
-    & >>> .el-col {
-      line-height: 24px;
-    }
+  .item-value {
+    color: #676a6c;
   }
 
-  .bottom-btn {
-    text-align: right;
+  & :deep(.el-col) {
+    line-height: 24px;
   }
+}
 
-  .cur-color {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    vertical-align: text-top;
-    border-radius: 50%;
-  }
+.bottom-btn {
+  text-align: right;
+}
+
+.cur-color {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: text-top;
+  border-radius: 50%;
+}
 </style>

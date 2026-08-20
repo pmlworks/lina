@@ -1,6 +1,6 @@
 <template>
   <IBox>
-    <GenericCreateUpdateForm v-bind="config" @submitSuccess="submitSuccess" />
+    <GenericCreateUpdateForm v-bind="config" @submit-success="submitSuccess" />
   </IBox>
 </template>
 
@@ -23,18 +23,14 @@ export default {
   },
   data() {
     return {
-      title: this.$t('common.Announcement'),
+      title: this.$t('Announcement'),
       visible: false,
       enableField: 'ANNOUNCEMENT_ENABLED',
       config: {
-        fields: [
-          ['', ['ANNOUNCEMENT_ENABLED', 'ANNOUNCEMENT']]
-        ],
+        fields: [['', ['ANNOUNCEMENT_ENABLED', 'ANNOUNCEMENT']]],
         fieldsMeta: {
           ANNOUNCEMENT: {
-            fields: [
-              'SUBJECT', 'CONTENT', 'LINK'
-            ],
+            fields: ['SUBJECT', 'CONTENT', 'DATE_START', 'DATE_END', 'LINK'],
             fieldsMeta: {
               CONTENT: {
                 component: MarkDown,
@@ -46,7 +42,7 @@ export default {
             }
           }
         },
-        successUrl: { name: 'Settings', params: { activeMenu: 'Basic' }},
+        successUrl: { name: 'Settings', params: { activeMenu: 'Basic' } },
         url: '/api/v1/settings/setting/?category=announcement',
         hasReset: false,
         submitMethod() {
@@ -63,7 +59,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

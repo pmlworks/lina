@@ -1,5 +1,5 @@
 import store from '@/store'
-import { pageScroll } from '@/utils/common'
+import { pageScroll } from '@/utils/common/index'
 
 export const getInputFocus = () => {
   const dom = document.querySelector('.chat-input .el-textarea__inner')

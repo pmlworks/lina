@@ -3,24 +3,25 @@
     :before-submit="beforeSubmit"
     :form-config="formConfig"
     :table-config="tableConfig"
-    class="attr-input"
+    class="action-input"
     @submit="onSubmit"
   />
 </template>
 
-<script>
-import { AttrInput, Select2 } from '@/components/Form/FormFields'
+<script lang="jsx">
 import { Required } from '@/components/Form/DataForm/rules'
+import { AttrInput, Select2 } from '@/components/Form/FormFields'
 import ProtocolSelector from '@/components/Form/FormFields/ProtocolSelector'
 import { resourceTypeOptions, tableFormatter } from './const'
-
 export default {
   name: 'ActionInput',
-  components: { AttrInput },
+  components: {
+    AttrInput
+  },
   props: {
     value: {
       type: Array,
-      default: () => ([])
+      default: () => []
     }
   },
   data() {
@@ -28,14 +29,26 @@ export default {
       resourceType: '',
       globalResource: {},
       globalProtocols: {},
+      nameOptions: [
+        {
+          label: this.$t('InstanceName'),
+          value: 'full_name'
+        },
+        {
+          label: this.$t('InstanceNamePartIp'),
+          value: 'part_name'
+        }
+      ],
       formConfig: {
-        initial: { attr: '', value: '' },
+        initial: {
+          attr: '',
+          value: ''
+        },
         inline: true,
         hasSaveContinue: false,
-        submitBtnSize: 'mini',
-        submitBtnText: this.$t('common.Add'),
+        submitBtnSize: 'small',
+        submitBtnText: this.$t('Add'),
         hasReset: false,
-        onSubmit: () => {},
         submitMethod: () => 'post',
         getUrl: () => '',
         cleanFormValue(data) {
@@ -58,27 +71,43 @@ export default {
             },
             on: {
               change: ([val], updateForm) => {
-                updateForm({ value: '' })
-                let url
+                updateForm({
+                  value: ''
+                })
+                let url = ''
+                let options = []
                 switch (val) {
-                  case 'platform':
-                    url = '/api/v1/assets/platforms/?category=host'
+                  case 'platform': {
+                    const category = this.$route.query.category || 'host'
+                    url = `/api/v1/assets/platforms/?category=${category}`
                     break
+                  }
                   case 'node':
                     url = '/api/v1/assets/nodes/'
                     break
-                  case 'domain':
-                    url = '/api/v1/assets/domains/'
+                  case 'zone':
+                    url = '/api/v1/assets/zones/'
                     break
                   case 'account_template':
                     url = '/api/v1/accounts/account-templates/'
+                    break
+                  case 'label':
+                    url = '/api/v1/labels/labels/'
+                    break
+                  case 'name_strategy':
+                    options = this.nameOptions
                     break
                 }
                 if (val !== 'platform') {
                   this.formConfig.fieldsMeta.protocols.el.hidden = true
                 }
                 this.resourceType = val
-                this.formConfig.fieldsMeta.value.el.ajax.url = url
+                if (url) {
+                  this.formConfig.fieldsMeta.value.el.ajax.url = url
+                } else {
+                  this.formConfig.fieldsMeta.attr.el.remote = false
+                }
+                this.formConfig.fieldsMeta.value.el.options = options
               }
             }
           },
@@ -87,31 +116,38 @@ export default {
             component: Select2,
             rules: [Required],
             el: {
+              options: [],
               value: [],
               ajax: {
-                url: '',
-                clearable: false,
+                url: '/api/v1/assets/platforms/',
                 transformOption: (item) => {
-                  let label
+                  let display
                   switch (this.resourceType) {
                     case 'platform':
-                      label = item?.name
+                      display = item?.name
                       this.globalProtocols[item.id] = item.protocols
-                      this.globalResource[item.id] = label
+                      this.globalResource[item.id] = display
                       break
                     case 'account_template':
-                      label = `${item.name}(${item.username})`
-                      this.globalResource[item.id] = label
+                      display = `${item.name}(${item.username})`
+                      this.globalResource[item.id] = display
                       break
                     case 'node':
-                      label = item?.full_value
-                      this.globalResource[item.id] = label
+                      display = item?.full_value
+                      this.globalResource[item.id] = display
+                      break
+                    case 'label':
+                      display = `${item.name}:${item.value}`
+                      this.globalResource[item.id] = display
                       break
                     default:
-                      label = item?.name
-                      this.globalResource[item.id] = label
+                      display = item?.name
+                      this.globalResource[item.id] = display
                   }
-                  return { label: label, value: item.id }
+                  return {
+                    label: display,
+                    value: item.id
+                  }
                 }
               },
               multiple: false
@@ -133,6 +169,7 @@ export default {
             el: {
               hidden: true,
               settingReadonly: true,
+              showSetting: () => false,
               choices: []
             }
           }
@@ -140,46 +177,76 @@ export default {
       },
       tableConfig: {
         columns: [
-          { prop: 'attr', label: this.$t('common.ResourceType'), formatter: tableFormatter('resource_type') },
-          { prop: 'value', label: this.$t('common.Resource'), formatter: tableFormatter('resource', () => { return this.globalResource }) },
-          { prop: 'protocols', label: this.$t('common.Other'), formatter: tableFormatter('protocols') },
-          { prop: 'action', label: this.$t('common.Action'), align: 'center', width: '100px', formatter: (row, col, cellValue, index) => {
-            return (
-              <div className='input-button'>
-                <el-button
-                  icon='el-icon-minus'
-                  size='mini'
-                  style={{ 'flexShrink': 0 }}
-                  type='danger'
-                  onClick={ this.handleDelete(index) }
-                />
-              </div>
-            )
-          } }
+          {
+            prop: 'attr',
+            label: this.$t('ResourceType'),
+            formatter: tableFormatter('resource_type')
+          },
+          {
+            prop: 'value',
+            label: this.$t('Resource'),
+            formatter: tableFormatter('resource', () => {
+              return this.globalResource
+            })
+          },
+          {
+            prop: 'protocols',
+            label: this.$t('Other'),
+            formatter: tableFormatter('protocols')
+          },
+          {
+            prop: 'action',
+            label: this.$t('Action'),
+            align: 'center',
+            width: '100px',
+            formatter: (row, col, cellValue, index) => {
+              return (
+                <div class="input-button">
+                  <el-button
+                    icon="Minus"
+                    size="small"
+                    style={{ flexShrink: 0 }}
+                    type="danger"
+                    onClick={this.handleDelete(index)}
+                  />
+                </div>
+              )
+            }
+          }
         ],
         totalData: this.value || [],
         hasPagination: false
       }
     }
   },
+  created() {
+    this.init()
+  },
   methods: {
+    init() {
+      this.nameOptions.map((o) => {
+        this.globalResource[o.value] = o.label
+      })
+    },
     onSubmit() {
       this.$emit('input', this.tableConfig.totalData)
     },
     beforeSubmit(data) {
       let status = true
       const labelMap = {
-        platform: this.$tc('assets.Platform'), domain: this.$tc('assets.Domain')
+        platform: this.$tc('Platform'),
+        zone: this.$tc('Zone'),
+        name_strategy: this.$tc('Strategy')
       }
-      this.tableConfig.totalData.map(item => {
+      this.tableConfig.totalData.map((item) => {
         const iValue = item.value?.id || item.value
         const iAttr = item.attr?.value || item.attr
         if (iValue === data.value) {
           status = false
-          this.$message.error(`${this.$tc('xpack.Cloud.ExistError')}`)
+          this.$message.error(`${this.$tc('ExistError')}`)
         } else if (Object.keys(labelMap).indexOf(data?.attr) !== -1 && iAttr === data.attr) {
           status = false
-          this.$message.error(`${this.$tc('xpack.Cloud.UniqueError')}: ${labelMap[data.attr]}`)
+          this.$message.error(`${this.$tc('UniqueError')}: ${labelMap[data.attr]}`)
         }
       })
       return status
@@ -190,7 +257,7 @@ export default {
         if (item[0]?.id) {
           this.$axios.delete(`/api/v1/xpack/cloud/strategy-actions/${item[0].id}/`)
         }
-        this.$message.success(this.$tc('common.deleteSuccessMsg'))
+        this.$message.success(this.$tc('DeleteSuccessMsg'))
       }
     }
   }
@@ -198,11 +265,27 @@ export default {
 </script>
 
 <style lang="scss" scoped>
->>> .el-form-item:nth-child(-n+3) {
-  width: 43.5%;
+.action-input {
+  :deep(.form-fields.el-form) {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto !important;
+    column-gap: 12px;
+    row-gap: 8px;
+    align-items: start;
+    padding: 0 !important;
+  }
+
+  :deep(.form-fields > .el-form-item) {
+    min-width: 0;
+    margin: 0 !important;
+  }
 }
->>> .el-form-item:last-child {
-  width: 6%;
+
+@media (max-width: 1200px) {
+  .action-input {
+    :deep(.form-fields.el-form) {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+  }
 }
 </style>
-

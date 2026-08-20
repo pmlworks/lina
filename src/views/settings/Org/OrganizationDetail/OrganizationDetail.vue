@@ -1,9 +1,9 @@
 <template>
   <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
+    <el-col :md="24" :sm="24">
       <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
     </el-col>
-    <el-col :md="10" :sm="24" />
+    <el-col :md="20" :sm="24" class="detail-right-quick-actions" />
   </el-row>
 </template>
 
@@ -25,35 +25,30 @@ export default {
     return {
       url: `/api/v1/orgs/orgs/${this.object.id}/`,
       detailFields: [
-        'name', 'created_by',
+        'name',
+        'created_by',
         {
-          key: this.$t('xpack.Organization.users_amount'),
+          key: this.$t('UsersAmount'),
           value: this.object.resource_statistics.users_amount
         },
         {
-          key: this.$t('xpack.Organization.groups_amount'),
+          key: this.$t('GroupsAmount'),
           value: this.object.resource_statistics.groups_amount
         },
         {
-          key: this.$t('xpack.Organization.assets_amount'),
+          key: this.$t('AssetsAmount'),
           value: this.object.resource_statistics.assets_amount
         },
         {
-          key: this.$t('xpack.Organization.asset_perms_amount'),
+          key: this.$t('AssetPermsAmount'),
           value: this.object.resource_statistics.asset_perms_amount
         },
-        'date_created', 'comment'
+        'date_created',
+        'comment'
       ]
-    }
-  },
-  computed: {
-    cardTitle() {
-      return this.object.name
     }
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

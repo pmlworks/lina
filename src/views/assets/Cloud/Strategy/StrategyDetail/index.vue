@@ -1,5 +1,9 @@
 <template>
-  <GenericDetailPage :object.sync="Account" :active-menu.sync="config.activeMenu" v-bind="config" v-on="$listeners">
+  <GenericDetailPage
+    v-bind="config"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="Account"
+  >
     <keep-alive>
       <component :is="config.activeMenu" :object="Account" />
     </keep-alive>
@@ -19,19 +23,28 @@ export default {
   data() {
     return {
       Account: {
-        name: '', strategy_rules: [], strategy_actions: [], comment: ''
+        name: '',
+        strategy_rules: [],
+        strategy_actions: [],
+        comment: ''
       },
       config: {
         url: `/api/v1/xpack/cloud/strategies`,
         activeMenu: 'StrategyDetail',
         submenu: [
           {
-            title: this.$t('common.Strategy'),
+            title: this.$t('Strategy'),
             name: 'StrategyDetail'
           }
         ],
         actions: {
-          deleteSuccessRoute: 'CloudCenter',
+          canUpdate: () => {
+            return this.Account.name !== 'default'
+          },
+          canDelete: () => {
+            return this.Account.name !== 'default'
+          },
+          deleteSuccessRoute: 'CloudAccountList',
           updateCallback: () => {
             const id = this.$route.params.id
             const routeName = 'CloudStrategyUpdate'
@@ -47,7 +60,4 @@ export default {
 }
 </script>
 
-<style lang='scss' scoped>
-
-</style>
-
+<style lang="scss" scoped></style>

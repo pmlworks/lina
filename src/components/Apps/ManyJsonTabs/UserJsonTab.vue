@@ -1,28 +1,34 @@
 <template>
-  <el-row :gutter="24">
-    <el-col :md="20" :sm="22">
-      <ListTable v-bind="config" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <ListTable v-bind="config" />
+  </TwoCol>
 </template>
 
 <script>
-import ListTable from '@/components/Table/ListTable/index.vue'
-import { toM2MJsonParams } from '@/utils/jms'
+import { DrawerListTable as ListTable } from '@/components'
+import { toM2MInstanceJsonParams } from '@/utils/jms/index'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
+import { DetailFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   name: 'User',
   components: {
+    TwoCol,
     ListTable
   },
   props: {
     object: {
       type: Object,
-      default: () => {}
+      default: () => ({})
+    },
+    objectAppModel: {
+      type: String,
+      required: true
     }
   },
   data() {
-    const [key, value] = toM2MJsonParams(this.object.users)
+    const [key, value] = toM2MInstanceJsonParams(this.objectAppModel, this.object.id)
+    const org_id = this.object.org_id || this.$store.getters.currentOrg.id
     return {
       config: {
         headerActions: {
@@ -31,38 +37,46 @@ export default {
           hasExport: false
         },
         tableConfig: {
-          url: `/api/v1/users/users/?${key}=${value}`,
+          url: `/api/v1/users/users/?${key}=${value}&oid=${org_id}`,
           columns: [
-            'name', 'username', 'groups', 'system_roles',
-            'org_roles', 'source', 'is_valid'
+            'name',
+            'username',
+            'email',
+            'groups',
+            'system_roles',
+            'org_roles',
+            'source',
+            'is_valid'
           ],
+          columnsShow: {
+            min: ['name', 'username'],
+            default: ['name', 'username', 'email']
+          },
           columnsMeta: {
             name: {
-              label: this.$t('common.Name'),
-              formatter: (row) => {
-                const to = {
-                  name: 'UserDetail',
-                  params: { id: row.id }
-                }
-                if (this.$hasPerm('users.view_user')) {
-                  return <router-link to={to} class='text-link'>{row.name}</router-link>
-                } else {
-                  return <span>{row.name}</span>
+              label: this.$t('Name'),
+              formatter: DetailFormatter,
+              formatterArgs: {
+                getRoute: ({ row }) => {
+                  return {
+                    name: 'UserDetail',
+                    params: { id: row.id }
+                  }
                 }
               }
             },
             system_roles: {
-              label: this.$t('users.SystemRoles'),
+              label: this.$t('SystemRoles'),
               formatter: (row) => {
-                return row['system_roles'].map(item => item['display_name']).join(', ') || '-'
+                return row['system_roles'].map((item) => item['display_name']).join(', ') || '-'
               },
               filters: [],
               columnKey: 'system_roles'
             },
             org_roles: {
-              label: this.$t('users.OrgRoles'),
+              label: this.$t('OrgRoles'),
               formatter: (row) => {
-                return row['org_roles'].map(item => item['display_name']).join(', ') || '-'
+                return row['org_roles'].map((item) => item['display_name']).join(', ') || '-'
               },
               filters: [],
               columnKey: 'org_roles',
@@ -85,7 +99,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

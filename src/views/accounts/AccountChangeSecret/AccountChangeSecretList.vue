@@ -1,12 +1,18 @@
 <template>
-  <GenericListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <GenericListTable
+    :create-drawer="createDrawer"
+    :detail-drawer="detailDrawer"
+    :header-actions="headerActions"
+    :resource="$tc('ChangeSecret')"
+    :table-config="tableConfig"
+  />
 </template>
 
-<script>
+<script lang="jsx">
 import { GenericListTable } from '@/layout/components'
 import { DetailFormatter } from '@/components/Table/TableFormatters'
-import { openTaskPage } from '@/utils/jms'
-
+import AmountFormatter from '@/components/Table/TableFormatters/AmountFormatter.vue'
+import { openTaskPage } from '@/utils/jms/index'
 export default {
   name: 'AccountChangeSecretList',
   components: {
@@ -15,18 +21,35 @@ export default {
   data() {
     const vm = this
     return {
+      createDrawer: () =>
+        import('@/views/accounts/AccountChangeSecret/AccountChangeSecretCreateUpdate.vue'),
+      detailDrawer: () => import('@/views/accounts/AccountChangeSecret/Detail/index.vue'),
       tableConfig: {
         url: '/api/v1/accounts/change-secret-automations/',
         columnsExclude: ['password_rules'],
         columns: [
-          'name', 'accounts', 'secret_strategy', 'is_periodic',
-          'periodic_display', 'executed_amount', 'is_active', 'actions'
+          'name',
+          'accounts',
+          'assets_amount',
+          'nodes_amount',
+          'secret_strategy',
+          'is_periodic',
+          'periodic_display',
+          'executed_amount',
+          'is_active',
+          'actions'
         ],
         columnsShow: {
           min: ['name', 'actions'],
           default: [
-            'name', 'accounts', 'secret_strategy', 'is_periodic',
-            'periodic_display', 'executed_amount', 'is_active', 'actions'
+            'name',
+            'accounts',
+            'assets_amount',
+            'nodes_amount',
+            'periodic_display',
+            'executed_amount',
+            'is_active',
+            'actions'
           ]
         },
         columnsMeta: {
@@ -37,76 +60,78 @@ export default {
             }
           },
           accounts: {
-            formatter: function(row) {
-              return <span> { row.accounts.join(', ') } </span>
+            contentMaxWidth: 300,
+            showOverflowTooltip: {
+              popperStyle: {
+                maxWidth: '500px',
+                overflowWrap: 'anywhere',
+                whiteSpace: 'normal'
+              }
+            },
+            formatter: function (row) {
+              return row.accounts.join(', ')
+            }
+          },
+          assets_amount: {
+            formatter: AmountFormatter,
+            formatterArgs: {
+              async: true,
+              drawer: false,
+              preventClick: true
+            }
+          },
+          nodes_amount: {
+            formatter: AmountFormatter,
+            formatterArgs: {
+              async: true,
+              drawer: false,
+              preventClick: true
             }
           },
           secret_strategy: {
-            formatter: function(row) {
-              return <span> { row.secret_strategy.label } </span>
+            formatter: function (row) {
+              return <span> {row.secret_strategy.label} </span>
             }
           },
-          secret_type: {
-            width: '120px'
-          },
           is_periodic: {
-            label: vm.$t('accounts.AccountChangeSecret.Timer'),
             formatterArgs: {
               showFalse: false
             },
-            width: '80px'
-          },
-          periodic_display: {
-            label: vm.$t('accounts.AccountChangeSecret.TimerPeriod'),
-            width: '150px'
+            width: '180px'
           },
           executed_amount: {
-            formatter: DetailFormatter,
-            formatterArgs: {
-              route: 'AccountGatherList',
-              can: vm.$hasPerm('accounts.view_changesecretexecution'),
-              getRoute({ row }) {
-                return {
-                  name: 'AccountChangeSecretList',
-                  query: {
-                    activeTab: 'AccountChangeSecretExecutionList',
-                    automation_id: row.id
-                  }
-                }
-              }
+            formatter: (row) => {
+              const can = vm.$hasPerm('accounts.view_changesecretexecution')
+              return (
+                <el-link onClick={() => this.handleExecAmount(row)} disabled={!can}>
+                  {row.executed_amount}
+                </el-link>
+              )
             }
           },
-          comment: {
-            width: '90px'
-          },
           actions: {
-            width: '164px',
             formatterArgs: {
-              onClone: ({ row }) => {
-                vm.$router.push({ name: 'AccountChangeSecretCreate', query: { clone_from: row.id }})
-              },
-              onUpdate: ({ row }) => {
-                vm.$router.push({ name: 'AccountChangeSecretUpdate', params: { id: row.id }})
-              },
+              updateRoute: 'AccountChangeSecretUpdate',
+              cloneRoute: 'AccountChangeSecretCreate',
               extraActions: [
                 {
-                  title: vm.$t('xpack.Execute'),
+                  title: vm.$t('Execute'),
                   name: 'execute',
+                  order: 1,
                   can: ({ row }) => {
                     return row.is_active && vm.$hasPerm('accounts.add_changesecretexecution')
                   },
-                  type: 'info',
+                  type: 'primary',
                   disabled: ({ row }) => !row.is_active,
-                  callback: function({ row }) {
-                    this.$axios.post(
-                      `/api/v1/accounts/change-secret-executions/`,
-                      {
+                  callback: function ({ row }) {
+                    this.$axios
+                      .post(`/api/v1/accounts/change-secret-executions/`, {
                         automation: row.id,
                         type: row.type.value
-                      }
-                    ).then(res => {
-                      openTaskPage(res['task'])
-                    })
+                      })
+                      .then((res) => {
+                        openTaskPage(res['task'])
+                      })
                   }.bind(this)
                 }
               ]
@@ -118,17 +143,78 @@ export default {
         hasRefresh: true,
         hasExport: false,
         hasImport: false,
-        createRoute: () => {
-          return {
-            name: 'AccountChangeSecretCreate'
+        createRoute: 'AccountChangeSecretCreate',
+        extraMoreActions: [
+          {
+            name: 'BatchDisable',
+            title: this.$t('DisableSelected'),
+            icon: 'fa-solid fa-ban',
+            can: ({ selectedRows }) =>
+              selectedRows.length > 0 && this.$hasPerm('accounts.change_changesecretautomation'),
+            callback: ({ selectedRows, reloadTable }) =>
+              this.bulkDisableCallback(selectedRows, reloadTable)
+          },
+          {
+            name: 'BatchActivate',
+            title: this.$t('ActivateSelected'),
+            icon: 'fa-circle-check',
+            can: ({ selectedRows }) =>
+              selectedRows.length > 0 && this.$hasPerm('accounts.change_changesecretautomation'),
+            callback: ({ selectedRows, reloadTable }) =>
+              this.bulkActivateCallback(selectedRows, reloadTable)
           }
-        }
+        ]
       }
+    }
+  },
+  methods: {
+    handleExecAmount(row) {
+      this.$router.push({
+        name: 'AccountChangeSecretList',
+        query: {
+          tab: 'AccountChangeSecretExecutionList',
+          automation_id: row.id
+        }
+      })
+    },
+    bulkDisableCallback(selectedRows, reloadTable) {
+      const url = '/api/v1/accounts/change-secret-automations/'
+      const data = selectedRows.map((row) => {
+        return {
+          id: row.id,
+          is_active: false
+        }
+      })
+      if (data.length === 0) return
+      this.$axios
+        .patch(url, data)
+        .then(() => {
+          reloadTable()
+          this.$message.success(this.$t('DisableSuccessMsg'))
+        })
+        .catch((error) => {
+          this.$message.error(this.$t('UpdateErrorMsg') + ' ' + error)
+        })
+    },
+    bulkActivateCallback(selectedRows, reloadTable) {
+      const url = '/api/v1/accounts/change-secret-automations/'
+      const data = selectedRows.map((row) => {
+        return {
+          id: row.id,
+          is_active: true
+        }
+      })
+      if (data.length === 0) return
+      this.$axios
+        .patch(url, data)
+        .then(() => {
+          reloadTable()
+          this.$message.success(this.$t('ActivateSuccessMsg'))
+        })
+        .catch((error) => {
+          this.$message.error(this.$t('UpdateErrorMsg') + ' ' + error)
+        })
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

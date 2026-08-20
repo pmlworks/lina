@@ -1,5 +1,5 @@
 <template>
-  <TabPage :active-menu.sync="activeMenu" :submenu="submenu">
+  <TabPage v-model:active-menu="activeMenu" :submenu="submenu">
     <keep-alive>
       <component :is="activeMenu" />
     </keep-alive>
@@ -18,7 +18,7 @@ export default {
       activeMenu: 'Basic',
       submenu: [
         {
-          title: this.$t('common.Basic'),
+          title: this.$t('Basic'),
           name: 'Basic'
         }
       ]
@@ -27,6 +27,4 @@ export default {
 }
 </script>
 
-<style lang='scss' scoped>
-
-</style>
+<style lang="scss" scoped></style>

@@ -1,27 +1,29 @@
 <template>
   <div>
-    <el-row :gutter="20">
-      <el-col :md="14" :sm="24">
-        <GenericListTable ref="listTable" :header-actions="headerActions" :table-config="tableConfig" />
-      </el-col>
-      <el-col :md="10" :sm="24">
-        <QuickActions :actions="quickActions" :title="title" type="primary" />
-        <RelationCard v-bind="relationConfig" />
-      </el-col>
-    </el-row>
+    <TwoCol>
+      <GenericListTable
+        ref="listTable"
+        :header-actions="headerActions"
+        :table-config="tableConfig"
+      />
+      <template #right>
+        <RelationCard v-bind="relationConfig" :key="relationKey" @add-success="addSuccess" />
+      </template>
+    </TwoCol>
+    <TwoCol />
   </div>
 </template>
 
 <script>
-import GenericListTable from '@/layout/components/GenericListTable'
-import QuickActions from '@/components/QuickActions'
 import RelationCard from '@/components/Cards/RelationCard'
 import { DeleteActionFormatter, DetailFormatter } from '@/components/Table/TableFormatters'
+import GenericListTable from '@/layout/components/GenericListTable'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'GroupUser',
   components: {
-    QuickActions,
+    TwoCol,
     RelationCard,
     GenericListTable
   },
@@ -33,55 +35,55 @@ export default {
     }
   },
   data() {
-    const vm = this
     return {
-      title: this.$t('assets.QuickAdd'),
       quickActions: [
         {
-          title: this.$t('users.AllMembers'),
+          title: this.$t('AllMembers'),
           attrs: {
             type: 'primary',
-            label: this.$tc('common.Add'),
+            label: this.$tc('Add'),
             disabled: !this.$hasPerm('users.add_usergroup')
           },
           callbacks: Object.freeze({
             click: () => {
-              const msg = this.$t('users.AddAllMembersWarningMsg')
-              this.$confirm(msg, this.$tc('common.Info'), {
+              const msg = this.$t('AddAllMembersWarningMsg')
+              this.$confirm(msg, this.$tc('Info'), {
                 type: 'warning',
                 confirmButtonClass: 'el-button--danger',
-                beforeClose: async(action, instance, done) => {
+                beforeClose: async (action, instance, done) => {
                   if (action !== 'confirm') return done()
-                  this.$axios.post(
-                    `/api/v1/users/groups/${this.object.id}/add-all-users/`,
-                  ).then(res => {
-                    this.$message.success(this.$tc('common.AddSuccessMsg'))
-                    done()
-                    window.location.reload()
-                  })
+                  this.$axios
+                    .post(`/api/v1/users/groups/${this.object.id}/add-all-users/`)
+                    .then((res) => {
+                      this.$message.success(this.$tc('AddSuccessMsg'))
+                      done()
+                      window.location.reload()
+                    })
                 }
-              }).catch(() => {
-              })
+              }).catch(() => {})
             }
           })
         }
       ],
       tableConfig: {
         url: `/api/v1/users/users/?group_id=${this.object.id}`,
-        columns: [
-          'name', 'username', 'email', 'is_valid', 'delete_action'
-        ],
+        columnsExclude: ['id'],
+        columns: ['name', 'actions'],
+        actionsColumnPosition: 'end',
+        columnsShow: {
+          default: ['name', 'actions'],
+          min: ['actions']
+        },
         columnsMeta: {
           name: {
             formatter: DetailFormatter,
             formatterArgs: {
-              route: 'UserDetail',
-              can: vm.$hasPerm('user.view_user')
+              can: false,
+              getTitle: ({ row }) => row.name + '(' + row.username + ')'
             }
           },
-          delete_action: {
-            prop: 'id',
-            label: this.$t('common.Actions'),
+          actions: {
+            label: this.$t('Actions'),
             align: 'center',
             width: 150,
             objects: this.object.users,
@@ -89,24 +91,23 @@ export default {
             formatterArgs: {
               disabled: !this.$hasPerm('users.change_usergroup')
             },
-            onDelete: function(col, row, cellValue, reload) {
-              this.$axios.delete(
-                '/api/v1/users/users-groups-relations/', {
+            onDelete: function (col, row, cellValue, reload) {
+              this.$axios
+                .delete('/api/v1/users/users-groups-relations/', {
                   params: {
                     usergroup: this.object.id,
                     user: row.id
                   }
-                }
-              ).then(res => {
-                this.$message.success(this.$tc('common.deleteSuccessMsg'))
-                reload()
-              }).catch(error => {
-                this.$message.error(this.$tc('common.deleteErrorMsg') + ' ' + error)
-              })
+                })
+                .then((res) => {
+                  this.$message.success(this.$tc('DeleteSuccessMsg'))
+                  this.relationKey += 1
+                  reload()
+                })
+                .catch((error) => {
+                  this.$message.error(this.$tc('DeleteErrorMsg') + ' ' + error)
+                })
             }.bind(this)
-          },
-          actions: {
-            has: false
           }
         },
         tableAttrs: {
@@ -128,7 +129,7 @@ export default {
       },
       relationConfig: {
         icon: 'fa-user',
-        title: this.$t('common.Members'),
+        title: this.$t('Members'),
         objectsAjax: {
           url: `/api/v1/users/users/?fields_size=mini&order=name&exclude_group_id=${this.object.id}`,
           transformOption: (item) => {
@@ -137,21 +138,26 @@ export default {
         },
         showHasObjects: false,
         hasObjectsId: this.object.users,
-        disabled: !this.$hasPerm('users.change_usergroup'),
+        disabled: !this.$hasPerm('users.change_usergroup') || this.$store.getters.currentOrgIsRoot,
         performAdd: (items) => {
           const relationUrl = `/api/v1/users/users-groups-relations/`
           const groupId = this.object.id
-          const data = items.map(v => {
+          const data = items.map((v) => {
             return {
               user: v.value,
               usergroup: groupId
             }
           })
-          this.$axios.post(relationUrl, data)
-          this.$message.success(this.$tc('common.AddSuccessMsg'))
-          window.location.reload()
+
+          return this.$axios.post(relationUrl, data)
         }
-      }
+      },
+      relationKey: 0
+    }
+  },
+  methods: {
+    addSuccess() {
+      this.$refs.listTable.reloadTable()
     }
   }
 }

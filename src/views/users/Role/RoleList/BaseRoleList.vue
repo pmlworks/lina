@@ -1,20 +1,25 @@
 <template>
-  <ListTable :header-actions="headerActions" :table-config="tableConfig" />
+  <DrawerListTable
+    ref="ListTable"
+    :create-drawer="createDrawer"
+    :header-actions="headerActions"
+    :table-config="tableConfig"
+  />
 </template>
 
 <script>
-import { ListTable } from '@/components'
+import { DrawerListTable } from '@/components'
 import { DetailFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   name: 'BaseRoleList',
   components: {
-    ListTable
+    DrawerListTable
   },
   props: {
     scope: {
       type: String,
-      default: 'org'
+      default: 'system'
     }
   },
   data() {
@@ -23,6 +28,7 @@ export default {
     return {
       loading: true,
       scopeRole: scopeRole,
+      createDrawer: () => import('@/views/users/Role/RoleCreateUpdate.vue'),
       tableConfig: {
         url: `/api/v1/rbac/${this.scope}-roles/`,
         columnsExclude: ['name', 'permissions'],
@@ -32,7 +38,6 @@ export default {
         },
         columnsMeta: {
           display_name: {
-            label: this.$t('common.Name'),
             formatter: DetailFormatter,
             formatterArgs: {
               permissions: [`rbac.view_${scopeRole}`],
@@ -56,7 +61,7 @@ export default {
                 return {
                   name: 'RoleDetail',
                   query: {
-                    activeTab: 'RoleUsers',
+                    tab: 'RoleUsers',
                     scope: row.scope.value
                   },
                   params: {
@@ -67,7 +72,7 @@ export default {
             }
           },
           builtin: {
-            width: '100px',
+            width: '150px',
             formatterArgs: {
               showFalse: false
             }
@@ -83,39 +88,32 @@ export default {
               updateRoute: {
                 name: 'RoleUpdate',
                 query: {
-                  'scope': this.scope
+                  scope: this.scope
                 }
               },
               canClone: ({ row }) => {
                 return this.$hasPerm(`rbac.add_${row.scope?.value}role`)
               },
               onClone: ({ row }) => {
-                return vm.$router.push({
-                  name: 'RoleCreate',
-                  query: {
-                    scope: row.scope?.value,
-                    clone_from: row.id
-                  }
-                })
+                this.$refs.ListTable.onClone({ row, query: { scope: row.scope?.value } })
+              },
+              onUpdate: ({ row }) => {
+                this.$refs.ListTable.onUpdate({ row, query: { scope: row.scope?.value } })
               }
             }
           }
         }
       },
       headerActions: {
-        createRoute: {
-          name: 'RoleCreate',
-          query: {
-            scope: this.scope
-          }
-        },
-        searchConfig: {
-          exclude: ['scope']
+        onCreate: () => {
+          this.$refs.ListTable.onCreate({ query: { scope: vm.scope } })
         },
         hasMoreActions: false,
         canCreate: () => {
           return this.$hasPerm(`rbac.add_${this.scopeRole}`)
         },
+        hasImport: this.$hasPerm(`rbac.add_${this.scopeRole}`),
+        hasExport: this.$hasPerm(`rbac.change_${this.scopeRole}`),
         importOptions: {
           canImportUpdate: false
         }
@@ -125,11 +123,10 @@ export default {
   methods: {
     hasPermNotBuiltin(row, perm) {
       return !row['builtin'] && this.$hasPerm(perm)
+    },
+    reloadTable() {
+      this.$refs.ListTable.reloadTable()
     }
   }
 }
 </script>
-
-<style>
-
-</style>

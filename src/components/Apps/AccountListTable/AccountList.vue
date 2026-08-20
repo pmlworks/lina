@@ -1,63 +1,88 @@
 <template>
   <div>
-    <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" />
+    <DrawerListTable
+      ref="ListTable"
+      :detail-drawer="detailDrawer"
+      :header-actions="headerActions"
+      :quick-filters="quickFilters"
+      :table-config="tableConfig"
+    />
     <ViewSecret
       v-if="showViewSecretDialog"
+      v-model:visible="showViewSecretDialog"
       :account="account"
       :url="secretUrl"
-      :visible.sync="showViewSecretDialog"
     />
     <UpdateSecretInfo
       v-if="showUpdateSecretDialog"
+      v-model:visible="showUpdateSecretDialog"
       :account="account"
-      :visible.sync="showUpdateSecretDialog"
-      @updateAuthDone="onUpdateAuthDone"
+      @update-auth-done="onUpdateAuthDone"
     />
     <AccountCreateUpdate
       v-if="showAddDialog"
+      v-model:visible="showAddDialog"
       :account="account"
+      :add-template="addTemplate"
       :asset="iAsset"
+      :operation-flag="accountOperationFlag"
       :title="accountCreateUpdateTitle"
-      :visible.sync="showAddDialog"
-      @add="addAccountSuccess"
-      @bulk-create-done="showBulkCreateResult($event)"
-    />
-    <AccountCreateUpdate
-      v-if="showAddTemplateDialog"
-      :account="account"
-      :add-template="true"
-      :asset="iAsset"
-      :title="accountCreateUpdateTitle"
-      :visible.sync="showAddTemplateDialog"
       @add="addAccountSuccess"
       @bulk-create-done="showBulkCreateResult($event)"
     />
     <ResultDialog
       v-if="showResultDialog"
+      v-model:visible="showResultDialog"
       :result="createAccountResults"
-      :visible.sync="showResultDialog"
+      @close-all="closeAll"
+    />
+    <AccountBulkUpdateDialog
+      v-bind="updateSelectedDialogSetting"
+      v-if="updateSelectedDialogSetting.visible"
+      v-model:visible="updateSelectedDialogSetting.visible"
+      @update="handleAccountBulkUpdate"
+    />
+    <PasswordHistoryDialog
+      v-if="showPasswordHistoryDialog"
+      v-model:visible="showPasswordHistoryDialog"
+      :account="currentAccountColumn"
     />
   </div>
 </template>
 
 <script>
-import ListTable from '@/components/Table/ListTable/index.vue'
-import { ActionsFormatter } from '@/components/Table/TableFormatters'
+import { mapGetters } from 'vuex'
+import {
+  accountOtherActions,
+  accountQuickFilters,
+  connectivityMeta,
+  isDirectoryServiceAccount
+} from './const'
+import { openTaskPage } from '@/utils/jms/index'
+import {
+  AccountConnectFormatter,
+  ActionsFormatter,
+  PlatformFormatter,
+  SecretViewerFormatter
+} from '@/components/Table/TableFormatters'
 import ViewSecret from './ViewSecret.vue'
 import UpdateSecretInfo from './UpdateSecretInfo.vue'
-import AccountCreateUpdate from './AccountCreateUpdate.vue'
-import { connectivityMeta } from './const'
-import { openTaskPage } from '@/utils/jms'
 import ResultDialog from './BulkCreateResultDialog.vue'
+import AccountCreateUpdate from './AccountCreateUpdate.vue'
+import PasswordHistoryDialog from './PasswordHistoryDialog.vue'
+import DrawerListTable from '@/components/Table/DrawerListTable/index.vue'
+import AccountBulkUpdateDialog from '@/components/Apps/AccountListTable/AccountBulkUpdateDialog.vue'
 
 export default {
   name: 'AccountListTable',
   components: {
-    ResultDialog,
-    ListTable,
-    UpdateSecretInfo,
     ViewSecret,
-    AccountCreateUpdate
+    ResultDialog,
+    DrawerListTable,
+    UpdateSecretInfo,
+    AccountCreateUpdate,
+    PasswordHistoryDialog,
+    AccountBulkUpdateDialog
   },
   props: {
     url: {
@@ -66,9 +91,7 @@ export default {
     },
     exportUrl: {
       type: String,
-      default() {
-        return this.url.replace('/accounts/accounts/', '/accounts/account-secrets/')
-      }
+      default: ''
     },
     hasLeftActions: {
       type: Boolean,
@@ -80,7 +103,7 @@ export default {
     },
     hasClone: {
       type: Boolean,
-      default: false
+      default: true
     },
     asset: {
       type: Object,
@@ -104,175 +127,179 @@ export default {
     },
     columnsMeta: {
       type: Object,
-      default: () => {
-      }
+      default: () => {}
     },
     columnsDefault: {
       type: Array,
-      default: () => ([
-        'name', 'username', 'asset', 'privileged',
-        'secret_type', 'is_active', 'date_updated'
-      ])
+      default: () => ['name', 'username', 'secret', 'asset', 'platform', 'connect']
     },
     headerExtraActions: {
       type: Array,
       default: () => []
+    },
+    extraQuery: {
+      type: Object,
+      default: () => ({})
+    },
+    showQuickFilters: {
+      type: Boolean,
+      default: true
+    },
+    showActions: {
+      type: Boolean,
+      default: true
     }
   },
   data() {
     const vm = this
     return {
+      addTemplate: false,
+      isUpdateAccount: false,
+      currentAccountColumn: {},
+      showPasswordHistoryDialog: false,
       showViewSecretDialog: false,
       showUpdateSecretDialog: false,
       showResultDialog: false,
       showAddDialog: false,
       showAddTemplateDialog: false,
+      activatedReloadTimer: null,
+      tabDeactivated: false,
+      accountOperationFlag: null,
+      detailDrawer: () => import('@/views/accounts/Account/AccountDetail/index.vue'),
       createAccountResults: [],
-      accountCreateUpdateTitle: this.$t('assets.AddAccount'),
       iAsset: this.asset,
       account: {},
       secretUrl: '',
+      quickFilters: this.showQuickFilters ? accountQuickFilters(this) : [],
       tableConfig: {
         url: this.url,
         permissions: {
           app: 'assets',
           resource: 'account'
         },
-        extraQuery: {
-          order: '-date_updated'
-        },
+        extraQuery: this.extraQuery,
         columnsExclude: ['spec_info'],
+        columnsAdd: ['secret', 'platform', 'connect'],
         columnsShow: {
           min: ['name', 'username', 'actions'],
           default: this.columnsDefault
         },
         columnsMeta: {
           name: {
-            formatter: function(row) {
-              const to = {
-                name: 'AssetAccountDetail',
+            minWidth: '60px',
+            formatterArgs: {
+              can: () => vm.$hasPerm('accounts.view_account'),
+              getRoute: ({ row }) => ({
+                name: 'AccountDetail',
                 params: { id: row.id }
-              }
-              if (vm.$hasPerm('accounts.view_account')) {
-                return <router-link to={to}>{row.name}</router-link>
-              } else {
-                return <span>{row.name}</span>
+              }),
+              getTitle: ({ row }) => {
+                let title = row.name
+                if (row.ds && this.asset && this.asset.id !== row.asset.id) {
+                  const dsID = row.ds.id.split('-')[0]
+                  title = `${row.name}@${dsID}`
+                }
+                return title
+              },
+              getDrawerTitle({ row }) {
+                return `${row.username}@${row.asset.name}`
               }
             }
           },
-          asset: {
-            label: this.$t('assets.Asset'),
-            formatter: function(row) {
-              const to = {
-                name: 'AssetDetail',
-                params: { id: row.asset.id }
+          secret: {
+            formatter: SecretViewerFormatter,
+            width: '130px',
+            formatterArgs: {
+              secretFrom: 'api',
+              hasDownload: false,
+              actionLeft: true
+            }
+          },
+          connect: {
+            label: this.$t('Connect'),
+            width: '80px',
+            formatter: AccountConnectFormatter,
+            formatterArgs: {
+              asset: this.asset,
+              can: ({ row }) => {
+                return this.currentUserIsSuperAdmin
               }
-              if (vm.$hasPerm('assets.view_asset')) {
-                return <router-link to={to}>{row.asset.name}</router-link>
+            }
+          },
+          ds: {
+            width: '100px',
+            formatter: (row) => {
+              if (row.ds && row.ds['domain_name']) {
+                return row.ds['domain_name']
               } else {
-                return <span>{row.asset.name}</span>
+                return ''
+              }
+            }
+          },
+          platform: {
+            label: this.$t('Platform'),
+            width: '150px',
+            formatter: PlatformFormatter,
+            formatterArgs: {
+              platformAttr: 'asset.platform'
+            }
+          },
+          asset: {
+            minWidth: '100px',
+            formatter: function (row) {
+              return row.asset.name
+            }
+          },
+          username: {
+            minWidth: '60px',
+            formatter: function (row) {
+              if (row.ds && row.ds['domain_name']) {
+                return `${row.username}@${row.ds['domain_name']}`
+              } else {
+                return row.username
               }
             }
           },
           secret_type: {
-            width: '100px',
-            formatter: function(row) {
+            formatter: function (row) {
               return row.secret_type.label
             }
           },
           source: {
-            formatter: function(row) {
+            formatter: function (row) {
               return row.source.label
             }
           },
           has_secret: {
-            width: '100px',
+            width: '120px',
             formatterArgs: {
               showFalse: false
             }
           },
           privileged: {
-            label: this.$t('assets.Privileged'),
             width: '120px',
             formatterArgs: {
               showText: false,
-              showFalse: false
+              showFalse: true
             }
           },
           connectivity: connectivityMeta,
           actions: {
             formatter: ActionsFormatter,
+            has: this.showActions,
             formatterArgs: {
+              performDelete: ({ row }) => {
+                const id = row.id
+                const url = `/api/v1/accounts/accounts/${id}/`
+                return this.$axios.delete(url)
+              },
               hasUpdate: false, // can set function(row, value)
-              hasDelete: false, // can set function(row, value)
-              hasClone: this.hasClone,
-              moreActionsTitle: this.$t('common.More'),
-              extraActions: [
-                {
-                  name: 'View',
-                  title: this.$t('common.View'),
-                  can: this.$hasPerm('accounts.view_accountsecret'),
-                  type: 'primary',
-                  callback: ({ row }) => {
-                    // debugger
-                    vm.secretUrl = `/api/v1/accounts/account-secrets/${row.id}/`
-                    vm.account = row
-                    vm.showViewSecretDialog = false
-                    setTimeout(() => {
-                      vm.showViewSecretDialog = true
-                    })
-                  }
-                },
-                {
-                  name: 'ClearSecret',
-                  title: this.$t('common.ClearSecret'),
-                  can: this.$hasPerm('accounts.change_account'),
-                  type: 'primary',
-                  callback: ({ row }) => {
-                    this.$axios.patch(
-                      `/api/v1/accounts/accounts/clear-secret/`,
-                      { account_ids: [row.id] }
-                    ).then(() => {
-                      this.$message.success(this.$tc('common.ClearSuccessMsg'))
-                    })
-                  }
-                },
-                {
-                  name: 'Test',
-                  title: this.$t('common.Test'),
-                  can: ({ row }) =>
-                    !this.$store.getters.currentOrgIsRoot &&
-                    this.$hasPerm('accounts.change_account') &&
-                    row.asset['auto_config'].ansible_enabled &&
-                    row.asset['auto_config'].ping_enabled,
-                  callback: ({ row }) => {
-                    this.$axios.post(
-                      `/api/v1/accounts/accounts/tasks/`,
-                      { action: 'verify', accounts: [row.id] }
-                    ).then(res => {
-                      openTaskPage(res['task'])
-                    })
-                  }
-                },
-                {
-                  name: 'Update',
-                  title: this.$t('common.Update'),
-                  can: this.$hasPerm('accounts.change_account') && !this.$store.getters.currentOrgIsRoot,
-                  callback: ({ row }) => {
-                    const data = {
-                      ...this.asset,
-                      ...row.asset
-                    }
-                    vm.account = row
-                    vm.iAsset = data
-                    vm.showAddDialog = false
-                    vm.accountCreateUpdateTitle = this.$t('assets.UpdateAccount')
-                    setTimeout(() => {
-                      vm.showAddDialog = true
-                    })
-                  }
-                }
-              ]
+              hasDelete: true, // can set function(row, value)
+              hasClone: false,
+              canDelete: ({ row }) =>
+                vm.$hasPerm('accounts.delete_account') && !isDirectoryServiceAccount(row, this),
+              moreActionsTitle: this.$t('More'),
+              extraActions: accountOtherActions(this)
             }
           },
           ...this.columnsMeta
@@ -285,17 +312,11 @@ export default {
         hasCreate: false,
         hasImport: this.hasImport,
         hasExport: this.hasExport && this.$hasPerm('accounts.view_accountsecret'),
-        handleImportClick: ({ selectedRows }) => {
-          this.$eventBus.$emit('showImportDialog', {
-            selectedRows,
-            url: '/api/v1/accounts/accounts/',
-            name: this?.name
-          })
-        },
         exportOptions: {
-          url: this.exportUrl,
+          url:
+            this.exportUrl || this.url.replace('/accounts/accounts/', '/accounts/account-secrets/'),
           mfaVerifyRequired: true,
-          tips: this.$t('accounts.AccountExportTips')
+          tips: this.$t('AccountExportTips')
         },
         importOptions: {
           canImportCreate: this.$hasPerm('accounts.add_account'),
@@ -304,35 +325,35 @@ export default {
         extraActions: [
           {
             name: 'add',
-            title: this.$t('common.Add'),
+            title: this.$t('Create'),
             type: 'primary',
+            icon: 'plus',
             can: () => {
-              return vm.$hasPerm('accounts.add_account') && !this.$store.getters.currentOrgIsRoot
+              return vm.$hasPerm('accounts.add_account') && !vm.$store.getters.currentOrgIsRoot
             },
-            callback: async() => {
-              await this.getAssetDetail()
+            callback: () => {
               setTimeout(() => {
                 vm.iAsset = this.asset
                 vm.account = {}
-                vm.accountCreateUpdateTitle = this.$t('assets.AddAccount')
-                vm.showAddDialog = true
-              })
+                this.addTemplate = false
+                this.showAddDialog = true
+              }, 200)
             }
           },
           {
             name: 'add-template',
-            title: this.$t('common.TemplateAdd'),
+            title: this.$t('TemplateAdd'),
             has: !(this.platform || this.asset),
             can: () => {
-              return vm.$hasPerm('accounts.add_account') && !this.$store.getters.currentOrgIsRoot
+              return vm.$hasPerm('accounts.add_account') && !vm.$store.getters.currentOrgIsRoot
             },
-            callback: async() => {
+            callback: async () => {
               await this.getAssetDetail()
               setTimeout(() => {
                 vm.iAsset = this.asset
                 vm.account = {}
-                vm.accountCreateUpdateTitle = this.$t('assets.AddAccount')
-                vm.showAddTemplateDialog = true
+                vm.showAddDialog = true
+                vm.addTemplate = true
               })
             }
           },
@@ -340,85 +361,147 @@ export default {
         ],
         extraMoreActions: [
           {
-            name: 'ClearSecrets',
-            title: this.$t('common.ClearSecret'),
+            name: 'TestSelected',
+            title: this.$t('TestSelected'),
             type: 'primary',
-            fa: 'clean',
+            icon: 'verify',
+            can: ({ selectedRows }) => {
+              return (
+                selectedRows.length > 0 &&
+                ['clickhouse', 'redis', 'website', 'chatgpt'].indexOf(
+                  selectedRows[0].asset.type.value
+                ) === -1 &&
+                !this.$store.getters.currentOrgIsRoot &&
+                vm.$hasPerm('accounts.verify_account')
+              )
+            },
+            callback: function ({ selectedRows }) {
+              const ids = selectedRows.map((v) => {
+                return v.id
+              })
+              this.$axios
+                .post('/api/v1/accounts/accounts/tasks/', { action: 'verify', accounts: ids })
+                .then((res) => {
+                  openTaskPage(res['task'])
+                })
+                .catch((err) => {
+                  this.$message.error(this.$tc('BulkVerifyErrorMsg' + ' ' + err))
+                })
+            }.bind(this)
+          },
+          {
+            name: 'BatchClearSecret',
+            title: this.$t('ClearSecret'),
+            type: 'primary',
+            icon: 'clean',
             can: ({ selectedRows }) => {
               return selectedRows.length > 0 && vm.$hasPerm('accounts.change_account')
             },
-            callback: function({ selectedRows }) {
-              const ids = selectedRows.map(v => { return v.id })
-              this.$axios.patch(
-                '/api/v1/accounts/accounts/clear-secret/',
-                { account_ids: ids }).then(() => {
-                this.$message.success(this.$tc('common.ClearSuccessMsg'))
-              }).catch(err => {
-                this.$message.error(this.$tc('common.bulkClearErrorMsg' + ' ' + err))
+            callback: function ({ selectedRows }) {
+              const ids = selectedRows.map((v) => {
+                return v.id
               })
+              this.$axios
+                .patch('/api/v1/accounts/accounts/clear-secret/', { account_ids: ids })
+                .then(() => {
+                  this.$message.success(this.$tc('ClearSuccessMsg'))
+                })
+                .catch((err) => {
+                  this.$message.error(this.$tc('ClearErrorMsg' + ' ' + err))
+                })
             }.bind(this)
+          },
+          {
+            name: 'UpdateSelected',
+            title: this.$t('UpdateSelected'),
+            icon: 'batch-update',
+            can: ({ selectedRows }) => {
+              return (
+                selectedRows.length > 0 &&
+                !this.$store.getters.currentOrgIsRoot &&
+                vm.$hasPerm('accounts.change_account') &&
+                selectedRows.every((i) => i.secret_type.value === selectedRows[0].secret_type.value)
+              )
+            },
+            callback: ({ selectedRows }) => {
+              vm.updateSelectedDialogSetting.selectedRows = selectedRows
+              vm.updateSelectedDialogSetting.visible = true
+            }
           }
         ],
         canBulkDelete: vm.$hasPerm('accounts.delete_account'),
         searchConfig: {
-          getUrlQuery: false,
-          exclude: ['asset']
+          getUrlQuery: false
         },
         hasSearch: true
+      },
+      updateSelectedDialogSetting: {
+        visible: false,
+        selectedRows: []
+      }
+    }
+  },
+  computed: {
+    ...mapGetters(['currentUserIsSuperAdmin']),
+    accountCreateUpdateTitle() {
+      if (this.addTemplate) {
+        return this.$t('AddAccountByTemplate')
+      } else if (this.isUpdateAccount) {
+        return this.$t('UpdateAccount')
+      } else {
+        return this.$t('AddAccount')
       }
     }
   },
   watch: {
     url(iNew) {
-      this.$set(this.tableConfig, 'url', iNew)
-      this.$set(this.headerActions.exportOptions, 'url', iNew.replace(/(.*)accounts/, '$1account-secrets'))
+      this.tableConfig['url'] = iNew
+      this.headerActions.exportOptions['url'] = iNew.replace(/(.*)accounts/, '$1account-secrets')
     }
   },
   mounted() {
-    if (this.columns.length > 0) {
-      this.tableConfig.columns = this.columns
-    }
-    if (this.otherActions) {
-      const actionColumn = this.tableConfig.columns[this.tableConfig.columns.length - 1]
-      for (const item of this.otherActions) {
-        actionColumn.formatterArgs.extraActions.push(item)
-      }
-    }
-    if (this.hasDeleteAction) {
-      this.tableConfig.columnsMeta.actions.formatterArgs.extraActions.push(
-        {
-          name: 'Delete',
-          title: this.$t('common.Delete'),
-          can: this.$hasPerm('accounts.delete_account'),
-          type: 'primary',
-          callback: ({ row }) => {
-            const msg = this.$t('accounts.AccountDeleteConfirmMsg')
-            this.$confirm(msg, this.$tc('common.Info'), {
-              type: 'warning',
-              confirmButtonClass: 'el-button--danger',
-              beforeClose: async(action, instance, done) => {
-                if (action !== 'confirm') return done()
-                this.$axios.delete(`/api/v1/accounts/accounts/${row.id}/`).then(() => {
-                  done()
-                  this.$refs.ListTable.reloadTable()
-                  this.$message.success(this.$tc('common.deleteSuccessMsg'))
-                })
-              }
-            })
-          }
-        }
-      )
+    this.setActions()
+  },
+  activated() {
+    // 由于组件嵌套较深，有可能导致 Error in activated hook: "TypeError: Cannot read properties of undefined (reading 'getList')" 的问题
+    if (this.tabDeactivated) {
+      clearTimeout(this.activatedReloadTimer)
+      this.activatedReloadTimer = setTimeout(() => this.refresh(), 300)
     }
   },
+  deactivated() {
+    this.tabDeactivated = true
+    clearTimeout(this.activatedReloadTimer)
+    this.activatedReloadTimer = null
+  },
+  beforeUnmount() {
+    clearTimeout(this.activatedReloadTimer)
+    this.activatedReloadTimer = null
+  },
   methods: {
+    setActions() {
+      if (this.columns.length > 0) {
+        this.tableConfig.columns = this.columns
+      }
+      if (this.otherActions) {
+        const actionColumn = this.tableConfig.columns[this.tableConfig.columns.length - 1]
+        for (const item of this.otherActions) {
+          actionColumn.formatterArgs.extraActions.push(item)
+        }
+      }
+    },
     onUpdateAuthDone(account) {
       Object.assign(this.account, account)
     },
     addAccountSuccess() {
+      this.accountOperationFlag = null
+      this.isUpdateAccount = false
       this.$refs.ListTable.reloadTable()
     },
     async getAssetDetail() {
-      const { query: { asset }} = this.$route
+      const {
+        query: { asset }
+      } = this.$route
       if (asset) {
         this.iAsset = await this.$axios.get(`/api/v1/assets/assets/${asset}/`)
       }
@@ -427,17 +510,34 @@ export default {
       this.$refs.ListTable.reloadTable()
     },
     showBulkCreateResult(results) {
-      this.showResultDialog = false
-      this.createAccountResults = results
       setTimeout(() => {
         this.showResultDialog = true
-      }, 100)
+        this.createAccountResults = results
+      }, 350)
+    },
+    handleAccountBulkUpdate() {
+      this.updateSelectedDialogSetting.visible = false
+      this.$refs.ListTable.reloadTable()
+    },
+    closeAll() {
+      setTimeout(() => {
+        this.showResultDialog = false
+      }, 350)
+
+      setTimeout(() => {
+        this.showAddDialog = false
+        this.accountOperationFlag = null
+      }, 800)
+
+      setTimeout(() => {
+        this.refresh()
+      }, 1000)
     }
   }
 }
 </script>
 
-<style lang='scss' scoped>
+<style lang="scss" scoped>
 .cell a {
   color: var(--color-info);
 }
