@@ -1,7 +1,11 @@
 <template>
-  <GenericDetailPage :active-menu.sync="config.activeMenu" :object.sync="TaskDetail" v-bind="config" v-on="$listeners">
+  <GenericDetailPage
+    v-bind="config"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="instance"
+  >
     <keep-alive>
-      <component :is="config.activeMenu" :object="TaskDetail" />
+      <component :is="config.activeMenu" :object="instance" />
     </keep-alive>
   </GenericDetailPage>
 </template>
@@ -22,34 +26,35 @@ export default {
   },
   data() {
     return {
-      TaskDetail: {},
+      instance: {},
       actions: {},
       config: {
-        title: this.$t('assets.PlatformDetail'),
+        url: '/api/v1/assets/platforms/',
+        title: this.$t('PlatformDetail'),
         activeMenu: 'Detail',
         submenu: [
           {
-            title: this.$t('common.BasicInfo'),
+            title: this.$t('Basic'),
             name: 'Detail'
           },
           {
-            title: this.$t('assets.Asset'),
+            title: this.$t('AssetManagement'),
             name: 'Assets'
           },
           {
-            title: this.$t('common.Automations'),
+            title: this.$t('Automation'),
             name: 'Automation'
           }
         ],
         actions: {
           canUpdate: () => {
-            return !this.TaskDetail.internal && this.$hasPerm('assets.change_platform')
+            return !this.instance.internal && this.$hasPerm('assets.change_platform')
           },
           canDelete: () => {
-            return !this.TaskDetail.internal && this.$hasPerm('assets.delete_platform')
+            return !this.instance.internal && this.$hasPerm('assets.delete_platform')
           },
           updateCallback: () => {
-            const { id, type, category } = this.TaskDetail
+            const { id, type, category } = this.instance
             this.$router.push({
               name: 'PlatformUpdate',
               params: { id },
@@ -71,7 +76,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

@@ -1,23 +1,32 @@
 <template>
   <div>
     <Select2
+      v-bind="select2"
       ref="select2"
       v-model="iValue"
-      v-bind="select2"
       @initialized="handleSelectInitialed"
       @input="onInputChange"
-      v-on="$listeners"
+      v-bind="$attrs"
       @focus.stop.prevent="handleFocus"
     />
     <Dialog
+      v-bind="$attrs"
       v-if="showTransfer"
+      v-model:visible="showTransfer"
+      :close-on-click-modal="false"
       :title="label"
-      :visible.sync="showTransfer"
+      :disabled-status="!isLoaded"
+      class="the-dialog"
       width="730px"
       @cancel="handleTransCancel"
       @confirm="handleTransConfirm"
     >
-      <krryPaging v-if="selectInitialized" ref="pageTransfer" class="transfer" v-bind="pagingTransfer" />
+      <krryPaging
+        v-bind="pagingTransfer"
+        v-if="selectInitialized"
+        ref="pageTransfer"
+        class="transfer"
+      />
     </Dialog>
   </div>
 </template>
@@ -60,28 +69,34 @@ export default {
   },
   data() {
     const vm = this
-    const transformOption = vm.transformOption || vm.ajax.transformOption || ((item) => {
-      return { label: item.name, value: item.id }
-    })
+    const transformOption =
+      vm.transformOption ||
+      vm.ajax.transformOption ||
+      ((item) => {
+        return { label: item.name, value: item.id }
+      })
     const url = vm.url || vm.ajax.url
-    const getPageData = async({ pageIndex, pageSize, keyword }) => {
+    const getPageData = async ({ pageIndex, pageSize, keyword }) => {
       const limit = pageSize
       const offset = (pageIndex - 1) * pageSize
       const params = {
-        'limit': limit,
-        'offset': offset,
-        'fields_size': 'mini'
+        limit: limit,
+        offset: offset,
+        fields_size: 'small'
       }
       if (keyword) {
         params['search'] = keyword
       }
+      this.isLoaded = false
       const data = await this.$axios.get(url, { params })
-      return data['results'].map(item => {
+      this.isLoaded = true
+      return data['results'].map((item) => {
         const n = transformOption(item)
         return { id: n.value, label: n.label }
       })
     }
     return {
+      isLoaded: false,
       showTransfer: false,
       selectInitialized: false,
       select2: {
@@ -99,10 +114,11 @@ export default {
         filterable: true,
         async: true,
         dataList: [],
-        getPageData: function(pageIndex, pageSize) {
+        transferOnCheck: true,
+        getPageData: function (pageIndex, pageSize) {
           return getPageData({ pageIndex, pageSize })
         },
-        getSearchData: async function(keyword, pageIndex, pageSize) {
+        getSearchData: async function (keyword, pageIndex, pageSize) {
           return getPageData({ keyword, pageIndex, pageSize })
         },
         selectedData: [],
@@ -118,28 +134,34 @@ export default {
           return []
         }
         if (typeof value[0] === 'object') {
-          value = value.map(item => {
+          value = value.map((item) => {
             return item.id
           })
         }
         return _.uniq(value)
       },
       set(val) {
-        this.$emit('input', val)
+        this.emit(val)
       }
     }
   },
   methods: {
+    emit(val) {
+      const value = _.uniq(val)
+      this.$emit('input', value)
+    },
     onInputChange(val) {
-      this.$emit('input', val)
+      this.emit(val)
     },
     handleFocus() {
       this.$refs.select2.selectRef.blur()
-      this.pagingTransfer.selectedData = this.$refs.select2.iOptions.map(item => {
-        return { id: item.value, label: item.label }
-      }).filter(item => {
-        return this.iValue.includes(item.id)
-      })
+      this.pagingTransfer.selectedData = this.$refs.select2.iOptions
+        .map((item) => {
+          return { id: item.value, label: item.label }
+        })
+        .filter((item) => {
+          return this.iValue.includes(item.id)
+        })
       this.showTransfer = true
     },
     handleSelectInitialed() {
@@ -149,18 +171,14 @@ export default {
       this.showTransfer = false
     },
     handleTransConfirm() {
-      const selectedData = this.$refs.pageTransfer.checkedData
-      const options = selectedData.map(item => {
+      const selectedData = this.$refs.pageTransfer.selectListCheck
+      const options = selectedData.map((item) => {
         return { value: item.id, label: item.label }
       })
       this.select2.options = options
-      this.$emit('input', options.map(item => item.value))
+      this.emit(options.map((item) => item.value))
       this.showTransfer = false
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

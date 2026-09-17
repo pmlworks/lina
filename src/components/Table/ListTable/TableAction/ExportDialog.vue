@@ -2,10 +2,11 @@
   <div>
     <Dialog
       v-if="exportDialogShow"
+      v-model:visible="exportDialogShow"
       :destroy-on-close="true"
-      :title="$tc('common.Export')"
-      :visible.sync="exportDialogShow"
+      :title="$tc('Export')"
       width="700px"
+      @close="handleExportCancel"
       @cancel="handleExportCancel()"
       @confirm="handleExportConfirm()"
     >
@@ -13,26 +14,25 @@
         {{ tips }}
       </el-alert>
       <el-form label-position="left" style="padding-left: 20px">
-        <el-form-item :label="$tc('common.fileType' )" :label-width="'100px'">
+        <el-form-item :label="$tc('FileType')" :label-width="'100px'">
           <el-radio-group v-model="exportTypeOption">
             <el-radio
               v-for="option of exportTypeOptions"
               :key="option.value"
               :disabled="!option.can"
-              :label="option.value"
-              style="padding: 10px 20px;"
+              :value="option.value"
             >
               {{ option.label }}
             </el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item :label="$tc('common.imExport.ExportRange')" :label-width="'100px'" class="export-form">
+        <el-form-item :label="$tc('ExportRange')" :label-width="'100px'" class="export-form">
           <el-radio-group v-model="exportOption">
             <el-radio
               v-for="option of exportOptions"
               :key="option.value"
               :disabled="!option.can"
-              :label="option.value"
+              :value="option.value"
               class="export-item"
             >
               {{ option.label }}
@@ -45,14 +45,26 @@
 </template>
 
 <script>
+import { withBaseApi } from '@/utils/env'
 import Dialog from '@/components/Dialog/index.vue'
 import { createSourceIdCache } from '@/api/common'
 import * as queryUtil from '@/components/Table/DataTable/compenents/el-data-table/utils/query'
+import { download } from '@/utils/common/index'
+import { inject } from 'vue'
+import { LIST_TABLE_KEY } from '../index.vue'
 
 export default {
   name: 'ExportDialog',
   components: {
     Dialog
+  },
+  setup() {
+    // Inject list table context to replace $parent chain access
+    const listTableContext = inject(LIST_TABLE_KEY, {
+      dataTable: null,
+      tableConfig: null
+    })
+    return { listTableContext }
   },
   props: {
     selectedRows: {
@@ -65,8 +77,7 @@ export default {
     },
     beforeExport: {
       type: Function,
-      default: () => {
-      }
+      default: () => {}
     },
     mfaVerifyRequired: {
       type: Boolean,
@@ -74,9 +85,7 @@ export default {
     },
     performExport: {
       type: Function,
-      default(selectedRows, exportOptions, query, exportType) {
-        return this.defaultPerformExport(selectedRows, exportOptions, query, exportType)
-      }
+      default: null
     },
     canExportAll: {
       type: Boolean,
@@ -114,12 +123,12 @@ export default {
       return this.selectedRows.length > 0
     },
     tableQuery() {
-      const listTableRef = this.$parent?.$parent?.$parent?.$parent
-      if (!listTableRef) {
+      const listTableRef = this.listTableContext
+      if (!listTableRef || !listTableRef.dataTable) {
         return {}
       }
-      const query = listTableRef?.dataTable?.getQuery() || {}
-      const extraQuery = Object.keys(listTableRef?.tableConfig?.extraQuery || {})
+      const query = listTableRef.dataTable.getQuery() || {}
+      const extraQuery = Object.keys(listTableRef.tableConfig?.extraQuery || {})
 
       delete query['limit']
       delete query['offset']
@@ -138,17 +147,17 @@ export default {
     exportOptions() {
       return [
         {
-          label: this.$t('common.imExport.ExportAll'),
+          label: this.$t('ExportAll'),
           value: 'all',
           can: this.canExportAll && !this.tableHasQuery
         },
         {
-          label: this.$t('common.imExport.ExportOnlySelectedItems'),
+          label: this.$t('ExportOnlySelectedItems'),
           value: 'selected',
-          can: this.selectedRows.length > 0 && this.canExportSelected
+          can: this.hasSelected && this.canExportSelected
         },
         {
-          label: this.$t('common.imExport.ExportOnlyFiltered'),
+          label: this.$t('ExportOnlyFiltered'),
           value: 'filtered',
           can: this.tableHasQuery && this.canExportFiltered
         }
@@ -169,17 +178,30 @@ export default {
       ]
     }
   },
+  beforeUnmount() {
+    this.$eventBus.$off('showExportDialog', this.showExportDialogHandler)
+  },
   mounted() {
-    this.$eventBus.$on('showExportDialog', ({ selectedRows, url, name }) => {
-      if (url === this.url || url.indexOf(this.url) > -1) {
-        this.showExportDialog()
-      }
-    })
+    this.$eventBus.$on('showExportDialog', this.showExportDialogHandler)
   },
   methods: {
+    showExportDialogHandler({ selectedRows, url, name }) {
+      if (url && (url === this.url || url.indexOf(this.url) > -1)) {
+        this.showExportDialog()
+      }
+    },
     showExportDialog() {
       if (!this.mfaVerifyRequired) {
         this.exportDialogShow = true
+
+        if (this.hasSelected) {
+          this.exportOption = 'selected'
+        }
+
+        if (this.tableHasQuery) {
+          this.exportOption = 'filtered'
+        }
+
         return
       }
       this.$axios.get('/api/v1/authentication/confirm/check/?confirm_type=mfa').then(() => {
@@ -187,13 +209,10 @@ export default {
       })
     },
     downloadCsv(url) {
-      const a = document.createElement('a')
-      a.href = url
-      a.click()
-      window.URL.revokeObjectURL(url)
+      download(url)
     },
     async defaultPerformExport(selectRows, exportOption, q, exportTypeOption) {
-      const url = (process.env.VUE_APP_ENV === 'production') ? (`${this.url}`) : (`${process.env.VUE_APP_BASE_API}${this.url}`)
+      const url = withBaseApi(this.url)
       const query = Object.assign({}, q)
       if (exportOption === 'selected') {
         const resources = []
@@ -205,28 +224,29 @@ export default {
         query['spm'] = spm.spm
       }
       query['format'] = exportTypeOption
-      const queryStr =
-        (url.indexOf('?') > -1 ? '&' : '?') +
-        queryUtil.stringify(query, '=', '&')
+      const queryStr = (url.indexOf('?') > -1 ? '&' : '?') + queryUtil.stringify(query, '=', '&')
       return this.downloadCsv(url + queryStr)
     },
     async handleExport() {
-      const listTableRef = this.$parent.$parent.$parent.$parent
-      const query = listTableRef['dataTable'].getQuery()
+      const listTableRef = this.listTableContext
+      if (!listTableRef || !listTableRef.dataTable) {
+        return
+      }
+      const query = listTableRef.dataTable.getQuery()
       delete query['limit']
       delete query['offset']
       await this.beforeExport()
-      return this.performExport(this.selectedRows, this.exportOption, query, this.exportTypeOption)
+      const performExport = this.performExport || this.defaultPerformExport
+      return performExport(this.selectedRows, this.exportOption, query, this.exportTypeOption)
     },
     async handleExportConfirm() {
       await this.handleExport()
       this.exportDialogShow = false
+      this.$emit('importDialogConfirm')
     },
     handleExportCancel() {
-      const vm = this
-      setTimeout(() => {
-        vm.exportDialogShow = false
-      }, 100)
+      this.exportDialogShow = false
+      this.$emit('importDialogClose')
     },
     handleAuthMFAError() {
       this.mfaDialogShow = false
@@ -235,14 +255,25 @@ export default {
 }
 </script>
 
-<style lang='scss' scoped>
-  .export-item {
-    width: 100%;
-    display: block;
-    padding: 10px 20px;
-  }
+<style lang="scss" scoped>
+// 导出选项用 flex 排布：同组单选项一行内均匀排列、可换行、垂直居中，不再 block 堆叠/错落
+:deep(.el-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+}
 
-  .export-form >>> .el-form-item__label {
-    line-height: 2
+.export-item {
+  margin: 0;
+  padding: 0;
+
+  :deep(.el-radio__label) {
+    font-size: 13px;
   }
+}
+
+.export-form :deep(.el-form-item__label) {
+  line-height: 2;
+}
 </style>

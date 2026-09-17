@@ -1,18 +1,18 @@
 <template>
   <div>
-    <GenericListPage
-      v-loading="loading"
-      :header-actions="headerActions"
-      :table-config="tableConfig"
-    />
-    <DiffDetail ref="DetailDialog" :title="$tc('route.OperateLog')" />
+    <div v-loading="loading">
+      <GenericListPage :header-actions="headerActions" :table-config="tableConfig" />
+    </div>
+    <DiffDetail ref="DetailDialog" :title="$tc('OperateLog')" />
   </div>
 </template>
 
 <script>
 import GenericListPage from '@/layout/components/GenericListPage'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
+import OverflowTooltipFormatter from '@/components/Table/TableFormatters/OverflowTooltipFormatter.vue'
 import DiffDetail from '@/components/Dialog/DiffDetail'
+import { translateOperateLogText } from './translate'
 
 export default {
   components: {
@@ -33,47 +33,56 @@ export default {
         columnsShow: {
           min: ['user', 'resource'],
           default: [
-            'user', 'action_display', 'resource_type_display',
-            'resource', 'remote_addr', 'datetime', 'actions'
+            'user',
+            'action_display',
+            'resource_type_display',
+            'resource',
+            'remote_addr',
+            'datetime',
+            'action',
+            'resource_type',
+            'actions'
           ]
         },
         columnsMeta: {
+          user: {
+            label: this.$t('User'),
+            minWidth: '120px'
+          },
+          resource: {
+            width: '200px',
+            formatter: OverflowTooltipFormatter,
+            formatterArgs: {
+              getText: ({ row }) => translateOperateLogText(row.resource)
+            }
+          },
           resource_type: {
-            width: '180px'
+            formatter: (row) => translateOperateLogText(row.resource_type)
           },
-          datetime: {
-            width: '160px'
-          },
-          remote_addr: {
-            width: '140px'
-          },
-          action_display: {
-            width: '70px'
+          resource_type_display: {
+            formatter: (row) => translateOperateLogText(row.resource_type_display)
           },
           actions: {
-            width: '70px',
             formatter: ActionsFormatter,
             formatterArgs: {
               hasUpdate: false,
-              canUpdate: false,
               hasDelete: false,
-              canDelete: false,
               hasClone: false,
-              canClone: false,
               extraActions: [
                 {
                   name: 'View',
-                  title: this.$t('common.View'),
+                  title: this.$t('View'),
                   type: 'primary',
                   callback: ({ row }) => {
                     vm.loading = true
-                    this.$axios.get(
-                      `/api/v1/audits/operate-logs/${row.id}/?type=action_detail`
-                    ).then(res => {
-                      this.$refs.DetailDialog.show(res.diff)
-                    }).finally(() => {
-                      vm.loading = false
-                    })
+                    this.$axios
+                      .get(`/api/v1/audits/operate-logs/${row.id}/?type=action_detail`)
+                      .then((res) => {
+                        this.$refs.DetailDialog.show(res.diff)
+                      })
+                      .finally(() => {
+                        vm.loading = false
+                      })
                   }
                 }
               ]
@@ -84,13 +93,18 @@ export default {
       headerActions: {
         hasLeftActions: false,
         hasImport: false,
-        hasDatePicker: true
+        hasReportExport: true,
+        hasDatePicker: true,
+        searchConfig: {
+          getUrlQuery: true,
+          fieldLabels: {
+            user: this.$t('User')
+          }
+        }
       }
     }
   }
 }
 </script>
 
-<style>
-
-</style>
+<style></style>

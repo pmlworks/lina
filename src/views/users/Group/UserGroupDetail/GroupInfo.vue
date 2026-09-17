@@ -1,17 +1,17 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <AutoDetailCard :excludes="excludes" :object="object" :url="url" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <AutoDetailCard :excludes="excludes" :object="object" :url="url" />
+  </TwoCol>
 </template>
 
 <script>
 import AutoDetailCard from '@/components/Cards/DetailCard/auto'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'GroupInfo',
   components: {
+    TwoCol,
     AutoDetailCard
   },
   props: {
@@ -22,23 +22,19 @@ export default {
   },
   data() {
     return {
-      url: `/api/v1/users/groups/${this.object.id}`,
+      url: this.object.id ? `/api/v1/users/groups/${this.object.id}/` : '/api/v1/users/groups/',
       excludes: ['users']
     }
   },
-  computed: {
-  },
+  computed: {},
   watch: {
     group(iNew, iOld) {
       this.$log.debug('Group has changed')
       this.relationConfig.hasObjectsId = iNew.users
     }
   },
-  methods: {
-  }
+  methods: {}
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

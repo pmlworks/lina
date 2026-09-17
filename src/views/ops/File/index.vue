@@ -1,138 +1,190 @@
 <template>
   <Page>
-    <TreeTable ref="TreeTable" :tree-setting="treeSetting">
-      <template slot="table">
-        <div class="transition-box" style="width: calc(100% - 17px);">
-          <div class="upload_input">
-            <el-button
-              :disabled="runButton.disabled"
-              :type="runButton.el&&runButton.el.type"
-              size="mini"
-              style="display: inline-block; margin: 0 2px"
-              @click="runButton.callback()"
-            >
-              <i :class="runButton.icon" style="margin-right: 4px;" />{{ runButton.name }}
-            </el-button>
-          </div>
-          <div class="upload_input">{{ $t('users.Users') }}:</div>
-          <div class="upload_input">
-            <el-autocomplete
-              v-model="runAsInput.value"
-              :fetch-suggestions="runAsInput.el.query"
-              :placeholder="runAsInput.placeholder"
-              size="mini"
-              style="display: inline-block; margin: 0 2px"
-              @change="runAsInput.callback(runAsInput.value)"
-              @select="runAsInput.callback(runAsInput.value)"
-            />
-          </div>
-          <div class="upload_input">{{ $t('ops.UploadDir') }}:</div>
-          <div class="upload_input">
-            <el-input
-              v-if="dstPathInput.type==='input'"
-              v-model="dstPath"
-              :placeholder="dstPathInput.placeholder"
-              size="mini"
-              @change="dstPathInput.callback(dstPathInput.value)"
-            >
-              <template slot="prepend">/tmp/</template>
-            </el-input>
-          </div>
-          <div
-            class="file-uploader"
+    <ConfirmRunAssetsDialog
+      v-model:visible="showConfirmRunAssetsDialog"
+      :is-running="running"
+      :assets="classifiedAssets"
+      @submit="onConfirmRunAsset"
+    />
+    <el-alert :center="false" class="announcement" type="info">
+      <span
+        v-for="(tip, index) of FileTransferBootStepHelpTips"
+        :key="index"
+        style="padding-right: 24px"
+      >
+        <span style="font-weight: 700; color: #1c84c6">{{ index + 1 }}.</span>
+        {{ tip }}
+      </span>
+    </el-alert>
+    <div class="job-container">
+      <div class="select-assets">
+        <SelectJobAssetDialog
+          base-url="/api/v1/perms/users/self/assets/?category__in!=database,web"
+          @change="handleSelectAssets"
+        />
+      </div>
+      <div class="transition-box">
+        <div class="transfer-toolbar">
+          <el-button
+            :disabled="runButton.disabled"
+            :loading="running"
+            :type="runButton.el && runButton.el.type"
+            @click="runButton.callback()"
           >
-            <el-card>
-              <el-upload
-                v-if="ready"
-                ref="upload"
-                :auto-upload="false"
-                :on-change="onFileChange"
-                :value.sync="uploadFileList"
-                action=""
-                drag
-                multiple
-              >
-                <i class="el-icon-upload" />
-                <div class="el-upload__text">
-                  {{ $t('common.imExport.dragUploadFileInfo') }}
-                </div>
-                <br>
-                <span>
-                  {{ $t('ops.uploadFileLthHelpText', {limit: SizeLimitMb}) }}
-                </span>
-                <div slot="file" slot-scope="{file}">
-                  <li tabindex="0" class="el-upload-list__item is-ready">
-                    <a class="el-upload-list__item-name" :style="sameFileStyle(file)">
-                      <i class="el-icon-document" />{{ file.name }}
-                      <i style="color: #1ab394;float: right;font-weight:normal">
-                        {{ formatFileSize(file.size) }}
-                        <i class="el-icon-close" @click="removeFile(file)" />
-                      </i>
-                    </a>
-                  </li>
-                </div>
-              </el-upload>
-              <el-progress v-if="ShowProgress" :percentage="progressLength" />
-              <div
-                v-if="uploadFileList.length===0"
-                class="empty-file-tip"
-              >
-                {{ $tc('ops.NoFiles') }}
-              </div>
-            </el-card>
+            <el-icon v-if="!running"><VideoPlay /></el-icon>
+            <span>{{ runButton.name }}</span>
+          </el-button>
+
+          <el-autocomplete
+            v-model="runAsInput.value"
+            :fetch-suggestions="runAsInput.el.query"
+            :placeholder="runAsInput.placeholder"
+            class="toolbar-field account-field"
+            @change="runAsInput.callback(runAsInput.value)"
+            @select="runAsInput.callback(runAsInput.value)"
+          >
+            <template #prepend> <span class="required-mark">*</span>{{ $t('Account') }} </template>
+          </el-autocomplete>
+
+          <div class="policy-field">
+            <span class="field-label">{{ $t('RunasPolicy') }}</span>
+            <el-tooltip :content="$tc('RunasPolicyHelpText')">
+              <el-select v-model="runasPolicy">
+                <el-option
+                  v-for="option in runasPolicyOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </el-tooltip>
           </div>
-          <b>{{ $tc('ops.output') }}:</b>
-          <span v-if="executionInfo.status && summary" style="float: right">
-            <span>
-              <span><b>{{ $tc('common.Status') }}: </b></span>
-              <span
-                v-if="executionInfo.status==='timeout'"
-                class="status_warning"
-              >{{ $tc('ops.timeout') }}</span>
-              <span v-else>
-                <span class="status_success">{{ $tc('ops.success') + ': ' + summary.success }}</span>
-                <span class="status_warning">{{ $tc('ops.Skip') + ': ' + summary.skip }}</span>
-                <span class="status_danger">{{ $tc('ops.failed') + ': ' + summary.failed }}</span>
-              </span>
-            </span>
-            <span>
-              <span><b>{{ $tc('ops.timeDelta') }}: </b></span>
-              <span>{{ executionInfo.timeCost.toFixed(2) }}</span>
-            </span>
-          </span>
-          <div class="output">
-            <Term
-              ref="xterm"
-              :show-tool-bar="true"
-              :xterm-config="xtermConfig"
-            />
-            <div style="height: 2px" />
-          </div>
-          <div style="display: flex;margin-top:10px;justify-content: space-between" />
+
+          <el-input
+            v-if="dstPathInput.type === 'input'"
+            v-model="dstPath"
+            :placeholder="dstPathInput.placeholder"
+            class="toolbar-field dstpath-field"
+            @change="dstPathInput.callback(dstPathInput.value)"
+          >
+            <template #prepend>/tmp/</template>
+          </el-input>
         </div>
-      </template>
-    </TreeTable>
+
+        <IBox title="selectFiles" class="file-uploader">
+          <template #header>
+            <div class="file-uploader-header">
+              <span>{{ $t('selectFiles', { number: uploadFileList.length }) }}</span>
+              <el-tooltip
+                v-if="uploadFileList.length > 0"
+                :content="$t('ClearSelection')"
+                placement="top"
+              >
+                <el-icon class="clear-icon" @click="clearAllFiles"><Delete /></el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+
+          <div class="uploader-body">
+            <el-upload
+              v-if="ready"
+              ref="upload"
+              v-model="uploadFileList"
+              :auto-upload="false"
+              :on-change="onFileChange"
+              action=""
+              drag
+              multiple
+            >
+              <el-icon class="uploader-icon"><Upload /></el-icon>
+              <div class="el-upload__text">{{ $t('DragUploadFileInfo') }}</div>
+              <div class="uploader-limit">
+                {{ $t('UploadFileLthHelpText', { limit: sizeLimitMb }) }}
+              </div>
+              <template #file="{ file }">
+                <a :style="sameFileStyle(file)" class="el-upload-list__item-name">
+                  <el-icon><Document /></el-icon>{{ file.name }}
+                  <span class="file-size">
+                    {{ formatFileSize(file.size) }}
+                    <el-icon class="remove-icon" @click="removeFile(file)"><Close /></el-icon>
+                  </span>
+                </a>
+              </template>
+              <template #tip>
+                <div v-if="uploadFileList.length === 0" class="empty-file-tip">
+                  {{ $tc('NoFiles') }}
+                </div>
+              </template>
+            </el-upload>
+          </div>
+
+          <template v-if="showProgress">
+            <el-progress :percentage="progressLength" />
+            <div class="status-info">
+              <span class="left">{{ speedText }}</span>
+              <span class="right">{{ loadedSize }} / {{ totalSize }}</span>
+            </div>
+          </template>
+        </IBox>
+
+        <IBox title="Output" class="output-box">
+          <template #header>
+            <div class="output-header">
+              <span class="output-title">{{ $tc('Output') }}</span>
+              <span v-if="executionInfo.status && summary && !showProgress" class="output-summary">
+                <span class="summary-group">
+                  <b>{{ $tc('Status') }}: </b>
+                  <span v-if="executionInfo.status === 'timeout'" class="status_warning">
+                    {{ $tc('Timeout') }}
+                  </span>
+                  <span v-else>
+                    <span class="status_success">{{
+                      $tc('Success') + ': ' + summary.success
+                    }}</span>
+                    <span class="status_warning">{{ $tc('Skip') + ': ' + summary.skip }}</span>
+                    <span class="status_danger">{{ $tc('Failed') + ': ' + summary.failed }}</span>
+                  </span>
+                </span>
+                <span class="summary-group">
+                  <b>{{ $tc('TimeDelta') }}: </b>
+                  <span>{{ executionInfo.timeCost }}</span>
+                </span>
+              </span>
+            </div>
+          </template>
+
+          <div class="output">
+            <Term ref="xterm" :show-tool-bar="true" :xterm-config="xtermConfig" />
+          </div>
+        </IBox>
+      </div>
+    </div>
   </Page>
 </template>
 
 <script>
-import { TreeTable } from '@/components'
 import Term from '@/components/Widgets/Term'
 import Page from '@/layout/components/Page'
-import { createJob, getJob, getTaskDetail, JobUploadFile } from '@/api/ops'
-import { formatFileSize } from '@/utils/common'
+import IBox from '@/components/Common/IBox/index.vue'
+import { createJob, getTaskDetail, JobUploadFile } from '@/api/ops'
+import { formatFileSize } from '@/utils/common/index'
 import store from '@/store'
+import SelectJobAssetDialog from '@/views/ops/Adhoc/components/SelectJobAssetDialog.vue'
+import ConfirmRunAssetsDialog from '@/views/ops/Adhoc/components/ConfirmRunAssetsDialog.vue'
 
 export default {
-  name: 'BulkTransfer',
+  name: 'FileTransfer',
   components: {
-    TreeTable,
+    ConfirmRunAssetsDialog,
+    SelectJobAssetDialog,
     Page,
+    IBox,
     Term
   },
   data() {
     return {
       ready: true,
+      running: false,
       currentStatus: '',
       currentTaskId: '',
       executionInfo: {
@@ -141,41 +193,50 @@ export default {
         cancel: 0
       },
       xtermConfig: {},
-      DataZTree: 0,
       runas: '',
+      runasPolicy: 'skip',
+      runasPolicyOptions: [
+        { label: this.$tc('Skip'), value: 'skip' },
+        { label: this.$tc('PrivilegedFirst'), value: 'privileged_first' },
+        { label: this.$tc('PrivilegedOnly'), value: 'privileged_only' }
+      ],
       dstPath: '',
       runButton: {
         type: 'button',
-        name: this.$t('ops.Transfer'),
+        name: this.$t('Transfer'),
         align: 'left',
-        icon: 'fa fa-play',
-        disabled: this.$store.getters.currentOrgIsRoot,
+        disabled: this.$store.getters.currentOrgIsRoot || !this.$hasPerm('ops.add_job'),
         el: {
           type: 'primary'
         },
         callback: () => {
-          this.execute()
+          setTimeout(() => {
+            this.execute()
+          }, 300)
         }
       },
       runAsInput: {
-        name: this.$t('ops.runAs'),
+        name: this.$t('RunAs'),
         align: 'left',
         value: '',
-        placeholder: this.$tc('ops.EnterRunUser'),
+        placeholder: this.$tc('EnterRunUser'),
         el: {
           autoComplete: true,
           query: (query, cb) => {
             const { hosts, nodes } = this.getSelectedNodesAndHosts()
-            this.$axios.post('/api/v1/ops/username-hints/', {
-              nodes: nodes,
-              assets: hosts,
-              query: query
-            }).then(data => {
-              const ns = data.map(item => {
-                return { value: item.username }
+            cb([]) // 先返回空，避免输入时出现下拉闪烁
+            this.$axios
+              .post('/api/v1/ops/username-hints/', {
+                nodes: nodes,
+                assets: hosts,
+                query: query
               })
-              cb(ns)
-            })
+              .then((data) => {
+                const ns = data.map((item) => {
+                  return { value: item.username }
+                })
+                cb(ns)
+              })
           }
         },
         options: [],
@@ -185,73 +246,50 @@ export default {
       },
       dstPathInput: {
         type: 'input',
-        name: this.$t('ops.runningPath'),
+        name: this.$t('RunningPath'),
         align: 'left',
         value: '',
-        placeholder: this.$tc('ops.EnterUploadPath'),
+        placeholder: this.$tc('EnterUploadPath'),
         callback: (val) => {
           this.chdir = val
         }
       },
-      treeSetting: {
-        treeUrl: '/api/v1/perms/users/self/nodes/children-with-assets/tree/',
-        searchUrl: '/api/v1/perms/users/self/assets/tree/',
-        showRefresh: true,
-        showMenu: false,
-        showSearch: true,
-        check: {
-          enable: true
-        },
-        view: {
-          dblClickExpand: false,
-          showLine: true
-        }
-      },
-      iShowTree: true,
       progressLength: 0,
-      ShowProgress: false,
+      showProgress: false,
       upload_interval: null,
       uploadFileList: [],
-      SizeLimitMb: store.getters.publicSettings['FILE_UPLOAD_SIZE_LIMIT_MB'],
+      sizeLimitMb: store.getters.publicSettings['FILE_UPLOAD_SIZE_LIMIT_MB'],
       summary: {
-        'success': 0,
-        'failed': 0,
-        'skip': 0
+        success: 0,
+        failed: 0,
+        skip: 0
+      },
+      FileTransferBootStepHelpTips: [
+        this.$tc('FileTransferBootStepHelpTips1'),
+        this.$tc('FileTransferBootStepHelpTips2'),
+        this.$tc('FileTransferBootStepHelpTips3')
+      ],
+      speedText: '',
+      loadedSize: '',
+      totalSize: '',
+      selectHosts: [],
+      showConfirmRunAssetsDialog: false,
+      classifiedAssets: {
+        error: [],
+        runnable: []
       }
     }
   },
   computed: {
     xterm() {
       return this.$refs.xterm.xterm
-    },
-    ztree() {
-      return this.$refs.TreeTable.$refs.AutoDataZTree.$refs.dataztree.$refs.ztree
     }
   },
   mounted() {
     this.enableWS()
-    this.initData()
   },
   methods: {
     formatFileSize,
-    async initData() {
-      this.recoverStatus()
-    },
-    recoverStatus() {
-      if (this.$route.query.taskId) {
-        this.currentTaskId = this.$route.query.taskId
-        getTaskDetail(this.currentTaskId).then(data => {
-          getJob(data.job_id).then(res => {
-            this.runAsInput.value = res.runas
-            this.runAsInput.callback(res.runas)
-            this.executionInfo.status = data['status']
-            this.executionInfo.timeCost = data['time_cost']
-            this.setCostTimeInterval()
-            this.writeExecutionOutput()
-          })
-        })
-      }
-    },
     enableWS() {
       const scheme = document.location.protocol === 'https:' ? 'wss' : 'ws'
       const port = document.location.port ? ':' + document.location.port : ''
@@ -266,7 +304,7 @@ export default {
     setWsCallback() {
       this.ws.onmessage = (e) => {
         const data = JSON.parse(e.data)
-        if (data.hasOwnProperty('message')) {
+        if (Object.prototype.hasOwnProperty.call(data, 'message')) {
           let message = data.message
           message = message.replace(/Task ops\.tasks\.run_ops_job_execution.*/, '')
           this.xterm.write(message)
@@ -281,7 +319,7 @@ export default {
       }
     },
     taskStatusStat(summary) {
-      const { ok, failures, dark, excludes, skipped } = summary
+      const { ok = [], failures = [], dark = [], excludes = [], skipped = [] } = summary
 
       const failedKeys = Object.keys(failures)
       const darkKeys = Object.keys(dark)
@@ -292,14 +330,13 @@ export default {
       this.summary['skip'] = excludesKeys.length + skipped.length
     },
     getTaskStatus() {
-      getTaskDetail(this.currentTaskId).then(data => {
+      getTaskDetail(this.currentTaskId).then((data) => {
         this.executionInfo.status = data['status']
         this.taskStatusStat(data['summary'])
         if (this.executionInfo.status === 'success') {
-          this.$message.success(this.$tc('ops.runSucceed'))
+          this.$message.success(this.$tc('RunSucceed'))
           clearInterval(this.upload_interval)
-          this.progressLength = 100
-          this.ShowProgress = true
+          this.showProgress = false
         }
       })
     },
@@ -307,37 +344,26 @@ export default {
       return `\r\n${msg}\r\n`
     },
     writeExecutionOutput() {
-      let msg = this.$t('assets.Pending')
+      let msg = this.$t('Pending')
       this.xterm.write(msg)
       msg = JSON.stringify({ task: this.currentTaskId })
       this.ws.send(msg)
     },
-    getSelectedNodes() {
-      return this.ztree.getCheckedNodes().filter(node => {
-        const status = node.getCheckStatus()
-        return node.id !== 'search' && status.half === false
-      })
+    setButtonLoading() {
+      this.running = true
     },
-
+    resetButtonState() {
+      this.running = false
+    },
     setCostTimeInterval() {
-      this.runButton.icon = 'fa fa-spinner fa-spin'
-      this.runButton.disabled = true
+      this.setButtonLoading()
       this.executionInfo.cancel = setInterval(() => {
-        this.executionInfo.timeCost += 0.1
-      }, 100)
+        this.executionInfo.timeCost += 1
+      }, 1000)
     },
     getSelectedNodesAndHosts() {
-      const hosts = this.getSelectedNodes().filter((item) => {
-        return item.meta.type !== 'node'
-      }).map(function(node) {
-        return node.id
-      })
-
-      const nodes = this.getSelectedNodes().filter((item) => {
-        return item.meta.type === 'node'
-      }).map(function(node) {
-        return node.meta.data.id
-      })
+      const hosts = this.selectHosts
+      const nodes = []
       return { hosts, nodes }
     },
     truncateFileName(fullName) {
@@ -363,9 +389,9 @@ export default {
       return ''
     },
     isFileExceedsLimit(file) {
-      const isGtLimit = file.size / 1024 / 1024 > this.SizeLimitMb
+      const isGtLimit = file.size / 1024 / 1024 > this.sizeLimitMb
       if (isGtLimit) {
-        this.$message.error(this.$tc('ops.FileSizeExceedsLimit'))
+        this.$message.error(this.$tc('FileSizeExceedsLimit'))
       }
       return isGtLimit
     },
@@ -378,41 +404,72 @@ export default {
       this.uploadFileList.splice(this.uploadFileList.indexOf(file), 1)
       this.handleSameFile(this.uploadFileList)
     },
+    formatSpeed(bps) {
+      return `${this.formatFileSize(bps)}/s`
+    },
     execute() {
       const { hosts, nodes } = this.getSelectedNodesAndHosts()
       for (const file of this.uploadFileList) {
         if (file.isSame) {
-          this.$message.error(this.$tc('ops.DuplicateFileExists'))
+          this.$message.error(this.$tc('DuplicateFileExists'))
           return
         }
         if (this.isFileExceedsLimit(file)) {
           return
         }
         if (file.name.length > 128) {
-          this.$message.error(file.name + ' ' + this.$tc('ops.FileNameTooLong'))
+          this.$message.error(file.name + ' ' + this.$tc('FileNameTooLong'))
           return
         }
       }
       if (this.uploadFileList.length === 0) {
-        this.$message.error(this.$tc('ops.RequiredUploadFile'))
+        this.$message.error(this.$tc('RequiredUploadFile'))
         return
       }
       if (hosts.length === 0 && nodes.length === 0) {
-        this.$message.error(this.$tc('ops.RequiredAssetOrNode'))
+        this.$message.error(this.$tc('RequiredAssetOrNode'))
         return
       }
       if (!this.runas) {
-        this.$message.error(this.$tc('ops.RequiredRunas'))
+        this.$message.error(this.$tc('RequiredRunas'))
         return
       }
-      const data = {
+
+      const payload = {
         assets: hosts,
         nodes: nodes,
+        module: 'shell',
+        type: 'upload_file',
+        runas: this.runas,
+        runas_policy: this.runasPolicy
+      }
+      this.$axios.post('/api/v1/ops/classified-hosts/', payload).then((data) => {
+        this.classifiedAssets = data
+        if (data.error.length === 0) {
+          this.onConfirmRunAsset(hosts)
+        } else {
+          this.showConfirmRunAssetsDialog = true
+        }
+      })
+    },
+    onConfirmRunAsset(assets) {
+      if (assets.length === 0) {
+        this.$message.error(this.$tc('RequiredAssetOrNode'))
+        return
+      }
+
+      this.setButtonLoading()
+      this.showProgress = true
+      this.progressLength = 0
+
+      const data = {
+        assets: assets,
+        nodes: [],
         module: 'shell',
         args: JSON.stringify({ dst_path: this.dstPath }),
         type: 'upload_file',
         runas: this.runas,
-        runas_policy: 'skip',
+        runas_policy: this.runasPolicy,
         instant: false,
         is_periodic: false,
         timeout: -1
@@ -420,78 +477,140 @@ export default {
       if (this.chdir) {
         data.chdir = this.chdir
       }
-      createJob(data).then(res => {
-        this.progressLength = 0
-        this.ShowProgress = true
-        const form = new FormData()
-        for (const file of this.uploadFileList) {
-          form.append('files', file.raw)
-          form.append('job_id', res.id)
-        }
-        this.upload_interval = setInterval(() => {
-          if (this.progressLength >= 99) {
-            clearInterval(this.upload_interval)
-            return
-          }
-          this.progressLength += 1
-        }, 100)
-        JobUploadFile(form).then(res => {
+      createJob(data)
+        .then((res) => {
           this.executionInfo.timeCost = 0
-          this.executionInfo.status = 'running'
-          this.currentTaskId = res.task_id
-          this.setCostTimeInterval()
-          this.writeExecutionOutput()
-        }).catch(() => {
+          this.speedText = ''
+          const form = new FormData()
+          const start = Date.now()
+          for (const file of this.uploadFileList) {
+            form.append('files', file.raw)
+            form.append('job_id', res.id)
+          }
+          this.upload_interval = setInterval(() => {
+            if (this.progressLength >= 99) {
+              clearInterval(this.upload_interval)
+              return
+            }
+          }, 100)
+          JobUploadFile(form, {
+            onUploadProgress: (e) => {
+              if (!e.total) return
+              const percent = Math.floor((e.loaded / e.total) * 100)
+              this.progressLength = Math.min(percent, 100)
+              this.loadedSize = formatFileSize(e.loaded)
+              this.totalSize = formatFileSize(e.total)
+              const elapsedSec = (Date.now() - start) / 1000
+              if (elapsedSec > 0) {
+                const speed = e.loaded / elapsedSec
+                this.speedText = this.formatSpeed(speed)
+              }
+            }
+          })
+            .then((res) => {
+              this.showProgress = true
+              this.executionInfo.status = 'running'
+              this.currentTaskId = res.task_id
+              this.xtermConfig = { taskId: this.currentTaskId, type: 'shortcut_cmd' }
+              this.setCostTimeInterval()
+              this.writeExecutionOutput()
+            })
+            .catch(() => {
+              this.execute_stop()
+            })
+        })
+        .catch(() => {
           this.execute_stop()
         })
-      })
     },
     execute_stop() {
-      this.executionInfo.timeCost = 0
       this.progressLength = 0
-      this.ShowProgress = false
-      this.runButton.disabled = false
+      this.showProgress = false
+      this.resetButtonState()
       clearInterval(this.upload_interval)
-      this.runButton.icon = 'fa fa-play'
+    },
+    handleSelectAssets(assets) {
+      this.selectHosts = assets
+    },
+    clearAllFiles() {
+      this.$refs.upload.clearFiles()
+      this.uploadFileList = []
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.mini-button {
-  width: 12px;
-  float: right;
-  text-align: center;
-  padding: 5px 0;
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #FFFFFF;
-  border-radius: 3px;
+.job-container {
+  display: flex;
+
+  .select-assets {
+    width: 23.6%;
+  }
 }
 
-.el-tree {
-  background-color: inherit !important;
+.transition-box {
+  flex: 1;
+  min-width: 0;
+  margin-left: 30px;
 }
 
-.mini {
-  margin-right: 5px;
-  width: 12px !important;
-}
+/* 顶部工具条：传输按钮 + 账号 + 上传目录 */
+.transfer-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
 
-.auto-data-ztree {
-  overflow: auto;
-}
+  // el-autocomplete 根节点是 ElTooltip(多根 fragment),拿不到 scoped data-v,
+  // 普通 scoped class 选不中,需用 :deep 才能定宽;el-input 单根节点则两者皆可。
+  // 统一用 :deep 保证两个输入框宽度一致生效。
+  :deep(.account-field) {
+    height: 30px;
+    width: 280px;
+  }
 
-.vue-codemirror-wrap ::v-deep .CodeMirror {
-  width: 600px;
-  height: 100px;
-  border: 1px solid #eee;
-}
+  :deep(.dstpath-field) {
+    height: 30px;
+    width: 360px;
+  }
 
-.tree-box {
-  margin-right: 2px;
-  border: 1px solid #e0e0e0;
+  .policy-field {
+    display: flex;
+    height: 30px;
+
+    .field-label {
+      display: inline-flex;
+      align-items: center;
+      padding: 0 12px;
+      color: var(--color-text-secondary);
+      background: var(--el-fill-color-light);
+      border: 1px solid var(--el-border-color);
+      border-right: 0;
+      border-radius: 4px 0 0 4px;
+      white-space: nowrap;
+    }
+
+    :deep(.el-select) {
+      width: 160px;
+
+      .el-select__wrapper {
+        min-height: 30px;
+        border-radius: 0 4px 4px 0;
+      }
+    }
+  }
+
+  // 让 prepend 里的必填星号与文字对齐
+  .required-mark {
+    color: var(--color-danger);
+    margin-right: 2px;
+  }
+
+  :deep(.el-button) {
+    height: 30px;
+  }
 }
 
 .status_success {
@@ -506,54 +625,154 @@ export default {
   color: var(--color-danger);
 }
 
-.upload_input {
-  display: inline-block;
-  margin: 0 2px
-}
-
 .file-uploader {
-  margin: 10px 0 10px 0;
+  margin-bottom: 16px;
 
-  div > div:first-child {
+  .file-uploader-header {
     display: flex;
-  }
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 
-  > > > .el-upload {
-    width: 400px;
+    .clear-icon {
+      cursor: pointer;
+      color: var(--color-text-secondary);
 
-    flex-direction: column;
-
-    .el-upload-dragger {
-      width: 100%;
+      &:hover {
+        color: var(--color-danger);
+      }
     }
   }
 
-  .empty-file-tip {
+  // 拖拽区（左）与文件列表（右）并排
+  .uploader-body {
     position: relative;
-    bottom: 100px;
-    left: 58%;
-    font-size: 18px;
-    color: #c5c9cc;
+
+    // el-upload 根节点是无 class 的 div，仅它直接包含 .el-upload-list
+    :deep(div:has(> .el-upload-list)) {
+      display: flex;
+      gap: 16px;
+      width: 100%;
+    }
+
+    :deep(.el-upload) {
+      flex: 0 0 auto;
+    }
+
+    :deep(.el-upload-dragger) {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 260px;
+      height: 180px;
+      padding: 0 16px;
+    }
+
+    .uploader-icon {
+      font-size: 28px;
+      color: var(--color-text-secondary);
+      margin-bottom: 8px;
+    }
+
+    :deep(.el-upload__text) {
+      margin-bottom: 6px;
+    }
+
+    .uploader-limit {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+
+    :deep(.el-upload-list) {
+      flex: 1;
+      min-width: 0;
+      height: 180px;
+      margin: 0;
+      padding: 8px 10px;
+      border: 1px dashed var(--color-border);
+      border-radius: 4px;
+      overflow-y: auto;
+      font-weight: 500;
+
+      .el-upload-list__item {
+        margin-top: 0;
+
+        .el-upload-list__item-name {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+
+          .file-size {
+            margin-left: auto;
+            color: var(--color-primary);
+            font-weight: normal;
+          }
+
+          .remove-icon {
+            margin-left: 8px;
+            cursor: pointer;
+            color: var(--color-danger);
+          }
+        }
+      }
+    }
+
+    .empty-file-tip {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(260px + 16px);
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--color-disabled);
+      pointer-events: none;
+    }
   }
 
-  > > > .el-upload-list {
-    margin-left: 20px;
-    padding: 0 10px 0 10px;
-    list-style: none;
+  :deep(.el-progress-bar) {
+    padding-right: 0;
+  }
+
+  :deep(.el-progress__text) {
+    display: none;
+  }
+
+  .status-info {
+    display: flex;
+    justify-content: space-between;
     width: 100%;
-    height: 180px;
-    border: 1px dashed #d9d9d9;
-    overflow-y: auto;
-    font-weight: 500;
+    margin-top: 6px;
   }
 }
 
-.output {
-  background: white;
-}
+.output-box {
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
 
-.output > > > #terminal {
-  border: dashed 1px #d9d9d9;
-  margin: 0 20px 20px;
+    .output-title {
+      font-weight: 500;
+    }
+
+    .output-summary {
+      display: inline-flex;
+      gap: 16px;
+      font-weight: normal;
+    }
+  }
+
+  .output {
+    width: 100%;
+  }
+
+  .output :deep(#terminal) {
+    border: dashed 1px var(--color-border);
+  }
 }
 </style>

@@ -1,24 +1,20 @@
 <template>
   <div>
     <div>
-      <el-button
-        size="mini"
-        type="primary"
-        @click="onOpenDialog"
-      >
-        {{ $tc('common.View') }}
-        <span>({{ $tc('setting.LockedIP', ipCounts ) }})</span>
+      <el-button size="small" type="primary" @click="onOpenDialog">
+        {{ $tc('View') }}
+        <span>({{ $t('LockedIP', { count: ipCounts }) }})</span>
       </el-button>
     </div>
     <Dialog
-      :visible.sync="visible"
-      :title="title"
-      width="40%"
+      v-bind="$attrs"
+      v-model:visible="visible"
+      :destroy-on-close="true"
       :show-cancel="false"
       :show-confirm="false"
-      :destroy-on-close="true"
-      v-bind="$attrs"
-      v-on="$listeners"
+      :title="dialogTitle"
+      width="40%"
+      @update:visible="$emit('update:visible', $event)"
     >
       <BlockedIPList />
     </Dialog>
@@ -42,8 +38,8 @@ export default {
     },
     title: {
       type: String,
-      default: function() {
-        return this.$t('setting.BlockedIPS')
+      default: function () {
+        return ''
       }
     },
     url: {
@@ -66,12 +62,17 @@ export default {
       }
     }
   },
+  computed: {
+    dialogTitle() {
+      return this.title || this.$t('BlockedIPS')
+    }
+  },
   created() {
     this.getLockedIp()
   },
   methods: {
     getLockedIp() {
-      this.$axios.get('/api/v1/settings/security/block-ip/').then(res => {
+      this.$axios.get('/api/v1/settings/security/block-ip/').then((res) => {
         this.ipCounts = res.count
       })
     },
@@ -82,5 +83,4 @@ export default {
 }
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

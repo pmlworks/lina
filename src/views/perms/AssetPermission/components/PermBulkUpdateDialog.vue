@@ -1,10 +1,12 @@
 <template>
   <GenericUpdateFormDialog
     v-if="visible"
-    :selected-rows="selectedRows"
     :form-setting="formSetting"
+    :selected-rows="selectedRows"
+    :target-resource-setting="targetResourceSetting"
     :visible="visible"
-    v-on="$listeners"
+    @update="$emit('update', $event)"
+    @update:visible="$emit('update:visible', $event)"
   />
 </template>
 
@@ -17,6 +19,7 @@ export default {
   components: {
     GenericUpdateFormDialog
   },
+  emits: ['update', 'update:visible'],
   props: {
     permType: {
       type: String,
@@ -28,11 +31,12 @@ export default {
     },
     selectedRows: {
       type: Array,
-      default: () => ([])
+      default: () => []
     }
   },
   data() {
     return {
+      targetResourceSetting: {},
       formSetting: {
         url: '',
         hasSaveContinue: false,
@@ -50,8 +54,13 @@ export default {
       let url
       const fieldsManager = getFields.bind(this)()
       const fields = [
-        'users', 'user_groups', 'accounts',
-        'actions', 'is_active', 'date_start', 'date_expired'
+        'users',
+        'user_groups',
+        'accounts',
+        'actions',
+        'is_active',
+        'date_start',
+        'date_expired'
       ]
       const fieldsMeta = {
         users: fieldsManager.users,
@@ -60,9 +69,7 @@ export default {
         date_start: fieldsManager.date_start,
         date_expired: fieldsManager.date_expired,
         is_active: fieldsManager.is_active,
-        actions: {
-          label: this.$t('common.Action')
-        }
+        actions: {}
       }
       if (this.permType !== 'asset') {
         url = '/api/v1/perms/application-permissions/'
@@ -76,6 +83,11 @@ export default {
           nodes: fieldsManager.nodes
         })
       }
+      this.$data.targetResourceSetting = {
+        label: this.$t('AssetPermission'),
+        url: `${url}?fields_size=mini`,
+        resourceName: this.$t('AssetPermission')
+      }
       this.$data.formSetting.url = url
       this.$data.formSetting.fields = fields
       this.$data.formSetting.fieldsMeta = fieldsMeta
@@ -84,6 +96,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

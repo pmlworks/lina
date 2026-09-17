@@ -1,8 +1,8 @@
 <template>
   <IBox class="box">
-    <div slot="header" class="clearfix ibox-title">
-      <i class="fa fa-info-circle" /> {{ title }}
-    </div>
+    <template #header>
+      <div class="clearfix ibox-title"><i class="fa fa-info-circle" /> {{ title }}</div>
+    </template>
     <div class="content">
       <el-row :gutter="10">
         <el-col v-for="item in detailCardItems" :key="'card-' + item.key">
@@ -42,7 +42,7 @@
 </template>
 <script>
 import ItemValue from '@/components/Cards/DetailCard/ItemValue'
-import IBox from '@/components/IBox'
+import IBox from '@/components/Common/IBox'
 
 export default {
   name: 'Details',
@@ -50,11 +50,11 @@ export default {
   props: {
     specialCardItems: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     detailCardItems: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     title: {
       type: String,
@@ -67,10 +67,11 @@ export default {
 }
 </script>
 
-<style lang='less' scoped>
+<style lang="scss" scoped>
 .box {
   margin-bottom: 15px;
 }
+
 .content {
   font-size: 13px;
   line-height: 2.5;

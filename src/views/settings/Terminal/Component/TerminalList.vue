@@ -1,95 +1,74 @@
 <template>
   <div>
-    <ListTable :header-actions="headerActions" :table-config="tableConfig" />
-    <Dialog
-      :destroy-on-close="true"
-      :show-cancel="false"
-      :show-confirm="false"
-      :title="$tc('sessions.terminalUpdateStorage')"
-      :visible.sync="dialogSettings.visible"
-    >
-      <GenericCreateUpdateForm v-bind="dialogSettings.iFormSetting" />
-    </Dialog>
+    <ListTable
+      ref="ListTable"
+      :header-actions="headerActions"
+      :table-config="tableConfig"
+      :create-drawer="createDrawer"
+      :detail-drawer="detailDrawer"
+    />
+    <GenericUpdateFormDialog
+      v-if="dialogSettings.visible"
+      v-model:visible="dialogSettings.visible"
+      :form-setting="dialogSettings.iFormSetting"
+      :selected-rows="dialogSettings.selectedRows"
+      :target-resource-setting="dialogSettings.targetResourceSetting"
+      :title="$tc('TerminalUpdateStorage')"
+      @update="handleBulkUpdateDone"
+    />
   </div>
 </template>
 
 <script>
-import ListTable from '@/components/Table/ListTable'
-import { GenericCreateUpdateForm } from '@/layout/components'
-import Dialog from '@/components/Dialog'
 import Select2 from '@/components/Form/FormFields/Select2'
+
+import { DrawerListTable as ListTable } from '@/components'
+import { GenericUpdateFormDialog } from '@/layout/components'
+import { DetailFormatter } from '@/components/Table/TableFormatters'
 
 export default {
   components: {
     ListTable,
-    Dialog,
-    GenericCreateUpdateForm
+    GenericUpdateFormDialog
   },
   data() {
     const vm = this
     return {
+      createDrawer: () => import('./TerminalUpdate.vue'),
+      detailDrawer: () => import('./TerminalDetail/index.vue'),
       dialogSettings: {
         selectedRows: [],
         visible: false,
+        targetResourceSetting: {
+          label: this.$t('Component'),
+          url: '/api/v1/terminal/terminals/?fields_size=mini',
+          resourceName: this.$tc('Component', 2)
+        },
         iFormSetting: {
           url: '/api/v1/terminal/terminals/',
           getUrl: () => '/api/v1/terminal/terminals/',
-          fields: [
-            ['', ['command_storage', 'replay_storage']]
-          ],
+          fields: [['', ['command_storage', 'replay_storage']]],
           fieldsMeta: {
             command_storage: {
-              label: this.$t('sessions.commandStorage'),
+              label: this.$t('CommandStorage'),
               component: Select2,
               el: {
                 ajax: {
-                  url: `/api/v1/terminal/command-storages/`
+                  url: '/api/v1/terminal/command-storages/'
                 },
                 multiple: false
               }
             },
             replay_storage: {
-              label: this.$t('sessions.replayStorage'),
+              label: this.$t('ReplayStorage'),
               component: Select2,
               el: {
                 ajax: {
-                  url: `/api/v1/terminal/replay-storages/?type_not=sftp`
+                  url: '/api/v1/terminal/replay-storages/?type_not=sftp'
                 },
                 multiple: false
               }
             }
-          },
-          submitMethod: () => 'post',
-          cleanFormValue: (value) => {
-            const formValue = []
-            let object = {}
-            for (const row of this.dialogSettings.selectedRows) {
-              object = Object.assign({}, value, { id: row.id })
-              formValue.push(object)
-            }
-            return formValue
-          },
-          onSubmit: (validValues) => {
-            const url = '/api/v1/terminal/terminals/'
-            const msg = this.$t('common.updateSuccessMsg')
-            validValues = Object.values(validValues)
-            this.$axios.patch(url, validValues).then((res) => {
-              this.$message.success(msg)
-              this.dialogSettings.visible = false
-            }).catch(error => {
-              this.$emit('submitError', error)
-              const response = error.response
-              const data = response.data
-              if (response.status === 400) {
-                for (const key of Object.keys(data)) {
-                  let value = data[key]
-                  if (value instanceof Array) {
-                    value = value.join(';')
-                  }
-                  this.$refs.form.setFieldError(key, value)
-                }
-              }
-            })
           },
           hasSaveContinue: false
         }
@@ -102,30 +81,35 @@ export default {
         },
         columnsShow: {
           min: ['name', 'actions'],
-          default: [
-            'name', 'session_online', 'stat',
-            'load', 'actions'
-          ]
+          default: ['name', 'session_online', 'stat', 'load', 'actions']
         },
         columnsMeta: {
           name: {
             sortable: 'custom',
+            formatter: DetailFormatter,
             formatterArgs: {
-              route: 'TerminalDetail'
+              drawer: true,
+              getRoute: ({ row }) => {
+                return {
+                  name: 'TerminalDetail',
+                  params: {
+                    id: row.id
+                  }
+                }
+              }
             }
           },
           stat: {
-            label: this.$t('terminal.TerminalStat'),
             formatter: (row) => {
               if (!row?.stat) {
                 return ''
               }
               const stat = row.stat
               return `${stat['cpu_load']} / ${stat['memory_used']}% / ${stat['disk_used']}%`
-            }
+            },
+            helpTip: 'CPU / Memory / Disk'
           },
           load: {
-            label: this.$t('xpack.LoadStatus'),
             filterable: 'custom',
             sortable: false,
             formatterArgs: {
@@ -135,23 +119,17 @@ export default {
                 high: 'fa fa-exclamation-triangle text-info',
                 normal: 'fa fa-check text-primary'
               }
-            }
+            },
+            helpTip: 'CPU / Memory / Disk'
           },
           remote_addr: {
             sortable: 'custom'
           },
           is_active: {
-            label: this.$t('sessions.active'),
-            width: '80px',
             align: 'center'
           },
-          is_alive: {
-            label: this.$t('sessions.alive')
-          },
-          session_online: {
-            label: this.$t('sessions.session'),
-            width: '80px'
-          },
+          is_alive: {},
+          session_online: {},
           actions: {
             formatterArgs: {
               hasClone: false,
@@ -177,9 +155,14 @@ export default {
         }
       }
     }
+  },
+  methods: {
+    handleBulkUpdateDone() {
+      this.dialogSettings.visible = false
+      this.$refs.ListTable.reloadTable()
+    }
   }
 }
 </script>
 
-<style>
-</style>
+<style></style>

@@ -1,5 +1,5 @@
 <template>
-  <BaseAssetCreateUpdate v-if="!loading" v-bind="config" />
+  <BaseAssetCreateUpdate v-bind="config" v-if="!loading" />
 </template>
 
 <script>
@@ -16,10 +16,10 @@ export default {
       config: {
         url: '/api/v1/terminal/applet-hosts/',
         addFields: [
-          [this.$t('common.Automations'), ['deploy_options'], 3],
-          [this.$t('assets.Account'), [
-            'using_same_account',
-            'auto_create_accounts', 'accounts_create_amount']
+          [this.$t('Automation'), ['deploy_options'], 3],
+          [
+            this.$t('Account'),
+            ['using_same_account', 'auto_create_accounts', 'accounts_create_amount']
           ]
         ],
         addFieldsMeta: {
@@ -34,8 +34,13 @@ export default {
           },
           deploy_options: {
             fields: [
-              'CORE_HOST', 'IGNORE_VERIFY_CERTS', 'RDS_Licensing', 'RDS_LicenseServer',
-              'RDS_LicensingMode', 'RDS_fSingleSessionPerUser', 'RDS_MaxDisconnectionTime',
+              'CORE_HOST',
+              'IGNORE_VERIFY_CERTS',
+              'RDS_Licensing',
+              'RDS_LicenseServer',
+              'RDS_LicensingMode',
+              'RDS_fSingleSessionPerUser',
+              'RDS_MaxDisconnectionTime',
               'RDS_RemoteAppLogoffTimeLimit'
             ],
             fieldsMeta: {
@@ -59,11 +64,11 @@ export default {
           platform: {
             hidden: () => true
           },
-          domain: {
+          zone: {
             hidden: () => {
               return !this.$store.getters.hasValidLicense
             },
-            helpText: this.$t('assets.AppletHostDomainHelpText')
+            helpText: this.$t('AppletHostZoneHelpText')
           },
           nodes: {
             hidden: () => true
@@ -77,15 +82,10 @@ export default {
       }
     }
   },
-  async mounted() {
-    const platform = await this.$axios.get('/api/v1/assets/platforms/RemoteAppHost/')
-    this.$route.query.platform = platform['id']
+  async created() {
+    this.config.url = `${this.config.url}?platform=RemoteAppHost`
     this.loading = false
   },
   methods: {}
 }
 </script>
-
-<style lang="less" scoped>
-
-</style>

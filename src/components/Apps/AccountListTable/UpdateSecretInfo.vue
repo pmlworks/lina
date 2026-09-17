@@ -1,44 +1,36 @@
 <template>
   <Dialog
+    v-model:visible="iVisible"
     :destroy-on-close="true"
-    :title="$tc('assets.UpdateAssetUserToken')"
-    :visible.sync="visible"
-    width="50"
-    @cancel="handleCancel()"
-    @confirm="handleConfirm()"
-    v-on="$listeners"
+    :show-buttons="false"
+    :title="$tc('UpdateAssetUserToken')"
+    width="800px"
   >
-    <el-form label-position="right" label-width="90px">
-      <el-form-item :label="$tc('assets.Name')">
-        <el-input v-model="account['asset_name']" readonly />
-      </el-form-item>
-      <el-form-item :label="$tc('assets.Username')">
-        <el-input v-model="account['username']" readonly />
-      </el-form-item>
-      <el-form-item :label="$tc('assets.Password')">
-        <UpdateToken v-model="authInfo.password" />
-      </el-form-item>
-      <el-form-item :label="$tc('assets.SSHSecretKey')">
-        <UploadKey @input="getFile" />
-      </el-form-item>
-      <el-form-item :label="$tc('assets.Passphrase')">
-        <UpdateToken v-model="authInfo.passphrase" />
-      </el-form-item>
-    </el-form>
+    <AutoDataForm
+      :fields="fields"
+      :fields-meta="fieldsMeta"
+      :form="init"
+      :has-reset="false"
+      :has-save-continue="false"
+      :url="''"
+      method="patch"
+      @submit="handleConfirm"
+    />
   </Dialog>
 </template>
 
 <script>
+import { accountFieldsMeta } from '@/components/Apps/AccountCreateUpdateForm/const'
 import Dialog from '@/components/Dialog/index.vue'
-import { UpdateToken, UploadKey } from '@/components/Form/FormFields'
-import { encryptPassword } from '@/utils/crypto'
+import AutoDataForm from '@/components/Form/AutoDataForm/index.vue'
+import { encryptPassword } from '@/utils/secure'
+import { useVModel } from '@/utils/vue/useVModel'
 
 export default {
   name: 'UpdateSecretInfo',
   components: {
-    Dialog,
-    UploadKey,
-    UpdateToken
+    AutoDataForm,
+    Dialog
   },
   props: {
     account: {
@@ -50,50 +42,64 @@ export default {
       default: false
     }
   },
-  data() {
+  emits: ['update:visible', 'update-auth-done'],
+  setup(props, { emit }) {
+    const iVisible = useVModel(props, emit, 'visible')
     return {
-      secretInfo: {
-        password: '',
-        private_key: '',
-        passphrase: ''
+      iVisible
+    }
+  },
+  data() {
+    const accountMeta = accountFieldsMeta(this)
+    return {
+      fields: [
+        'name',
+        'secret_type',
+        'password',
+        'ssh_key',
+        'token',
+        'access_key',
+        'passphrase',
+        'api_key'
+      ],
+      fieldsMeta: {
+        ...accountMeta,
+        name: {
+          ...accountMeta.name,
+          readonly: true
+        },
+        secret_type: {
+          hidden: () => true
+        }
+      },
+      init: {
+        ...this.account
       }
     }
   },
   methods: {
-    handleConfirm() {
-      const data = {}
-      if (this.secretInfo.password !== '') {
-        data.password = encryptPassword(this.secretInfo.password)
+    handleConfirm(form) {
+      const secretType = this.account.secret_type.value
+      const data = {
+        secret: encryptPassword(form[secretType])
       }
-      if (this.secretInfo.private_key !== '') {
-        data.private_key = encryptPassword(this.secretInfo.private_key)
-        if (this.secretInfo.passphrase) data.passphrase = this.secretInfo.passphrase
-      }
-      this.$axios.patch(
-        `/api/v1/accounts/accounts/${this.account.id}/`,
-        data,
-        { disableFlashErrorMsg: true }
-      ).then(res => {
-        this.authInfo = { password: '', private_key: '' }
-        this.$message.success(this.$tc('common.updateSuccessMsg'))
-        this.$emit('updateAuthDone', res)
-        this.$emit('update:visible', false)
-      }).catch(err => {
-        const errMsg = Object.values(err.response.data).join(', ')
-        this.$message.error(this.$tc('common.updateErrorMsg') + ' ' + errMsg)
-        this.$emit('update:visible', true)
-      })
+      this.$axios
+        .patch(`/api/v1/accounts/accounts/${this.account.id}/`, data, {
+          disableFlashErrorMsg: true
+        })
+        .then((res) => {
+          this.$message.success(this.$tc('UpdateSuccessMsg'))
+          this.$emit('update:visible', false)
+        })
+        .catch((err) => {
+          const errMsg = Object.values(err.response.data).join(', ')
+          this.$message.error(this.$tc('UpdateErrorMsg') + ' ' + errMsg)
+          this.$emit('update:visible', false)
+        })
     },
     handleCancel() {
       this.$emit('update:visible', false)
-    },
-    getFile(file) {
-      this.secretInfo.private_key = file
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

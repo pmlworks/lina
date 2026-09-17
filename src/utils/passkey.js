@@ -6,9 +6,11 @@ for (let i = 0; i < chars.length; i++) {
   lookup[chars.charCodeAt(i)] = i
 }
 
-const encode = function(arraybuffer) {
+const encode = function (arraybuffer) {
   const bytes = new Uint8Array(arraybuffer)
-  let i; const len = bytes.length; let base64url = ''
+  let i
+  const len = bytes.length
+  let base64url = ''
 
   for (i = 0; i < len; i += 3) {
     base64url += chars[bytes[i] >> 2]
@@ -17,7 +19,7 @@ const encode = function(arraybuffer) {
     base64url += chars[bytes[i + 2] & 63]
   }
 
-  if ((len % 3) === 2) {
+  if (len % 3 === 2) {
     base64url = base64url.substring(0, base64url.length - 1)
   } else if (len % 3 === 1) {
     base64url = base64url.substring(0, base64url.length - 2)
@@ -26,10 +28,15 @@ const encode = function(arraybuffer) {
   return base64url
 }
 
-const decode = function(base64string) {
+const decode = function (base64string) {
   const bufferLength = base64string.length * 0.75
-  const len = base64string.length; let i; let p = 0
-  let encoded1; let encoded2; let encoded3; let encoded4
+  const len = base64string.length
+  let i
+  let p = 0
+  let encoded1
+  let encoded2
+  let encoded3
+  let encoded4
 
   const bytes = new Uint8Array(bufferLength)
 
@@ -50,12 +57,13 @@ const decode = function(base64string) {
 const publicKeyCredentialToJSON = (pubKeyCred) => {
   if (pubKeyCred instanceof Array) {
     const arr = []
-    for (const i of pubKeyCred) { arr.push(publicKeyCredentialToJSON(i)) }
-
+    for (const i of pubKeyCred) {
+      arr.push(publicKeyCredentialToJSON(i))
+    }
     return arr
   }
 
-  if (pubKeyCred instanceof ArrayBuffer) {
+  if (pubKeyCred instanceof ArrayBuffer || pubKeyCred instanceof Uint8Array) {
     return encode(pubKeyCred)
   }
 
@@ -73,8 +81,7 @@ const publicKeyCredentialToJSON = (pubKeyCred) => {
 }
 
 export default {
-  'decode': decode,
-  'encode': encode,
-  'publicKeyCredentialToJSON': publicKeyCredentialToJSON
+  decode: decode,
+  encode: encode,
+  publicKeyCredentialToJSON: publicKeyCredentialToJSON
 }
-

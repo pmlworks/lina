@@ -1,11 +1,20 @@
 <template>
   <div>
-    <ListTable class="App-Provider" v-bind="$data" />
+    <el-alert type="info">
+      <span ref="helpRef" class="app-provider-help" />
+    </el-alert>
+    <ListTable
+      v-bind="$data"
+      ref="table"
+      class="app-provider"
+      :create-drawer="createDrawer"
+      :resource="$t('AppProvider')"
+    />
   </div>
 </template>
 
 <script>
-import { ListTable } from '@/components'
+import { DrawerListTable as ListTable } from '@/components'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
 
 export default {
@@ -15,13 +24,13 @@ export default {
   },
   data() {
     return {
+      createDrawer: () => import('./AppProviderCreateUpdate.vue'),
+      detailDrawer: () => import('./AppProviderDetail/index.vue'),
       tableConfig: {
         url: '/api/v1/terminal/app-providers/',
         columnsShow: {
           min: ['name'],
-          default: [
-            'name', 'hostname', 'load', 'actions'
-          ]
+          default: ['name', 'address', 'load', 'actions']
         },
         columnsMeta: {
           name: {
@@ -50,8 +59,11 @@ export default {
             formatterArgs: {
               hasClone: false,
               hasUpload: false,
-              hasUpdate: false,
-              canDelete: false,
+              hasUpdate: true,
+              canUpdate: this.$hasPerm('terminal.change_appprovider'),
+              updateRoute: 'AppProviderUpdate',
+              hasDelete: true,
+              canDelete: this.$hasPerm('terminal.delete_appprovider'),
               performDelete: ({ row }) => {
                 const id = row.id
                 const url = `/api/v1/terminal/app-providers/${id}/`
@@ -62,21 +74,35 @@ export default {
         }
       },
       headerActions: {
-        hasCreate: false,
+        hasCreate: true,
+        createRoute: 'AppProviderCreate',
         hasRefresh: true,
         hasExport: false,
-        hasImport: false,
-        canBulkDelete: false
-
+        hasImport: false
       }
+    }
+  },
+  mounted() {
+    this.renderHelp()
+  },
+  activated() {
+    this.renderHelp()
+  },
+  methods: {
+    renderHelp() {
+      this.$nextTick(() => {
+        const el = this.$refs.helpRef
+        if (el) {
+          el.innerHTML = this.$xss.process(String(this.$t('AppProviderHelpMessage') || ''))
+        }
+      })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.App-Provider > > > .protocol {
+.app-provider :deep(.protocol) {
   margin-left: 3px;
 }
-
 </style>

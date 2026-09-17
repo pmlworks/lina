@@ -12,13 +12,29 @@ export default {
     return {
       url: '/api/v1/assets/webs/',
       addFields: [
-        [this.$t('common.Selector'), [
-          'autofill', 'username_selector',
-          'password_selector', 'submit_selector',
-          'script'
-        ], 1]
+        [this.$t('Basic'), ['allowed_urls']],
+        [
+          this.$t('Selector'),
+          [
+            'autofill',
+            'username_selector',
+            'password_selector',
+            'submit_selector',
+            'success_selector',
+            'interactive_selector',
+            'script'
+          ],
+          1
+        ]
       ],
       addFieldsMeta: {
+        allowed_urls: {
+          hidden: () => !this.$hasLicense(),
+          label: this.$t('WebAllowedSites'),
+          helpText: this.$t('WebAllowedSitesHelp'),
+          required: false,
+          default: []
+        },
         protocols: {
           hidden: (formValue) => {
             const address = formValue['address']
@@ -26,7 +42,9 @@ export default {
             let port = address.startsWith('https://') ? 443 : 80
             try {
               const url = new URL(address)
-              if (url.port) { port = url.port }
+              if (url.port) {
+                port = url.port
+              }
             } catch (e) {
               // pass
             }
@@ -43,8 +61,19 @@ export default {
         submit_selector: {
           hidden: (formValue) => formValue['autofill'] !== 'basic'
         },
+        interactive_selector: {
+          required: false,
+          rules: [],
+          hidden: (formValue) => !this.$hasLicense() || formValue['autofill'] !== 'basic'
+        },
+        success_selector: {
+          required: false,
+          rules: [],
+          hidden: (formValue) => !this.$hasLicense() || formValue['autofill'] !== 'basic'
+        },
         script: {
-          hidden: (formValue) => formValue['autofill'] !== 'script'
+          helpText: this.$t('WebScriptStepsHelp'),
+          hidden: (formValue) => !this.$hasLicense() || formValue['autofill'] !== 'script'
         }
       }
     }
@@ -52,5 +81,4 @@ export default {
 }
 </script>
 
-<style>
-</style>
+<style></style>

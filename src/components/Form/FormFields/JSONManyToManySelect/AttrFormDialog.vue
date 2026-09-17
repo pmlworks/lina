@@ -1,25 +1,19 @@
 <template>
   <Dialog
+    v-bind="$attrs"
     :destroy-on-close="true"
     :show-buttons="false"
-    :title="$tc('common.SelectAttrs')"
-    v-bind="$attrs"
-    v-on="$listeners"
+    :title="$tc('SelectAttrs')"
   >
     <div v-if="!loading">
-      <DataForm
-        :form="form"
-        class="attr-form"
-        v-bind="formConfig"
-        @submit="onAttrDialogConfirm"
-      />
+      <DataForm v-bind="formConfig" :form="form" class="attr-form" @submit="onAttrDialogConfirm" />
     </div>
   </Dialog>
 </template>
 
 <script>
-import DataForm from '@/components/Form/DataForm/index.vue'
 import Dialog from '@/components/Dialog/index.vue'
+import DataForm from '@/components/Form/DataForm/index.vue'
 import ValueField from '@/components/Form/FormFields/JSONManyToManySelect/ValueField.vue'
 import { attrMatchOptions, typeMatchMapper } from '@/components/const'
 
@@ -29,11 +23,11 @@ export default {
   props: {
     attrs: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     attrsAdded: {
       type: Array,
-      default: () => ([])
+      default: () => []
     },
     form: {
       type: Object,
@@ -51,9 +45,9 @@ export default {
         fields: [
           {
             id: 'name',
-            label: this.$t('common.AttrName'),
+            label: this.$t('AttrName'),
             type: 'select',
-            options: this.attrs.map(attr => {
+            options: this.attrs.map((attr) => {
               let disabled = this.attrsAdded.includes(attr.name) && this.form.name !== attr.name
               if (attr.disabled) {
                 disabled = true
@@ -63,7 +57,7 @@ export default {
             on: {
               change: ([val], updateForm) => {
                 // 变化会影响 match 的选项
-                const attr = this.attrs.find(attr => attr.name === val)
+                const attr = this.attrs.find((attr) => attr.name === val)
                 if (!attr) return
                 const matchOption = vm.updateMatchOptions(attr)
                 setTimeout(() => {
@@ -74,7 +68,7 @@ export default {
           },
           {
             id: 'match',
-            label: this.$t('common.Match'),
+            label: this.$t('Match'),
             type: 'select',
             options: attrMatchOptions,
             on: {
@@ -88,7 +82,7 @@ export default {
           },
           {
             id: 'value',
-            label: this.$t('common.AttrValue'),
+            label: this.$t('AttrValue'),
             component: ValueField,
             el: {
               match: attrMatchOptions[0].value,
@@ -114,8 +108,8 @@ export default {
   },
   methods: {
     getDefaultAttrForm() {
-      const attrKeys = this.attrs.map(attr => attr.name)
-      const diff = attrKeys.filter(attr => !this.attrsAdded.includes(attr))
+      const attrKeys = this.attrs.map((attr) => attr.name)
+      const diff = attrKeys.filter((attr) => !this.attrsAdded.includes(attr))
       let name = this.attrs[0].name
       if (diff.length > 0) {
         name = diff[0]
@@ -128,11 +122,13 @@ export default {
       }
     },
     onAttrDialogConfirm(form) {
-      this.$emit('confirm', form)
+      setTimeout(() => {
+        this.$emit('confirm', form)
+      }, 300)
     },
     updateMatchOptions(attr) {
       if (!attr) {
-        attr = this.attrs.find(attr => attr.name === this.form.name)
+        attr = this.attrs.find((attr) => attr.name === this.form.name)
       }
       if (!attr) return
       const attrType = attr.type || 'str'
@@ -141,8 +137,8 @@ export default {
         option.hidden = !matchSupports.includes(option.value)
       })
       this.formConfig.fields[2].el.attr = attr
-      const supports = attrMatchOptions.filter(option => !option.hidden)
-      const matchOption = supports.find(item => item.value === this.form.match) || supports[0]
+      const supports = attrMatchOptions.filter((option) => !option.hidden)
+      const matchOption = supports.find((item) => item.value === this.form.match) || supports[0]
       this.formConfig.fields[2].el.match = matchOption.value
       return matchOption
     }
@@ -151,11 +147,13 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-
 .attr-form {
-  >>> .el-select {
+  :deep(.el-select) {
+    width: 100%;
+  }
+
+  :deep(.el-form-item__content > div) {
     width: 100%;
   }
 }
 </style>
-

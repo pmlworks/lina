@@ -1,56 +1,58 @@
 <template>
-  <IBox
-    :fa="icon"
-    :type="type"
-    :title="title"
-    v-bind="$attrs"
-  >
-    <table class="card-table">
-      <div v-if="iObjects.length > 0" v-cloak>
-        <tr v-for="obj of iObjects" :key="obj.value" class="item">
-          <td>
-            <el-tooltip
-              style="margin: 4px;"
-              effect="dark"
-              :content="obj.label"
-              placement="left"
-            >
-              <el-link class="detail" @click="goDetail(obj)">
-                {{ obj.label }}
-              </el-link>
-            </el-tooltip>
-          </td>
-          <td>
-            <el-button
-              size="mini"
-              type="primary"
-              style="float: right"
-              @click="buttonClickCallback(obj)"
-            >
-              {{ buttonTitle }}
-            </el-button>
-          </td>
-        </tr>
-      </div>
-      <div v-else v-cloak style="text-align: center;">
-        {{ $t('common.NoData') }}
-      </div>
-    </table>
-  </IBox>
+  <div>
+    <IBox v-bind="$attrs" :fa="icon" :title="title" :type="type">
+      <table class="card-table">
+        <div v-cloak v-if="iObjects.length > 0">
+          <tr v-for="obj of iObjects" :key="obj.value" class="item">
+            <td class="name-cell">
+              <el-tooltip
+                :content="obj.label"
+                :show-after="500"
+                effect="dark"
+                placement="left"
+                style="margin: 4px"
+              >
+                <el-link class="detail" @click="goDetail(obj)">
+                  {{ obj.label }}
+                </el-link>
+              </el-tooltip>
+            </td>
+            <td class="action-cell">
+              <el-button size="small" type="primary" @click="buttonClickCallback(obj)">
+                {{ buttonTitle }}
+              </el-button>
+            </td>
+          </tr>
+        </div>
+        <div v-cloak v-else style="text-align: center">
+          {{ $t('NoData') }}
+        </div>
+      </table>
+    </IBox>
+    <Drawer
+      v-model:visible="drawerVisible"
+      :component="detailDrawer"
+      :component-props="detailDrawerProps"
+      :has-footer="false"
+      :title="title"
+    />
+  </div>
 </template>
 
 <script>
-import IBox from '@/components/IBox'
+import IBox from '@/components/Common/IBox'
+import Drawer from '@/components/Drawer/index.vue'
 
 export default {
   name: 'PermUserGroupCard',
   components: {
-    IBox
+    IBox,
+    Drawer
   },
   props: {
     icon: {
       type: String,
-      required: true
+      default: ''
     },
     title: {
       type: String,
@@ -65,7 +67,7 @@ export default {
       required: true
     },
     detailRoute: {
-      type: String,
+      type: [String, Function],
       default: ''
     },
     buttonTitle: {
@@ -79,6 +81,9 @@ export default {
   },
   data() {
     return {
+      detailDrawer: '',
+      detailDrawerProps: {},
+      drawerVisible: false,
       objects: []
     }
   },
@@ -99,42 +104,72 @@ export default {
       this.objects = data
     },
     goDetail(obj) {
-      this.$router.push({ name: this.detailRoute, params: { id: obj.id }})
+      this.detailDrawer = this.detailRoute
+      this.detailDrawerProps = {
+        drawerContext: {
+          isDrawer: true,
+          action: 'detail',
+          row: {},
+          col: {},
+          id: obj.id,
+          params: { id: obj.id },
+          query: {},
+          routeName: this.$route.name || ''
+        }
+      }
+      this.drawerVisible = true
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-  .card-table {
-    width: 100%;
-    table-layout:fixed;
+.card-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+[v-cloak] {
+  display: none !important;
+}
+
+b,
+strong {
+  font-size: 13px;
+}
+
+tr.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  // 行内用 flex 居中对齐：按钮（small）比文字高，原先 float + inline 单元格无法把按钮
+  // 纳入行高计算，按钮溢出贴到 border-bottom。flex 居中后按钮垂直居中，padding 在上下
+  // 各留出与 border 的间距。
+  padding: 6px 8px;
+  border-bottom: 1px solid #e7eaec;
+
+  &:last-child {
+    border-bottom: 0;
   }
-  [v-cloak]{
-    display: none!important;
-  }
-  b, strong {
-    font-weight: 700;
-    font-size: 13px;
-  }
-  tr td {
-    line-height: 1.42857;
-    padding: 8px;
-    vertical-align: top;
-    display: inline;
+
+  .name-cell {
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 1.2;
+    padding: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  tr.item {
-    border-bottom: 1px solid #e7eaec;
-    padding: 8px;
-    display: block;
-    &:last-child {
-       border-bottom: 0;
-    }
+
+  .action-cell {
+    flex: 0 0 auto;
+    padding: 0;
   }
-  .box-margin {
-    margin-bottom: 20px;
-  }
+}
+
+.box-margin {
+  margin-bottom: 20px;
+}
 </style>

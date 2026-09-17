@@ -1,29 +1,27 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="16" :sm="24">
-      <ListTable :table-config="config" :header-actions="headerConfig" />
-    </el-col>
-    <el-col :md="8" :sm="24">
-      <QuickActions type="primary" :actions="quickActions" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <ListTable :header-actions="headerConfig" :table-config="config" />
+    <template #right>
+      <QuickActions :actions="quickActions" type="primary" />
+    </template>
+  </TwoCol>
 </template>
 
-<script>
+<script lang="jsx">
 import { ListTable, QuickActions } from '@/components'
-import { openTaskPage } from '@/utils/jms'
-
+import { openTaskPage } from '@/utils/jms/index'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 export default {
   name: 'Developments',
   components: {
+    TwoCol,
     ListTable,
     QuickActions
   },
   props: {
     object: {
       type: Object,
-      default: () => {
-      }
+      default: () => {}
     }
   },
   data() {
@@ -36,9 +34,7 @@ export default {
       config: {
         hasSelection: false,
         url: `/api/v1/terminal/applet-host-deployments/?host=${this.object.id}`,
-        columns: [
-          'id', 'date_start', 'date_finished', 'status', 'actions'
-        ],
+        columns: ['id', 'date_start', 'date_finished', 'status', 'actions'],
         columnsMeta: {
           id: {
             type: 'index',
@@ -46,16 +42,20 @@ export default {
             sortable: 'custom'
           },
           status: {
-            label: this.$t('common.Status'),
+            label: this.$t('Status'),
             formatter: (row) => {
               const typeMapper = {
-                'pending': 'success',
-                'success': 'primary',
-                'failed': 'danger',
-                'unknown': 'warning'
+                pending: 'success',
+                success: 'primary',
+                failed: 'danger',
+                unknown: 'warning'
               }
               const tp = typeMapper[row.status.value] || 'info'
-              return <el-tag size='mini' type={tp}>{row.status.label}</el-tag>
+              return (
+                <el-tag size="small" type={tp}>
+                  {row.status.label}
+                </el-tag>
+              )
             }
           },
           actions: {
@@ -66,9 +66,9 @@ export default {
               extraActions: [
                 {
                   name: 'View',
-                  title: this.$t('common.View'),
+                  title: this.$t('View'),
                   type: 'primary',
-                  callback: function(val) {
+                  callback: function (val) {
                     openTaskPage(val.row.task)
                   }
                 }
@@ -79,19 +79,20 @@ export default {
       },
       quickActions: [
         {
-          title: this.$t('assets.InitialDeploy'),
+          title: this.$t('InitialDeploy'),
           attrs: {
             type: 'primary',
-            label: this.$t('common.Deploy')
+            label: this.$t('Deploy')
           },
           callbacks: {
-            click: function() {
-              this.$axios.post(
-                `/api/v1/terminal/applet-host-deployments/`,
-                { host: this.object.id }
-              ).then(res => {
-                openTaskPage(res['task'])
-              })
+            click: function () {
+              this.$axios
+                .post(`/api/v1/terminal/applet-host-deployments/`, {
+                  host: this.object.id
+                })
+                .then((res) => {
+                  openTaskPage(res['task'])
+                })
             }.bind(this)
           }
         }
@@ -101,6 +102,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

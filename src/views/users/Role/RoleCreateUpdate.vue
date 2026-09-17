@@ -1,10 +1,10 @@
 <template>
-  <GenericCreateUpdatePage v-bind="config" @getObjectDone="getObjectDone" />
+  <GenericCreateUpdatePage v-bind="config" @get-object-done="getObjectDone" />
 </template>
 
 <script>
-import { GenericCreateUpdatePage } from '@/layout/components'
 import { TextReadonly } from '@/components/Form/FormFields'
+import { GenericCreateUpdatePage } from '@/layout/components'
 
 export default {
   components: {
@@ -18,14 +18,14 @@ export default {
       scopeRole: scope + 'role',
       config: {
         url: `/api/v1/rbac/${scope}-roles/`,
-        objectDetailRoute: { name: 'RoleDetail', query: { scope: scope }},
+        objectDetailRoute: { name: 'RoleDetail', query: { scope: scope } },
         initial: {
           scope: scope
         },
         fields: [
-          [this.$t('common.Basic'), ['name', 'scope']],
-          [this.$t('perms.Permissions'), ['permissions']],
-          [this.$t('common.Other'), ['comment']]
+          [this.$t('Basic'), ['name', 'scope']],
+          [this.$t('Permissions'), ['permissions']],
+          [this.$t('Other'), ['comment']]
         ],
         fieldsMeta: {
           scope: {
@@ -35,7 +35,7 @@ export default {
           permissions: {
             component: TextReadonly,
             el: {
-              text: this.$t('users.HelpText.addRolePermissions'),
+              text: this.$t('AddInDetailText'),
               bolder: false
             }
           }
@@ -56,6 +56,4 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
-
-</style>
+<style lang="scss" scoped></style>

@@ -18,11 +18,8 @@ export default {
           default: ['user', 'change_by', 'remote_addr', 'datetime']
         },
         columnsMeta: {
-          remote_addr: {
-            width: '140px'
-          },
-          datetime: {
-            width: '180px'
+          user: {
+            label: this.$t('User')
           },
           actions: {
             has: false
@@ -32,13 +29,18 @@ export default {
       headerActions: {
         hasLeftActions: false,
         hasImport: false,
-        hasDatePicker: true
+        hasReportExport: true,
+        hasDatePicker: true,
+        searchConfig: {
+          getUrlQuery: true,
+          fieldLabels: {
+            user: this.$t('User')
+          }
+        }
       }
     }
   }
 }
 </script>
 
-<style>
-
-</style>
+<style></style>

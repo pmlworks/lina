@@ -3,24 +3,25 @@
 </template>
 
 <script>
+import { periodicMeta } from '@/components/const'
 import { GenericCreateUpdatePage } from '@/layout/components'
+import { encryptPassword } from '@/utils/secure'
 import getChangeSecretFields from '@/views/accounts/AccountBackup/fields'
-import { encryptPassword } from '@/utils/crypto'
+import AssetTypeCascader from './components/AssetTypeCascader.vue'
 
 export default {
-  name: 'AccountBackupPlanUpdate',
+  name: 'AccountBackupUpdate',
   components: {
     GenericCreateUpdatePage
   },
   data() {
-    const vm = this
     const fields = getChangeSecretFields.bind(this)()
     return {
       url: '/api/v1/accounts/account-backup-plans/',
       fields: [
-        [this.$t('common.Basic'), ['name']],
-        [this.$t('accounts.AccountBackup.Types'), ['types']],
-        [this.$t('accounts.AccountBackup.Backup'),
+        [this.$t('Basic'), ['name', 'types']],
+        [
+          this.$t('Backup'),
           [
             'backup_type',
             'is_password_divided_by_email',
@@ -32,18 +33,16 @@ export default {
             'zip_encrypt_password'
           ]
         ],
-        [this.$t('xpack.Timer'), ['is_periodic', 'crontab', 'interval']],
-        [this.$t('common.Other'), ['comment']]
+        [this.$t('Periodic'), ['is_periodic', 'interval', 'crontab']],
+        [this.$t('Other'), ['is_active', 'comment']]
       ],
       initial: {
-        is_periodic: true,
+        is_periodic: false,
         interval: 24,
         categories: []
       },
       fieldsMeta: {
-        is_periodic: fields.is_periodic,
-        crontab: fields.crontab,
-        interval: fields.interval,
+        ...periodicMeta,
         is_password_divided_by_email: fields.is_password_divided_by_email,
         zip_encrypt_password: fields.zip_encrypt_password,
         is_password_divided_by_obj_storage: fields.is_password_divided_by_obj_storage,
@@ -52,19 +51,11 @@ export default {
         obj_recipients_part_one: fields.obj_recipients_part_one,
         obj_recipients_part_two: fields.obj_recipients_part_two,
         types: {
-          component: 'el-cascader',
-          label: this.$t('accounts.AccountBackup.Types'),
-          remote: {
-            request: () => vm.$axios.get('/api/v1/assets/categories/')
-          },
+          type: 'cascader',
+          component: AssetTypeCascader,
+          label: this.$t('Types'),
           el: {
-            options: [],
-            showAllLevels: false,
-            props: {
-              multiple: true,
-              emitPath: false,
-              children: 'types'
-            },
+            placeholder: this.$t('PleaseSelect'),
             style: {
               width: '100%'
             }
@@ -93,6 +84,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

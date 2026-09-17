@@ -1,16 +1,17 @@
 <template>
   <Dialog
-    v-if="iVisible"
-    :title="$tc('ops.NewFile')"
-    :visible.sync="iVisible"
-    width="20%"
-    top="1vh"
+    v-if="visible"
     :show-cancel="false"
     :show-confirm="true"
+    :title="$tc('NewFile')"
+    :visible="visible"
+    top="1vh"
+    width="40%"
+    @update:visible="$emit('update:visible', $event)"
     @confirm="onConfirm"
   >
     <el-form>
-      <el-form-item :label="$tc('common.DisplayName')">
+      <el-form-item :label="$tc('DisplayName')">
         <el-input v-model="name" />
       </el-form-item>
     </el-form>
@@ -30,28 +31,18 @@ export default {
       default: false
     }
   },
+  emits: ['update:visible', 'confirm'],
   data() {
     return {
       name: ''
-    }
-  },
-  computed: {
-    iVisible: {
-      set(val) {
-        this.$emit('update:visible', val)
-      },
-      get() {
-        return this.visible
-      }
     }
   },
   mounted() {},
   methods: {
     onConfirm() {
       this.$emit('confirm', this.name)
-      this.iVisible = false
+      this.$emit('update:visible', false)
     }
   }
 }
 </script>
-

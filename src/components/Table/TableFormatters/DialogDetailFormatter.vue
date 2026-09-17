@@ -1,12 +1,12 @@
 <template>
   <div>
-    <el-link :type="col.type || 'success'" class="detail" @click="dialogVisible=true">
+    <el-link :type="col.type || 'success'" class="detail" @click="dialogVisible = true">
       {{ iTitle }}
     </el-link>
     <Dialog
+      v-model:visible="dialogVisible"
       :show-cancel="false"
       :title="dialogTitle"
-      :visible.sync="dialogVisible"
       width="60%"
       @confirm="onCancel"
     >
@@ -53,10 +53,22 @@ export default {
     return {
       formatterArgs: formatterArgs,
       iTitle: formatterArgs.getTitle({ col: this.col, row: this.row, cellValue: this.cellValue }),
-      dialogTitle: formatterArgs.getDialogTile({ col: this.col, row: this.row, cellValue: this.cellValue }),
+      dialogTitle: formatterArgs.getDialogTile({
+        col: this.col,
+        row: this.row,
+        cellValue: this.cellValue
+      }),
       dialogVisible: false,
-      detailCardItems: formatterArgs.getDetailItems({ col: this.col, row: this.row, cellValue: this.cellValue }),
-      detailTitle: formatterArgs.getDetailTitle({ col: this.col, row: this.row, cellValue: this.cellValue })
+      detailCardItems: formatterArgs.getDetailItems({
+        col: this.col,
+        row: this.row,
+        cellValue: this.cellValue
+      }),
+      detailTitle: formatterArgs.getDetailTitle({
+        col: this.col,
+        row: this.row,
+        cellValue: this.cellValue
+      })
     }
   },
   methods: {
@@ -68,10 +80,11 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.card >>> .el-card__body {
+.card :deep(.el-card__body) {
   padding: 0;
 }
+
 .el-card {
-  border: 0!important;
+  border: 0 !important;
 }
 </style>

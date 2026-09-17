@@ -1,10 +1,13 @@
 <template>
-  <GenericCreateUpdatePage :initial="initial" v-bind="$data" />
+  <GenericCreateUpdatePage v-bind="$data" :initial="initial" />
 </template>
 
 <script>
+import { ResourceSelect } from '@/components/Form/FormFields'
 import { GenericCreateUpdatePage } from '@/layout/components'
+import { getErrorResponseMsg } from '@/utils/common'
 import FlowRuleField from './FlowRuleField'
+
 export default {
   name: 'FlowCreateUpdate',
   components: {
@@ -14,37 +17,64 @@ export default {
     return {
       loading: true,
       fields: [
-        [this.$t('common.Basic'), ['type']],
-        [this.$t('common.ApprovaLevel'), ['approval_level', 'rules']]
+        [this.$t('Basic'), ['name', 'cc_users']],
+        [this.$t('ApprovalLevel'), ['approval_level', 'rules']]
       ],
       fieldsMeta: {
-        type: {
-          disabled: true
+        name: {
+          el: {
+            maxlength: 128,
+            showWordLimit: true
+          }
         },
         rules: {
-          label: this.$t('tickets.ApprovalProcess'),
+          label: this.$t('ApprovalProcess'),
           component: FlowRuleField,
+          passServerErrors: true,
           el: {
             level: 1
           },
           hidden: (form) => {
             this.fieldsMeta.rules.el.level = form['approval_level']
           }
+        },
+        cc_users: {
+          type: 'resourceSelect',
+          component: ResourceSelect,
+          label: this.$t('CcUsers'),
+          el: {
+            value: [],
+            url: '/api/v1/users/users/?fields_size=mini',
+            resourceName: this.$t('Users')
+          }
         }
       },
       getUrl() {
-        const params = this.$route.params
         let url = `/api/v1/tickets/flows/`
-        if (params.id) {
-          url = `${url}${params.id}/`
+        const id = this.$context.get('id')
+        if (id) {
+          url = `${url}${id}/`
         }
         return `${url}`
       },
       cleanFormValue(data) {
-        data['rules'] = data['rules'].slice(0, data['approval_level'])
+        const approvalLevel = Number(data['approval_level']) || 1
+        const rules = Array.isArray(data['rules']) ? data['rules'] : []
+        data['rules'] = rules.slice(0, approvalLevel).map((rule, index) => ({
+          level: index + 1,
+          users: rule.users
+        }))
         return data
       },
-      onPerformError() {
+      performSubmit(validValues) {
+        return this.$axios[this.method](this.iUrl, validValues, {
+          disableFlashErrorMsg: true
+        }).catch((error) => {
+          if (error.response?.status !== 400) {
+            this.$message.error(getErrorResponseMsg(error) || error.message)
+          }
+          throw error
+        })
       },
       updateSuccessNextRoute: { name: 'TicketFlow' },
       createSuccessNextRoute: { name: 'TicketFlow' }
@@ -52,7 +82,7 @@ export default {
   },
   computed: {
     initial() {
-      return this.$route.query
+      return this.$context.getScope('overlay')?.query || this.$route.query
     }
   },
   mounted() {
@@ -64,6 +94,4 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
-
-</style>
+<style lang="scss" scoped></style>

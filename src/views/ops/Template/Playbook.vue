@@ -1,12 +1,22 @@
 <template>
   <div>
-    <GenericListTable ref="list" :header-actions="headerActions" :table-config="tableConfig" />
-    <UploadDialog v-if="uploadDialogVisible" :visible.sync="uploadDialogVisible" @completed="refreshTable" />
+    <GenericListTable
+      ref="list"
+      :create-drawer="createDrawer"
+      :detail-drawer="detailDrawer"
+      :header-actions="headerActions"
+      :table-config="tableConfig"
+    />
+    <UploadDialog
+      v-if="uploadDialogVisible"
+      v-model:visible="uploadDialogVisible"
+      @completed="refreshTable"
+    />
   </div>
 </template>
 
 <script>
-import GenericListTable from '@/layout/components/GenericListTable'
+import GenericListTable from '@/components/Table/DrawerListTable'
 import UploadDialog from '@/views/ops/Template/Playbook/UploadDialog'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
 
@@ -16,14 +26,18 @@ export default {
     GenericListTable
   },
   data() {
+    const currentUserID = this.$store.state.users.profile.id
+    const isSuperuser = this.$store.state.users.profile.is_superuser
     return {
+      createDrawer: () => import('@/views/ops/Template/Playbook/PlaybookCreateUpdate.vue'),
+      detailDrawer: () => import('@/views/ops/Template/Playbook/PlaybookDetail/index.vue'),
       createDialogVisible: false,
       uploadDialogVisible: false,
       tableConfig: {
         url: '/api/v1/ops/playbooks/',
         columnsShow: {
           min: ['name', 'actions'],
-          default: ['name', 'comment', 'date_created', 'actions']
+          default: ['name', 'comment', 'scope', 'date_created', 'actions', 'created_by']
         },
         columnsMeta: {
           name: {
@@ -36,11 +50,19 @@ export default {
             formatter: ActionsFormatter,
             formatterArgs: {
               hasUpdate: true,
-              canUpdate: this.$hasPerm('ops.change_playbook'),
+              canUpdate: ({ row }) => {
+                return this.$hasPerm('ops.change_playbook') && row.creator === currentUserID
+              },
               updateRoute: 'PlaybookUpdate',
               hasDelete: true,
-              canDelete: this.$hasPerm('ops.delete_playbook'),
-              hasClone: false
+              canDelete: ({ row }) => {
+                return (
+                  (this.$hasPerm('ops.delete_playbook') && row.creator === currentUserID) ||
+                  isSuperuser
+                )
+              },
+              hasClone: true,
+              cloneRoute: 'PlaybookCreate'
             }
           }
         }
@@ -55,7 +77,7 @@ export default {
           callback: (item) => {
             switch (item.name) {
               case 'create':
-                this.$router.push({ name: 'PlaybookCreate' })
+                this.handleCreate()
                 break
               case 'upload':
                 this.uploadDialogVisible = true
@@ -65,12 +87,12 @@ export default {
           dropdown: [
             {
               name: 'create',
-              title: this.$t('common.Create') + ' playbook',
+              title: this.$t('Create') + ' playbook',
               has: true
             },
             {
               name: 'upload',
-              title: this.$t('common.Upload') + ' playbook',
+              title: this.$t('Upload') + ' playbook',
               has: true
             }
           ]
@@ -81,11 +103,12 @@ export default {
   methods: {
     refreshTable() {
       this.$refs.list.$refs.ListTable.reloadTable()
+    },
+    handleCreate() {
+      this.$refs.list.onCreate()
     }
   }
 }
 </script>
 
-<style>
-
-</style>
+<style></style>

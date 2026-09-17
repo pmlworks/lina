@@ -1,14 +1,14 @@
 <template>
   <div>
-    <GenericListPage :header-actions="headerActions" :table-config="tableConfig" />
+    <GenericListPage ref="ListPage" :header-actions="headerActions" :table-config="tableConfig" />
   </div>
 </template>
 
-<script type="text/jsx">
+<script lang="jsx">
 import GenericListPage from '@/layout/components/GenericListPage'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
-import { openTaskPage } from '@/utils/jms'
-
+import { openTaskPage } from '@/utils/jms/index'
+import { stopJob } from '@/api/ops'
 export default {
   components: {
     GenericListPage
@@ -20,15 +20,26 @@ export default {
         columnsShow: {
           min: ['material', 'is_success'],
           default: [
-            'creator_name', 'material', 'is_finished',
-            'is_success', 'time_cost', 'date_start',
-            'date_finished', 'actions'
+            'creator_name',
+            'material',
+            'job_type',
+            'is_finished',
+            'is_success',
+            'time_cost',
+            'date_start',
+            'actions'
           ]
         },
         columns: [
-          'creator_name', 'material', 'is_finished',
-          'is_success', 'time_cost', 'date_start',
-          'date_finished', 'actions'
+          'creator_name',
+          'material',
+          'job_type',
+          'is_finished',
+          'is_success',
+          'time_cost',
+          'date_start',
+          'date_finished',
+          'actions'
         ],
         columnsMeta: {
           actions: {
@@ -39,20 +50,36 @@ export default {
               hasClone: false,
               extraActions: [
                 {
-                  title: this.$t('ops.output'),
+                  title: this.$t('View'),
                   name: 'logging',
+                  icon: 'fa-eye',
                   can: true,
+                  type: 'primary',
                   callback: ({ row }) => {
                     openTaskPage(row.task_id)
+                  }
+                },
+                {
+                  title: this.$t('Stop'),
+                  name: 'stop',
+                  can: ({ row }) => {
+                    return !row.is_finished
+                  },
+                  type: 'danger',
+                  callback: ({ row }) => {
+                    stopJob({
+                      task_id: row.task_id
+                    }).then(() => {
+                      this.$refs.ListPage.reloadTable()
+                      this.$message.success(this.$t('StopJobMsg'))
+                    })
                   }
                 }
               ]
             }
           },
           time_cost: {
-            label: this.$t('ops.time'),
-            width: '100px',
-            formatter: function(row) {
+            formatter: function (row) {
               if (row.time_cost) {
                 return row.time_cost.toFixed(2) + 's'
               }
@@ -60,56 +87,35 @@ export default {
             }
           },
           is_finished: {
-            label: this.$t('ops.isFinished'),
-            width: '96px',
             formatter: (row) => {
               if (row.is_finished) {
-                return <i Class='fa fa-check text-primary'/>
+                return <i class="fa fa-check text-primary" />
               }
-              return <i Class='fa fa-times text-danger'/>
-            },
-            formatterArgs: {
-              width: '14px'
+              return <i class="fa fa-times text-danger" />
             }
           },
           is_success: {
-            label: this.$t('ops.isSuccess'),
-            width: '96px',
             formatter: (row) => {
               if (!row.is_finished) {
-                return <i Class='fa  fa fa-spinner fa-spin'/>
+                return <i class="fa  fa fa-spinner fa-spin" />
               }
               if (row.is_success) {
-                return <i Class='fa fa-check text-primary'/>
+                return <i class="fa fa-check text-primary" />
               }
-              return <i Class='fa fa-times text-danger'/>
-            },
-            formatterArgs: {
-              width: '14px'
+              return <i class="fa fa-times text-danger" />
             }
-          },
-          date_start: {
-            width: '160px'
           }
         }
       },
       headerActions: {
         hasLeftActions: false,
+        hasReportExport: true,
         hasDatePicker: true,
-        hasImport: false,
-        searchConfig: {
-          options: [
-            {
-              label: this.$t('audits.User'),
-              value: 'creator__name'
-            }
-          ]
-        }
+        hasImport: false
       }
     }
   }
 }
 </script>
 
-<style>
-</style>
+<style></style>

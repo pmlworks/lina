@@ -1,17 +1,13 @@
 <template>
-  <div style="position: relative;">
+  <div style="position: relative">
     <div v-if="showToolBar" class="actions">
-      <div
-        v-for="(item,index) in toolbar"
-        :key="index"
-        style="display: inline-block"
-      >
-        <el-tooltip :content="item.tip">
-          <el-button
-            size="mini"
-            type="default"
-            @click="item.callback()"
-          >
+      <div v-for="(item, index) in toolbar" :key="index" style="display: inline-block">
+        <el-tooltip
+          v-if="!item.isScrollButton || showScrollButton"
+          :content="item.tip"
+          :show-after="500"
+        >
+          <el-button size="small" type="default" @click="item.callback()">
             <svg-icon :icon-class="item.icon" />
           </el-button>
         </el-tooltip>
@@ -23,8 +19,11 @@
 
 <script>
 import 'xterm/css/xterm.css'
+import { markRaw } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
+import { downloadText } from '@/utils/common/index'
+import { colorToRgba, getCssVar } from '@/utils/theme/color'
 
 export default {
   name: 'Term',
@@ -37,82 +36,107 @@ export default {
     },
     xtermConfig: {
       type: Object,
-      default: () => {
-      }
+      default: () => {}
     }
   },
   data() {
+    const selectionColor = colorToRgba(getCssVar('--color-text-primary'), 0.18)
     return {
-      xterm: new Terminal(Object.assign({
-        fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
-        lineHeight: 1.2,
-        fontSize: 13,
-        rightClickSelectsWord: true,
-        theme: {
-          background: '#fff',
-          foreground: '#000',
-          selection: '#363535'
-        }
-      }, this.xtermConfig)),
+      xterm: markRaw(
+        new Terminal(
+          Object.assign(
+            {
+              fontFamily: 'monaco, Consolas, "Lucida Console", monospace',
+              lineHeight: 1.2,
+              fontSize: 13,
+              rightClickSelectsWord: true,
+              theme: {
+                background: '#fff',
+                foreground: '#000',
+                selectionBackground: selectionColor,
+                selectionInactiveBackground: selectionColor
+              }
+            },
+            this.xtermConfig
+          )
+        )
+      ),
       toolbar: [
         {
-          tip: this.$tc('ops.ScrollToTop'),
+          tip: this.$tc('ScrollToTop'),
           icon: 'arrow-up',
           callback: () => {
             this.xterm.scrollToTop()
-          }
+          },
+          isScrollButton: true
         },
         {
-          tip: this.$tc('ops.ScrollToBottom'),
+          tip: this.$tc('ScrollToBottom'),
           icon: 'arrow-down',
           callback: () => {
             this.xterm.scrollToBottom()
-          }
+          },
+          isScrollButton: true
         },
         {
-          tip: this.$tc('ops.ClearScreen'),
+          tip: this.$tc('ClearScreen'),
           icon: 'refresh',
           callback: () => {
             this.xterm.reset()
           }
+        },
+        {
+          tip: this.$tc('Export'),
+          icon: 'download',
+          callback: () => {
+            this.xterm.selectAll()
+            const text = this.xterm.getSelection()
+            const filename = `${this.xtermConfig?.type}_${this.xtermConfig?.taskId}.log`
+            downloadText(text, filename)
+          }
         }
-      ]
+      ],
+      showScrollButton: false
     }
   },
-  mounted: function() {
+  mounted: function () {
     const terminalContainer = this.$refs.terminal
     const fitAddon = new FitAddon()
     this.xterm.loadAddon(fitAddon)
     this.xterm.open(terminalContainer)
     fitAddon.fit()
     this.xterm.scrollToBottom()
+    this.xterm.onScroll(this.checkScroll)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.xterm.dispose()
   },
   methods: {
-    reset: function() {
+    reset: function () {
       this.xterm.reset()
     },
-    write: function(val) {
+    write: function (val) {
       this.xterm.write(val)
+    },
+    checkScroll(position) {
+      this.showScrollButton = position > 0
     }
   }
 }
-
 </script>
 
 <style scoped>
 .xterm {
+  overflow: auto;
   padding-left: 5px;
-  background-color: #FFFFFF;
+  background-color: #ffffff;
 }
 
 .actions {
   text-align: right;
-  background-color: #FFF;
+  background-color: #fff;
   padding-right: 5px;
-  padding-top: 2px
+  padding-top: 2px;
 }
 
 .el-button {

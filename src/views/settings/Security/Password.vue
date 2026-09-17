@@ -8,12 +8,12 @@
       :url="url"
     />
   </IBox>
-
 </template>
 
 <script>
 import GenericCreateUpdateForm from '@/layout/components/GenericCreateUpdateForm'
-import IBox from '@/components/IBox/index.vue'
+import IBox from '@/components/Common/IBox/index.vue'
+import { LeakPasswords } from '@/components'
 
 export default {
   name: 'EmailContent',
@@ -26,23 +26,33 @@ export default {
       visible: false,
       fields: [
         [
-          this.$t('common.Basic'),
+          this.$t('Basic'),
           [
+            'SECURITY_PASSWORD_EXPIRATION_TIME_ADMIN',
             'SECURITY_PASSWORD_EXPIRATION_TIME',
-            'OLD_PASSWORD_HISTORY_LIMIT_COUNT'
+            'OLD_PASSWORD_HISTORY_LIMIT_COUNT',
+            'SECURITY_EXPIRED_TOKEN_RECORD_KEEP_DAYS'
           ]
         ],
         [
-          this.$t('setting.PasswordRule'),
+          this.$t('PasswordRule'),
           [
-            'SECURITY_PASSWORD_MIN_LENGTH', 'SECURITY_ADMIN_USER_PASSWORD_MIN_LENGTH',
-            'SECURITY_PASSWORD_UPPER_CASE', 'SECURITY_PASSWORD_LOWER_CASE',
-            'SECURITY_PASSWORD_NUMBER', 'SECURITY_PASSWORD_SPECIAL_CHAR'
+            'SECURITY_LEAK_PASSWORD_LIST',
+            'SECURITY_PASSWORD_MIN_LENGTH',
+            'SECURITY_ADMIN_USER_PASSWORD_MIN_LENGTH',
+            'SECURITY_PASSWORD_UPPER_CASE',
+            'SECURITY_PASSWORD_LOWER_CASE',
+            'SECURITY_PASSWORD_NUMBER',
+            'SECURITY_PASSWORD_SPECIAL_CHAR'
           ]
         ]
       ],
-      successUrl: { name: 'Settings', params: { activeMenu: 'EmailContent' }},
-      fieldsMeta: {},
+      fieldsMeta: {
+        SECURITY_LEAK_PASSWORD_LIST: {
+          component: LeakPasswords,
+          label: this.$t('LeakPasswordList')
+        }
+      },
       url: '/api/v1/settings/setting/?category=security_password'
     }
   },
@@ -50,12 +60,9 @@ export default {
     submitMethod() {
       return 'patch'
     },
-    onConfirm() {
-    }
+    onConfirm() {}
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

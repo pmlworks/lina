@@ -1,16 +1,23 @@
 <template>
   <div>
-    <ExecutionDetailDialog v-if="showExecutionDetailDialog" :item="item" :visible.sync="showExecutionDetailDialog" />
-    <GenericListPage :header-actions="headerActions" :table-config="tableConfig" />
+    <ExecutionDetailDialog
+      v-if="showExecutionDetailDialog"
+      v-model:visible="showExecutionDetailDialog"
+      :item="item"
+    />
+    <GenericListPage
+      ref="GenericListPage"
+      :header-actions="headerActions"
+      :table-config="tableConfig"
+    />
   </div>
 </template>
 
-<script>
-import { ActionsFormatter } from '@/components/Table/TableFormatters'
+<script lang="jsx">
 import { GenericListPage } from '@/layout/components'
-import { openTaskPage } from '@/utils/jms'
+import { openTaskPage } from '@/utils/jms/index'
 import ExecutionDetailDialog from '@/views/ops/Execution/ExecutionDetail'
-
+import detailFormatter from '@/components/Table/TableFormatters/DetailFormatter.vue'
 export default {
   components: {
     GenericListPage,
@@ -23,77 +30,57 @@ export default {
       showExecutionDetailDialog: false,
       tableConfig: {
         url: '/api/v1/ops/job-executions/',
-        columns: [
-          'id', 'job', 'material', 'job_type', 'is_finished', 'is_success', 'time_cost', 'date_created', 'actions'
-        ],
+        columnsExclude: ['summary', 'parameters', 'timedelta'],
         columnsShow: {
           min: ['material', 'actions'],
           default: [
-            'id', 'job', 'material', 'job_type', 'is_finished', 'is_success', 'time_cost', 'date_created', 'actions'
+            'id',
+            'material',
+            'job_type',
+            'is_finished',
+            'is_success',
+            'time_cost',
+            'date_created',
+            'actions'
           ]
         },
         columnsMeta: {
-          count: {
-            width: '96px',
-            formatter: (row) => {
-              if (row.count) {
-                return <div>
-                  <el-tooltip content='success'><span Class='text-success'>{row.count.ok}&nbsp;</span></el-tooltip>
-                  <el-tooltip content='failed'><span Class='text-danger'>&nbsp;{row.count.failed}&nbsp;</span>
-                  </el-tooltip>
-                  <el-tooltip content='exclude'><span Class='text-warning'>&nbsp;{row.count.excludes}&nbsp;</span>
-                  </el-tooltip>
-                  <el-tooltip content='total'><span Class='text-primary'>&nbsp;{row.count.total}</span></el-tooltip>
-                </div>
-              }
-              return '-'
+          material: {
+            width: '500px'
+          },
+          id: {
+            formatter: detailFormatter,
+            formatterArgs: {
+              drawer: true,
+              route: 'ExecutionDetail'
             }
           },
           job: {
-            label: this.$t('ops.JobName'),
-            formatter: (row) => {
-              return <span>{row.job?.name || '-'}</span>
-            }
-          },
-          material: {
-            width: '160px'
-          },
-          job_type: {
-            width: '96px'
+            formatter: (row) => <span>{row.job?.name || '-'}</span>
           },
           is_finished: {
-            label: this.$t('ops.isFinished'),
-            width: '96px',
+            width: '100px',
             formatter: (row) => {
               if (row.is_finished) {
-                return <i Class='fa fa-check text-primary'/>
+                return <i class="fa fa-check text-primary" />
               }
-              return <i Class='fa fa-times text-danger'/>
-            },
-            formatterArgs: {
-              width: '14px'
+              return <i class="fa fa-times text-danger" />
             }
           },
           is_success: {
-            label: this.$t('ops.isSuccess'),
-            width: '96px',
+            width: '100px',
             formatter: (row) => {
               if (!row.is_finished) {
-                return <i Class='fa  fa fa-spinner fa-spin'/>
+                return <i class="fa  fa fa-spinner fa-spin" />
               }
               if (row.is_success) {
-                return <i Class='fa fa-check text-primary'/>
+                return <i class="fa fa-check text-primary" />
               }
-              return <i Class='fa fa-times text-danger'/>
-            },
-            formatterArgs: {
-              width: '14px'
+              return <i class="fa fa-times text-danger" />
             }
           },
           time_cost: {
-            label: this.$t('ops.time'),
-            width: '100px',
-            formatter: function(row) {
+            formatter: function (row) {
               if (row.time_cost) {
                 return row.time_cost.toFixed(2) + 's'
               }
@@ -101,24 +88,16 @@ export default {
             }
           },
           actions: {
-            formatter: ActionsFormatter,
+            width: '130px',
             formatterArgs: {
               hasUpdate: false,
               hasDelete: false,
               hasClone: false,
               extraActions: [
                 {
-                  title: this.$t('common.Detail'),
-                  name: 'detail',
-                  type: 'primary',
-                  can: true,
-                  callback: ({ row }) => {
-                    this.$router.push({ name: 'ExecutionDetail', params: { id: row.id }})
-                  }
-                },
-                {
-                  title: this.$t('ops.output'),
+                  title: this.$t('Output'),
                   name: 'logging',
+                  type: 'info',
                   can: true,
                   callback: ({ row }) => {
                     openTaskPage(row.task_id)
@@ -130,21 +109,11 @@ export default {
         }
       },
       headerActions: {
-        hasCreate: false,
-        canCreate: false,
-        hasRefresh: true,
+        hasLeftActions: false,
         hasExport: false,
-        hasImport: false,
-        hasMoreActions: false,
-        onCreate: () => {
-          this.uploadDialogVisible = true
-        }
+        hasImport: false
       }
     }
   }
 }
 </script>
-
-<style>
-
-</style>

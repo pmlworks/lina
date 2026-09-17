@@ -1,22 +1,24 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="16" :sm="24">
-      <Account :columns-meta="columnsMeta" :object.sync="object" />
-    </el-col>
-    <el-col :md="8" :sm="24">
+  <TwoCol>
+    <template #default>
+      <Account :columns-meta="columnsMeta" :object="object" />
+    </template>
+    <template #right>
       <QuickActions :actions="quickActions" type="primary" />
-    </el-col>
-  </el-row>
+    </template>
+  </TwoCol>
 </template>
 
-<script>
-import Account from '@/views/assets/Asset/AssetDetail/Account'
+<script lang="jsx">
 import { QuickActions } from '@/components'
-
+import Account from '@/views/assets/Asset/AssetDetail/Account'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 export default {
   name: 'Accounts',
   components: {
-    QuickActions, Account
+    TwoCol,
+    Account,
+    QuickActions
   },
   props: {
     object: {
@@ -31,24 +33,24 @@ export default {
           formatter: (row) => <span>{row.name}</span>
         },
         asset: {
-          label: this.$t('assets.Asset'),
+          label: this.$t('Asset'),
           formatter: (row) => <span>{row.asset.name}</span>
         }
       },
       quickActions: [
         {
-          title: this.$t('accounts.GenerateAccounts'),
+          title: this.$t('GenerateAccounts'),
           attrs: {
             type: 'primary',
-            label: this.$t('common.Generate')
+            label: this.$t('Generate')
           },
           callbacks: {
-            click: function() {
-              this.$axios.put(
-                `/api/v1/terminal/applet-hosts/${this.object.id}/generate-accounts/`,
-              ).then(res => {
-                this.$message.success(this.$tc('accounts.GenerateSuccessMsg'))
-              })
+            click: function () {
+              this.$axios
+                .put(`/api/v1/terminal/applet-hosts/${this.object.id}/generate-accounts/`)
+                .then((res) => {
+                  this.$message.success(this.$tc('GenerateSuccessMsg'))
+                })
             }.bind(this)
           }
         }
@@ -57,7 +59,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

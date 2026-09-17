@@ -1,6 +1,6 @@
 <template>
-  <div style="padding: 0 20px;" @click="toggleClick">
-    <svg-icon :class="{'is-active':isActive}" class="hamburger" icon-class="arrow-to-left" style="color: #ffffff;" />
+  <div style="padding: 0 20px" @click="toggleClick">
+    <svg-icon :class="{ 'is-active': isActive }" class="hamburger" icon-class="arrow-to-left" />
   </div>
 </template>
 
@@ -22,13 +22,15 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import "~@/styles/variables";
+@use '@/styles/variables' as *;
+
 .hamburger {
   display: inline-block;
   vertical-align: middle;
-  font-size: 16px;
+  font-size: 13px;
   color: $menuText;
 }
+
 .hamburger.is-active {
   transform: rotate(180deg);
 }

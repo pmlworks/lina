@@ -1,9 +1,14 @@
 <template>
-  <ListTable ref="ListTable" :header-actions="commandActions" :table-config="commandTableConfig" />
+  <ListTable
+    ref="ListTable"
+    :create-drawer="createDrawer"
+    :header-actions="commandActions"
+    :table-config="commandTableConfig"
+  />
 </template>
 
 <script>
-import ListTable from '@/components/Table/ListTable/index.vue'
+import { DrawerListTable as ListTable } from '@/components'
 import { SetToDefaultCommandStorage, TestCommandStorage } from '@/api/sessions'
 
 export default {
@@ -20,6 +25,7 @@ export default {
   data() {
     const vm = this
     return {
+      createDrawer: () => import('./CommandStorageCreateUpdate.vue'),
       commandActions: {
         canCreate: this.$hasPerm('terminal.add_commandstorage'),
         hasExport: false,
@@ -28,7 +34,7 @@ export default {
         hasMoreActions: false,
         moreCreates: {
           callback: (item) => {
-            this.$router.push({ name: 'CreateCommandStorage', query: { type: item.name }})
+            this.$refs.ListTable.onCreate({ query: { type: item.name } })
           },
           dropdown: [
             {
@@ -44,6 +50,8 @@ export default {
         permissions: {
           resource: 'commandstorage'
         },
+        columns: ['id', 'name', 'type', 'comment', 'is_default', 'actions'],
+        columnsExclude: ['meta'],
         columnsShow: {
           min: ['name', 'type', 'actions'],
           default: ['name', 'type', 'comment', 'is_default', 'actions']
@@ -53,7 +61,7 @@ export default {
             sortable: 'custom'
           },
           name: {
-            formatter: function(row) {
+            formatter: function (row) {
               return row.name
             }
           },
@@ -62,29 +70,36 @@ export default {
               showFalse: false,
               showText: false
             },
-            align: 'center',
-            width: '100px'
+            align: 'center'
           },
           actions: {
             formatterArgs: {
-              canUpdate: function({ row }) {
-                return (row.name !== 'default' && row.name !== 'null' && vm.$hasPerm('terminal.change_commandstorage'))
+              canUpdate: function ({ row }) {
+                return (
+                  row.name !== 'default' &&
+                  row.name !== 'null' &&
+                  vm.$hasPerm('terminal.change_commandstorage')
+                )
               },
-              onUpdate: function({ row }) {
-                this.$router.push({ name: 'CommandStorageUpdate', params: { id: row.id }, query: { type: row.type.value }})
+              canDelete: function ({ row }) {
+                return (
+                  row.name !== 'default' &&
+                  row.name !== 'null' &&
+                  vm.$hasPerm('terminal.delete_commandstorage')
+                )
               },
-              canDelete: function({ row }) {
-                return (row.name !== 'default' && row.name !== 'null' && vm.$hasPerm('terminal.delete_commandstorage'))
+              default: {
+                width: '130px'
               },
               hasClone: false,
               extraActions: [
                 {
                   name: 'test',
-                  title: this.$t('sessions.test'),
+                  title: this.$t('Test'),
                   type: 'primary',
                   can: vm.$hasPerm('terminal.view_commandstorage'),
-                  callback: function({ row, col, cellValue, reload }) {
-                    TestCommandStorage(row.id).then(data => {
+                  callback: function ({ row, col, cellValue, reload }) {
+                    TestCommandStorage(row.id).then((data) => {
                       if (!data['is_valid']) {
                         this.$message.error(data.msg)
                       } else {
@@ -95,16 +110,19 @@ export default {
                 },
                 {
                   name: 'set_to_default',
-                  title: this.$t('sessions.SetToDefault'),
+                  title: this.$t('SetToDefault'),
+                  icon: 'fa-circle-check',
                   type: 'primary',
                   can: vm.$hasPerm('terminal.change_commandstorage'),
-                  callback: function({ row, col, cellValue, reload }) {
-                    SetToDefaultCommandStorage(row.id).then(data => {
-                      vm.$refs.ListTable.reloadTable()
-                      this.$message.success(this.$tc('sessions.SetSuccess'))
-                    }).catch(() => {
-                      this.$message.error(this.$tc('sessions.SetFailed'))
-                    })
+                  callback: function ({ row, col, cellValue, reload }) {
+                    SetToDefaultCommandStorage(row.id)
+                      .then((data) => {
+                        vm.$refs.ListTable.reloadTable()
+                        this.$message.success(this.$tc('SetSuccess'))
+                      })
+                      .catch(() => {
+                        this.$message.error(this.$tc('SetFailed'))
+                      })
                   }
                 }
               ]
@@ -114,15 +132,6 @@ export default {
       }
     }
   },
-  methods: {
-    createEs() {
-      this.$router.push({ name: 'CreateCommandStorage', query: { type: 'es' }})
-    }
-  }
+  methods: {}
 }
-
 </script>
-
-<style scoped>
-
-</style>

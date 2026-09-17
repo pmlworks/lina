@@ -1,18 +1,25 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
+  <el-row :gutter="20" class="task-detail">
+    <el-col :md="20" :sm="24">
       <DetailCard :items="detailCardItems" :title="cardTitle" />
+      <ExpirationNoticeSettings
+        v-if="$hasPerm('settings.change_security')"
+        :key="object.name"
+        :task-name="object.name"
+      />
     </el-col>
   </el-row>
 </template>
 
-<script type="text/jsx">
+<script>
 import DetailCard from '@/components/Cards/DetailCard/index.vue'
+import ExpirationNoticeSettings from './ExpirationNoticeSettings.vue'
 
 export default {
   name: 'TaskDetail',
   components: {
-    DetailCard
+    DetailCard,
+    ExpirationNoticeSettings
   },
   props: {
     object: {
@@ -25,25 +32,29 @@ export default {
   },
   computed: {
     cardTitle() {
-      return this.object.meta.comment ? this.object.meta.comment : this.object.name
+      return this.$t('BasicInfo')
     },
     detailCardItems() {
       return [
         {
-          key: this.$t('common.Name'),
+          key: this.$t('TaskPath'),
           value: this.object.name
         },
         {
-          key: this.$t('common.Comment'),
+          key: this.$t('Name'),
           value: this.object.meta.comment
         },
         {
-          key: this.$t('ops.Queue'),
+          key: this.$t('Queue'),
           value: this.object.meta.queue
         },
         {
-          key: this.$t('ops.LastPublishedTime'),
-          value: this.object.last_published_time
+          key: this.$t('LastPublishedTime'),
+          value: this.object.date_last_publish
+        },
+        {
+          key: this.$t('Description'),
+          value: this.object.meta.description
         }
       ]
     }
@@ -51,7 +62,8 @@ export default {
   methods: {}
 }
 </script>
-
-<style lang="less" scoped>
-
+<style lang="scss" scoped>
+.task-detail :deep(.item-value span) {
+  white-space: normal !important;
+}
 </style>

@@ -1,13 +1,11 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" class- />
-    </el-col>
-    <el-col :md="10" :sm="24">
-      <AssetRelationCard type="primary" v-bind="assetRelationConfig" />
-      <RelationCard style="margin-top: 15px" type="info" v-bind="nodeRelationConfig" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" />
+    <template #right>
+      <AssetRelationCard v-bind="assetRelationConfig" type="primary" />
+      <RelationCard v-bind="nodeRelationConfig" style="margin-top: 15px" type="info" />
+    </template>
+  </TwoCol>
 </template>
 
 <script>
@@ -15,10 +13,12 @@ import ListTable from '@/components/Table/ListTable'
 import RelationCard from '@/components/Cards/RelationCard'
 import { DeleteActionFormatter } from '@/components/Table/TableFormatters'
 import AssetRelationCard from '@/components/Apps/AssetRelationCard'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'AssetPermissionAsset',
   components: {
+    TwoCol,
     ListTable,
     RelationCard,
     AssetRelationCard
@@ -32,21 +32,21 @@ export default {
   data() {
     const id = this.object.id
     const url = id ? `/api/v1/perms/asset-permissions/${id}/assets/all/` : ''
+    const assets = Array.isArray(this.object.assets) ? this.object.assets : []
+    const nodes = Array.isArray(this.object.nodes) ? this.object.nodes : []
     return {
       tableConfig: {
         url: url,
         id: 'asset',
         columnsExclude: ['asset'],
         columnsExtra: ['delete_action'],
-        columns: [
-          'asset_display', 'delete_action'
-        ],
+        columns: ['asset_display', 'delete_action'],
         columnsShow: {
           min: ['asset_display', 'delete_action']
         },
         columnsMeta: {
           asset_display: {
-            label: this.$t('perms.Asset'),
+            label: this.$t('Asset'),
             align: 'center'
           },
           actions: {
@@ -54,19 +54,23 @@ export default {
           },
           delete_action: {
             prop: 'asset',
-            label: this.$t('common.Actions'),
+            label: this.$t('Actions'),
             align: 'center',
             width: 150,
-            objects: this.object.assets,
+            objects: assets,
             formatter: DeleteActionFormatter,
-            onDelete: function(col, row, cellValue, reload) {
+            onDelete: function (col, row, cellValue, reload) {
               const url = `/api/v1/perms/asset-permissions-assets-relations/?assetpermission=${this.object.id}&asset=${cellValue}`
-              this.$axios.delete(url).then(res => {
-                this.$message.success(this.$tc('common.deleteSuccessMsg'))
-                this.$store.commit('common/reload')
-              }).catch(error => {
-                this.$message.error(this.$tc('common.deleteErrorMsg') + ' ' + error)
-              })
+              this.$axios
+                .delete(url)
+                .then((res) => {
+                  this.$message.success(this.$tc('DeleteSuccessMsg'))
+                  // 局部刷新当前表格，替代 common/reload 的整页重建
+                  this.$refs.ListTable.reloadTable()
+                })
+                .catch((error) => {
+                  this.$message.error(this.$tc('DeleteErrorMsg') + ' ' + error)
+                })
             }.bind(this)
           }
         },
@@ -75,27 +79,26 @@ export default {
         }
       },
       headerActions: {
-        hasSearch: true,
-        hasRefresh: true,
-        hasLeftActions: true,
-        hasRightActions: true,
+        hasLeftActions: false,
         hasExport: false,
-        hasImport: false,
-        hasCreate: false,
-        hasMoreActions: false
+        hasImport: false
       },
       assetRelationConfig: {
         icon: 'fa-edit',
-        title: this.$t('perms.addAssetToThisPermission'),
-        hasObjectsId: this.object.assets?.map(i => i.id) || [],
+        title: this.$t('AddAssetToThisPermission'),
+        hasObjectsId: assets.map((i) => i.id),
         disabled: this.$store.getters.currentOrgIsRoot,
         canSelect: (row, index) => {
-          return (this.object.assets?.map(i => i.id) || []).indexOf(row.id) === -1
+          return (
+            (Array.isArray(this.object.assets) ? this.object.assets : [])
+              .map((i) => i.id)
+              .indexOf(row.id) === -1
+          )
         },
         performAdd: (items, that) => {
           const relationUrl = `/api/v1/perms/asset-permissions-assets-relations/`
           const objectId = this.object.id
-          const data = items.map(item => {
+          const data = items.map((item) => {
             return {
               assetpermission: objectId,
               asset: item
@@ -105,24 +108,25 @@ export default {
         },
         onAddSuccess: (items, that) => {
           this.$log.debug('AssetSelect value', that.assets)
-          this.$message.success(this.$tc('common.updateSuccessMsg'))
-          this.$store.commit('common/reload')
+          this.$message.success(this.$tc('UpdateSuccessMsg'))
+          // 局部刷新当前表格，替代 common/reload 的整页重建
+          this.$refs.ListTable.reloadTable()
         }
       },
       nodeRelationConfig: {
         icon: 'fa-edit',
-        title: this.$t('perms.addNodeToThisPermission'),
+        title: this.$t('AddNodeToThisPermission'),
         objectsAjax: {
           url: '/api/v1/assets/nodes/',
           transformOption: (item) => {
             return { label: item.full_value, value: item.id }
           }
         },
-        hasObjectsId: this.object.nodes?.map(i => i.id) || [],
+        hasObjectsId: nodes.map((i) => i.id),
         performAdd: (items) => {
           const relationUrl = `/api/v1/perms/asset-permissions-nodes-relations/`
           const objectId = this.object.id
-          const data = items.map(v => {
+          const data = items.map((v) => {
             return {
               assetpermission: objectId,
               node: v.value
@@ -134,7 +138,7 @@ export default {
           this.$log.debug('Select value', that.select2.value)
           that.iHasObjects = [...that.iHasObjects, ...objects]
           that.$refs.select2.clearSelected()
-          this.$message.success(this.$tc('common.updateSuccessMsg'))
+          this.$message.success(this.$tc('UpdateSuccessMsg'))
           this.$refs.ListTable.reloadTable()
         },
         performDelete: (item) => {
@@ -151,7 +155,7 @@ export default {
             this.$log.debug('disabled values remove index: ', i)
             that.select2.disabledValues.splice(i, 1)
           }
-          this.$message.success(this.$tc('common.deleteSuccessMsg'))
+          this.$message.success(this.$tc('DeleteSuccessMsg'))
           this.$refs.ListTable.reloadTable()
         }
       }
@@ -160,6 +164,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

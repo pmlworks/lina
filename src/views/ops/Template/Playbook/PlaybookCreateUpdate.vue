@@ -13,19 +13,34 @@ export default {
     return {
       url: '/api/v1/ops/playbooks/',
       fields: [
-        [this.$t('common.Basic'), ['name', 'comment']]
+        [this.$t('Basic'), ['name', 'scope', 'variable']],
+        [this.$t('Other'), ['comment']]
       ],
+      fieldsMeta: {
+        variable: {
+          hidden: () => true
+        }
+      },
       createSuccessNextRoute: {
         name: 'Template'
       },
       updateSuccessNextRoute: {
         name: 'Template'
+      },
+      cleanFormValue(value) {
+        const isClone = this?.action === 'clone'
+        if (isClone) {
+          value?.variable.map((item) => {
+            delete item.id
+            delete item.playbook
+            delete item.job
+          })
+        }
+        return value
       }
     }
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

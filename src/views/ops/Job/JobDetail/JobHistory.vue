@@ -4,11 +4,10 @@
   </div>
 </template>
 
-<script>
+<script lang="jsx">
 import GenericListTable from '@/layout/components/GenericListTable'
 import { ActionsFormatter } from '@/components/Table/TableFormatters'
-import { openTaskPage } from '@/utils/jms'
-
+import { openTaskPage } from '@/utils/jms/index'
 export default {
   components: {
     GenericListTable
@@ -29,43 +28,39 @@ export default {
       showLogId: '',
       tableConfig: {
         url: `/api/v1/ops/job-executions/`,
-        columns: [
-          'material', 'date_start', 'is_finished', 'is_success', 'time_cost', 'actions'
-        ],
+        columns: ['material', 'date_start', 'is_finished', 'is_success', 'time_cost', 'actions'],
         columnsMeta: {
           is_finished: {
-            label: this.$t('ops.isFinished'),
-            width: '96px',
+            label: this.$t('IsFinished'),
             formatter: (row) => {
               if (row.is_finished) {
-                return <i Class='fa fa-check text-primary'/>
+                return <i class="fa fa-check text-primary" />
               }
-              return <i Class='fa fa-times text-danger'/>
+              return <i class="fa fa-times text-danger" />
             },
             formatterArgs: {
               width: '14px'
             }
           },
           is_success: {
-            label: this.$t('ops.isSuccess'),
-            width: '96px',
+            label: this.$t('IsSuccess'),
             formatter: (row) => {
               if (!row.is_finished) {
-                return <i Class='fa  fa fa-spinner fa-spin'/>
+                return <i class="fa  fa fa-spinner fa-spin" />
               }
               if (row.is_success) {
-                return <i Class='fa fa-check text-primary'/>
+                return <i class="fa fa-check text-primary" />
               }
-              return <i Class='fa fa-times text-danger'/>
+              return <i class="fa fa-times text-danger" />
             },
             formatterArgs: {
               width: '14px'
             }
           },
           time_cost: {
-            label: this.$t('ops.time'),
+            label: this.$t('Time'),
             width: '100px',
-            formatter: function(row) {
+            formatter: function (row) {
               if (row.time_cost) {
                 return row.time_cost.toFixed(2) + 's'
               }
@@ -81,7 +76,7 @@ export default {
               extraActions: [
                 {
                   name: 'showLog',
-                  title: this.$t('ops.output'),
+                  title: this.$t('Output'),
                   can: true,
                   callback: ({ row }) => {
                     openTaskPage(row.task_id)
@@ -97,7 +92,8 @@ export default {
         hasLeftActions: false
       }
     }
-  }, mounted() {
+  },
+  mounted() {
     if (this.object) {
       this.tableConfig.url += `?job_id=${this.object.id}`
     }
@@ -108,6 +104,4 @@ export default {
 }
 </script>
 
-<style>
-
-</style>
+<style></style>

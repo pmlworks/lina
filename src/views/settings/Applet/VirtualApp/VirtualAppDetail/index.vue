@@ -1,9 +1,8 @@
 <template>
   <GenericDetailPage
-    :active-menu.sync="config.activeMenu"
-    :object.sync="applet"
     v-bind="config"
-    v-on="$listeners"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="applet"
   >
     <keep-alive>
       <component :is="config.activeMenu" :object="applet" />
@@ -14,13 +13,17 @@
 <script>
 import { GenericDetailPage, TabPage } from '@/layout/components'
 import Detail from './Detail'
+import OfflineImages from './OfflineImages.vue'
+import Publications from './Publications'
 
 export default {
   name: 'VirtualAppDetail',
   components: {
     GenericDetailPage,
     TabPage,
-    Detail
+    Detail,
+    OfflineImages,
+    Publications
   },
   data() {
     return {
@@ -30,27 +33,35 @@ export default {
         activeMenu: 'Detail',
         submenu: [
           {
-            'title': this.$t('common.Detail'),
-            'name': 'Detail'
+            title: this.$t('Basic'),
+            name: 'Detail'
+          },
+          {
+            title: this.$t('OfflineImages'),
+            name: 'OfflineImages',
+            hidden: () => !this.$hasPerm('terminal.view_virtualapp')
+          },
+          {
+            title: this.$t('AppProvider'),
+            name: 'Publications'
           }
         ],
         hasRightSide: true,
         actions: {
-          hasUpdate: false,
+          hasUpdate: true,
+          canUpdate: () => this.$hasPerm('terminal.change_virtualapp'),
           canDelete: () => {
-            return this.$hasPerm('terminal.delete_applet')
+            return this.$hasPerm('terminal.delete_virtualapp')
           },
+          updateRoute: 'VirtualAppUpdate',
           deleteSuccessRoute: 'Applets'
         },
-        titlePrefix: this.$tc('route.AppletDetail')
+        titlePrefix: this.$tc('VirtualAppDetail')
       }
     }
   },
-  mounted() {
-  }
+  mounted() {}
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

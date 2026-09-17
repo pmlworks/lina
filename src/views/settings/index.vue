@@ -1,15 +1,24 @@
+<template>
+  <Layout />
+</template>
+
 <script>
 import Layout from '@/layout'
 import store from '@/store'
 
 export default {
   name: 'Setting',
-  extends: Layout,
-  beforeRouteEnter(to, from, next) {
-    store.dispatch('users/enterSettingOrg').then(() => next())
+  routeViewShell: true,
+  components: {
+    Layout
   },
-  beforeRouteLeave(to, from, next) {
-    store.dispatch('users/leaveSettingOrg').then(() => next())
+  async beforeRouteEnter() {
+    await store.dispatch('users/enterSettingOrg')
+    return true
+  },
+  async beforeRouteLeave() {
+    await store.dispatch('users/leaveSettingOrg')
+    return true
   }
 }
 </script>

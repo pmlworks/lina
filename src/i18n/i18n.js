@@ -1,28 +1,57 @@
 // i18n.js
-import Vue from 'vue'
-import locale from 'element-ui/lib/locale'
-import VueI18n from 'vue-i18n'
-import messages from './langs'
+import { createI18n } from 'vue-i18n'
 import date from './date'
-import VueCookie from 'vue-cookie'
+import messages from './langs'
+import { getI18nLocale } from './utils'
 
-Vue.use(VueI18n)
-const cookieLang = VueCookie.get('django_language')
-const browserLang = navigator.systemLanguage || navigator.language
-let lang = cookieLang || browserLang || 'zh'
-lang = lang.slice(0, 2)
-const i18n = new VueI18n({
+const lang = getI18nLocale()
+
+const i18n = createI18n({
+  legacy: false, // Use Composition API mode
+  globalInjection: true, // Keep $t/$tc available globally
   locale: lang,
   fallbackLocale: 'en',
-  silentFallbackWarn: true,
-  silentTranslationWarn: true,
-  dateTimeFormats: date,
+  missingWarn: false,
+  fallbackWarn: false,
+  // 后端 i18n 接口下发的部分帮助文案（如 crontab 说明）含 <br/>/<a> 等 HTML，
+  // vue-i18n 默认会对含 HTML 的消息告警提示 XSS 风险。项目渲染这些文案统一走
+  // v-sanitize（DOMPurify）消毒，并非直接 v-html 注入，故此告警为噪音，这里关闭。
+  warnHtmlMessage: false,
+  datetimeFormats: date,
   messages
 })
-locale.i18n((key, value) => i18n.t(key, value)) // 重点: 为了实现element插件的多语言切换
 
-Vue.prototype.$tr = (key) => {
-  return i18n.t('route.' + key)
+function getCurrentLocale() {
+  const locale = i18n.global.locale
+  return typeof locale === 'string' ? locale : locale?.value
 }
+
+function compatTc(key, choice, ...args) {
+  const hasNumericChoice = typeof choice === 'number'
+  const locale = getCurrentLocale()
+
+  if (!hasNumericChoice) {
+    if (typeof choice === 'undefined' && args.length === 0) {
+      return i18n.global.t(key)
+    }
+    return i18n.global.t(key, choice, ...args)
+  }
+
+  const translation = i18n.global.t(key, choice, ...args).toString()
+
+  if (locale === 'en') {
+    const parts = translation.split('|')
+    if (parts.length === 1) {
+      return choice > 1 ? `${translation}s` : translation
+    }
+  }
+
+  return translation
+}
+
+// Provide Vue2-style helpers for legacy imports
+i18n.t = i18n.global.t.bind(i18n.global)
+i18n.global.tc = compatTc
+i18n.tc = compatTc.bind(i18n.global)
 
 export default i18n

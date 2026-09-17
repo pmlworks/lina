@@ -4,12 +4,14 @@
       :after-get-form-value="afterGetFormValue"
       :after-get-remote-meta="handleAfterGetRemoteMeta"
       :clean-form-value="cleanFormValue"
+      :clone-name-suffix="1"
       :fields="fields"
       :fields-meta="fieldsMeta"
       :has-detail-in-msg="false"
       :has-reset="false"
       :initial="initial"
       :url="url"
+      @submit-success="onSubmitSuccess"
     />
   </div>
 </template>
@@ -43,37 +45,33 @@ export default {
         }
       },
       fields: [
-        [this.$t('common.Basic'), [
-          'name', 'category_type', 'charset',
-          'domain_enabled'
-        ]],
-        [this.$t('setting.Config'), [
-          'protocols', 'su_enabled', 'su_method'
-        ]],
-        [this.$t('common.Automations'), ['automation']],
-        [this.$t('common.Other'), ['comment']]
+        [this.$t('Basic'), ['name', 'category_type']],
+        [
+          this.$t('Config'),
+          ['protocols', 'su_enabled', 'su_method', 'gateway_enabled', 'ds_enabled', 'charset']
+        ],
+        [this.$t('Automations'), ['automation']],
+        [this.$t('Other'), ['comment']]
       ],
       fieldsMeta: platformFieldsMeta(this),
       url: `/api/v1/assets/platforms/`,
       cleanFormValue: (values) => {
         const protocols = values['protocols'] || []
-        const query = this.$route.query || {}
         const automation = values['automation'] || {}
         const category_type = values['category_type']
         const ansibleConfig = automation?.['ansible_config'] || {}
-        automation.ansible_config = ansibleConfig instanceof Object ? ansibleConfig : JSON.parse(ansibleConfig)
+        automation.ansible_config =
+          ansibleConfig instanceof Object ? ansibleConfig : JSON.parse(ansibleConfig)
 
-        if (query.hasOwnProperty('clone_from')) {
-          if (automation.hasOwnProperty('id')) {
-            delete automation['id']
-          }
-          values['protocols'] = protocols.map(i => {
-            if (i.hasOwnProperty('id')) {
-              delete i['id']
-            }
-            return i
-          })
+        if (Object.prototype.hasOwnProperty.call(automation, 'id')) {
+          delete automation['id']
         }
+        values['protocols'] = protocols.map((i) => {
+          if (Object.prototype.hasOwnProperty.call(i, 'id')) {
+            delete i['id']
+          }
+          return i
+        })
         values['category'] = category_type[0]
         values['type'] = category_type[1]
         return values
@@ -83,7 +81,7 @@ export default {
         if (obj['category'] && obj['type']) {
           obj['category_type'] = [obj['category'].value, obj['type'].value]
         }
-        obj.protocols = obj.protocols?.map(i => {
+        obj.protocols = obj.protocols?.map((i) => {
           if (i.name === 'http') {
             i.display_name = 'http(s)'
           }
@@ -94,8 +92,7 @@ export default {
       defaultOptions: {}
     }
   },
-  watch: {
-  },
+  watch: {},
   async mounted() {
     try {
       await this.setCategories()
@@ -105,8 +102,11 @@ export default {
     }
   },
   methods: {
+    onSubmitSuccess() {
+      this.$store.dispatch('assets/cleanPlatforms')
+    },
     updateSuMethodOptions() {
-      const options = this.suMethods.filter(i => {
+      const options = this.suMethods.filter((i) => {
         return this.suMethodLimits.includes(i.value)
       })
       this.fieldsMeta.su_method.options = options
@@ -124,26 +124,27 @@ export default {
       this.initial.su_method = this.suMethodLimits[0]
     },
     async setCategories() {
-      const category = this.$route.query.category
-      const type = this.$route.query.type
+      const category = this.$context.get('category')
+      const type = this.$context.get('type')
       const state = await this.$store.dispatch('assets/getAssetCategories')
       this.fieldsMeta.category_type.el.options = state.assetCategoriesCascader
       if (category && type) {
         this.initial.category_type = [category, type]
       }
-      this.url += `?category=${category}&type=${type}`
+      if (category && type) {
+        this.url += `?category=${category}&type=${type}`
+      }
       return new Promise((resolve, reject) => resolve(true))
     },
     async setConstraints() {
-      const category = this.$route.query.category
-      const type = this.$route.query.type
+      const category = this.$context.get('category')
+      const type = this.$context.get('type')
       const url = `/api/v1/assets/categories/constraints/?category=${category}&type=${type}`
       const constraints = await this.$axios.get(url)
       this.defaultOptions = constraints
 
-      const fieldsCheck = ['domain_enabled', 'su_enabled']
       let protocols = constraints?.protocols || []
-      protocols = protocols?.map(i => {
+      protocols = protocols?.map((i) => {
         if (i.name === 'http') {
           i.display_name = 'http(s)'
         }
@@ -151,15 +152,20 @@ export default {
       })
       this.fieldsMeta.protocols.el.choices = protocols
 
+      const fieldsCheck = ['gateway_enabled', 'su_enabled']
       for (const field of fieldsCheck) {
         const disabled = constraints[field] === false
         this.initial[field] = !disabled
         _.set(this.fieldsMeta, `${field}.el.disabled`, disabled)
       }
 
-      if (constraints['charset_enabled'] === false) {
-        this.fieldsMeta.charset.hidden = () => true
+      const fieldsHidden = ['charset', 'ds_enabled']
+      for (const field of fieldsHidden) {
+        if (constraints[field] === false) {
+          this.fieldsMeta[field].hidden = () => true
+        }
       }
+
       await setAutomations(this)
       await this.updateSuMethods(constraints)
     }
@@ -167,28 +173,18 @@ export default {
 }
 </script>
 
-<style lang='scss' scoped>
-.platform-form >>> {
+<style lang="scss" scoped>
+.platform-form :deep() {
   .el-cascader {
     width: 100%;
   }
-}
 
->>> .itemMethodKey.el-form-item {
-  display: inline-block;
-  width: 100%;
-  .el-form-item__content {
-    width: 70%;
+  // 自动化方法行:method 下拉与参数设置按钮已由 AutomationMethodField 组件拼成一体的
+  // input-group(下拉在左、齿轮按钮 append 在右),整个控件占满整行即可。
+  .item-method.el-form-item {
+    .el-form-item__content {
+      width: 100%;
+    }
   }
-  .el-select {
-    width: 100%;
-  }
-}
-
->>> .itemParamsKey.el-form-item {
-  display: inline-block;
-  position: absolute;
-  right: 20px;
 }
 </style>
-

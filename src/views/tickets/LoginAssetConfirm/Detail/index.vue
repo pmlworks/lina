@@ -1,5 +1,9 @@
 <template>
-  <GenericDetailPage :object.sync="ticket" :active-menu.sync="config.activeMenu" v-bind="config" v-on="$listeners">
+  <GenericDetailPage
+    v-bind="config"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="ticket"
+  >
     <component :is="config.activeMenu" :object="ticket" />
   </GenericDetailPage>
 </template>
@@ -16,13 +20,20 @@ export default {
   },
   data() {
     return {
-      ticket: { title: '', user_display: '', type_display: '', status: '', assignees_display: '', date_created: '' },
+      ticket: {
+        title: '',
+        user_display: '',
+        type_display: '',
+        status: '',
+        assignees_display: '',
+        date_created: ''
+      },
       config: {
         activeMenu: 'TicketDetail',
         url: '',
         submenu: [
           {
-            title: this.$t('route.TicketDetail'),
+            title: this.$t('Basic'),
             name: 'TicketDetail'
           }
         ],
@@ -34,9 +45,7 @@ export default {
       }
     }
   },
-  mounted() {
-
-  },
+  mounted() {},
   methods: {
     getObjectName() {
       return this.ticket.title
@@ -45,6 +54,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

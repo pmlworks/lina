@@ -1,40 +1,39 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <AutoDetailCard v-bind="basicInfoConfig" />
-      <AutoDetailCard v-if="isShowSpecInfo" v-bind="specInfoConfig" />
-      <AutoDetailCard v-bind="customInfoConfig" />
-      <AutoDetailCard v-bind="gatheredInfoConfig" />
-    </el-col>
-    <el-col :md="10" :sm="24">
+  <TwoCol>
+    <AutoDetailCard v-bind="basicInfoConfig" />
+    <AutoDetailCard v-bind="specInfoConfig" v-if="isShowSpecInfo" />
+    <AutoDetailCard v-bind="customInfoConfig" />
+    <AutoDetailCard v-bind="gatheredInfoConfig" />
+    <template #right>
       <QuickActions :actions="quickActions" type="primary" />
       <RelationCard
+        v-if="$hasPerm('assets.change_asset')"
+        v-bind="nodeRelationConfig"
         ref="NodeRelation"
-        v-perms="'assets.change_asset'"
         style="margin-top: 15px"
         type="info"
-        v-bind="nodeRelationConfig"
       />
       <RelationCard
+        v-if="$hasPerm('assets.change_asset')"
+        v-bind="labelConfig"
         ref="LabelRelation"
-        v-perms="'assets.view_label'"
         style="margin-top: 15px"
         type="warning"
-        v-bind="labelConfig"
       />
-    </el-col>
-  </el-row>
+    </template>
+  </TwoCol>
 </template>
 
 <script>
 import AutoDetailCard from '@/components/Cards/DetailCard/auto'
-import RelationCard from '@/components/Cards/RelationCard'
-import QuickActions from '@/components/QuickActions'
-import { openTaskPage } from '@/utils/jms'
+import { QuickActions, RelationCard } from '@/components/'
+import { openTaskPage } from '@/utils/jms/index'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'Detail',
   components: {
+    TwoCol,
     AutoDetailCard,
     QuickActions,
     RelationCard
@@ -42,97 +41,101 @@ export default {
   props: {
     object: {
       type: Object,
-      default: () => {
-      }
+      default: () => ({})
     }
   },
   data() {
     const vm = this
+    const nodes = Array.isArray(this.object.nodes) ? this.object.nodes : []
+    const labels = Array.isArray(this.object.labels) ? this.object.labels : []
     return {
       quickActions: [
         {
-          title: this.$t('assets.IsActive'),
+          title: this.$t('IsActive'),
           type: 'switch',
           attrs: {
-            label: this.$t('common.Test'),
+            label: this.$t('Test'),
             model: this.object.is_active,
             disabled: !vm.$hasPerm('assets.change_asset')
           },
           callbacks: {
-            change: function(val) {
-              this.$axios.patch(
-                `/api/v1/assets/assets/${this.object.id}/`,
-                { is_active: val }
-              ).then(res => {
-                this.$message.success(this.$tc('common.updateSuccessMsg'))
-              }).catch(err => {
-                this.$message.error(this.$tc('common.updateErrorMsg' + ' ' + err))
-              })
+            change: function (val) {
+              const category = this.object.category.value
+              const normalizedCategory = category === 'ds' ? 'directorie' : category
+              this.$axios
+                .patch(`/api/v1/assets/${normalizedCategory}s/${this.object.id}/`, {
+                  is_active: val
+                })
+                .then((res) => {
+                  this.$message.success(this.$tc('UpdateSuccessMsg'))
+                })
+                .catch((err) => {
+                  this.$message.error(this.$tc('UpdateErrorMsg' + ' ' + err))
+                })
             }.bind(this)
           }
         },
         {
-          title: this.$t('assets.RefreshHardware'),
+          title: this.$t('RefreshHardware'),
           attrs: {
             type: 'primary',
-            label: this.$t('assets.Refresh'),
-            disabled: !vm.$hasPerm('assets.refresh_assethardwareinfo') ||
+            label: this.$t('Refresh'),
+            disabled:
+              !vm.$hasPerm('assets.refresh_assethardwareinfo') ||
               !this.object['auto_config'].gather_facts_enabled ||
               !this.object['auto_config'].ansible_enabled ||
               this.$store.getters.currentOrgIsRoot
           },
           callbacks: {
-            click: function() {
-              this.$axios.post(
-                `/api/v1/assets/assets/${this.object.id}/tasks/`,
-                { action: 'refresh' }
-              ).then(res => {
-                openTaskPage(res['task'])
-              })
+            click: function () {
+              this.$axios
+                .post(`/api/v1/assets/assets/${this.object.id}/tasks/`, { action: 'refresh' })
+                .then((res) => {
+                  openTaskPage(res['task'])
+                })
             }.bind(this)
           }
         },
         {
-          title: this.$t('assets.TestAssetsConnective'),
+          title: this.$t('TestAssetsConnective'),
           attrs: {
             type: 'primary',
-            label: this.$t('assets.Test'),
-            disabled: !vm.$hasPerm('assets.test_assetconnectivity') ||
+            label: this.$t('Test'),
+            disabled:
+              !vm.$hasPerm('assets.test_assetconnectivity') ||
               !this.object['auto_config'].ansible_enabled ||
               !this.object['auto_config']['ping_enabled'] ||
               this.$store.getters.currentOrgIsRoot
           },
           callbacks: {
-            click: function() {
-              this.$axios.post(
-                `/api/v1/assets/assets/${this.object.id}/tasks/`,
-                { action: 'test' }
-              ).then(res => {
-                openTaskPage(res['task'])
-              }
-              )
+            click: function () {
+              this.$axios
+                .post(`/api/v1/assets/assets/${this.object.id}/tasks/`, { action: 'test' })
+                .then((res) => {
+                  openTaskPage(res['task'])
+                })
             }.bind(this)
           }
         }
       ],
       nodeRelationConfig: {
         icon: 'fa-info',
-        title: this.$t('assets.Node'),
+        title: this.$t('Node'),
         objectsAjax: {
           url: '/api/v1/assets/nodes/',
           transformOption: (item) => {
             return { label: item.full_value, value: item.id }
           }
         },
-        hasObjectsId: this.object.nodes?.map(i => i.id) || [],
+        hasObjectsId: nodes.map((i) => i.id),
         performAdd: (items) => {
           const newData = []
-          const value = this.$refs.NodeRelation.iHasObjects
-          value.map(v => {
+          const value = this.$refs.NodeRelation?.iHasObjects || []
+          value.map((v) => {
             newData.push(v.value)
           })
           const relationUrl = `/api/v1/assets/assets/${this.object.id}/`
-          items.map(v => {
+          items.map((v) => {
             newData.push(v.value)
           })
           return this.$axios.patch(relationUrl, { nodes: newData })
@@ -140,8 +143,8 @@ export default {
         performDelete: (item) => {
           const itemId = item.value
           const newData = []
-          const value = this.$refs.NodeRelation.iHasObjects
-          value.map(v => {
+          const value = this.$refs.NodeRelation?.iHasObjects || []
+          value.map((v) => {
             if (v.value !== itemId) {
               newData.push(v.value)
             }
@@ -152,33 +155,28 @@ export default {
       },
       labelConfig: {
         icon: 'fa-info',
-        title: this.$t('assets.Label'),
+        title: this.$t('Tags'),
         allowCreate: true,
         objectsAjax: {
           url: '/api/v1/labels/labels/',
           transformOption: (item) => {
-            const label = String(item.name) + ':' + String(item.value)
-            return { label: label, value: label }
+            const label = `${item.name}: ${item.value}`
+            return { label: label, value: item.id }
           }
         },
-        hasObjectsId: this.object.labels,
+        hasObjectsId: labels.map((item) => item.id),
         performAdd: (items) => {
           const newData = []
-          const value = this.$refs.LabelRelation.iHasObjects
-          value.map(v => newData.push(v.label))
+          const value = this.$refs.LabelRelation?.iHasObjects || []
+          value.map((v) => newData.push(v.label))
           const relationUrl = `/api/v1/assets/assets/${this.object.id}/`
-          items.map(v => newData.push(v.label))
+          items.map((v) => newData.push(v.label))
           return this.$axios.patch(relationUrl, { labels: newData })
-        },
-        getHasObjects: (ids) => {
-          return new Promise((resolve) => {
-            return resolve(ids.map(id => ({ value: id, label: id })))
-          })
         },
         performDelete: (item) => {
           const itemId = item.value
-          const value = this.$refs.LabelRelation.iHasObjects
-          const newData = value.filter(v => v.value !== itemId).map(v => v.value)
+          const value = this.$refs.LabelRelation?.iHasObjects || []
+          const newData = value.filter((v) => v.value !== itemId).map((v) => v.value)
           const relationUrl = `/api/v1/assets/assets/${this.object.id}/`
           return this.$axios.patch(relationUrl, { labels: newData })
         }
@@ -187,56 +185,52 @@ export default {
         url: `/api/v1/assets/assets/${this.object.id}/`,
         object: this.object,
         fields: [
-          'id', 'name',
-          {
-            key: this.$t('assets.Category'),
-            value: this.object.category.label
-          },
-          {
-            key: this.$t('assets.Type'),
-            value: this.object.type.label
-          },
+          'id',
+          'name',
+          'category',
+          'type',
           'address',
-          {
-            key: this.$t('assets.Protocols'),
-            value: this.object.protocols.map(
-              i => (
-                this.object.address.startsWith('https://') ? 'https' : i.name
-              ) + '/' + i.port
-            ).join(',')
-          },
-          {
-            key: this.$t('assets.Domain'),
-            value: this.object.domain?.name || ''
-          },
-          {
-            key: this.$t('assets.Platform'),
-            value: this.object.platform.name
-          },
-          'is_active', 'date_created', 'created_by', 'comment'
-        ]
+          'platform',
+          'protocols',
+          'zone',
+          'directory_services',
+          'is_active',
+          'date_created',
+          'date_updated',
+          'created_by',
+          'comment'
+        ],
+        formatters: {
+          protocols: () => {
+            return vm.object.protocols
+              .map(
+                (i) =>
+                  (this.object.address.startsWith('https://') ? 'https' : i.name) + '/' + i.port
+              )
+              .join(', ')
+          }
+        }
       },
       specInfoConfig: {
-        title: this.$t('common.SpecificInfo'),
+        title: this.$t('SpecificInfo'),
         url: `/api/v1/assets/assets/${this.object.id}/`,
         object: this.object,
         nested: 'spec_info',
-        showUndefine: true,
-        excludes: ['script']
+        showUndefined: true
       },
       customInfoConfig: {
-        title: this.$t('common.CustomInfo'),
+        title: this.$t('CustomInfo'),
         url: `/api/v1/assets/assets/${this.object.id}/`,
         object: this.object,
         nested: 'custom_info',
-        showUndefine: false
+        showUndefined: false
       },
       gatheredInfoConfig: {
         url: `/api/v1/assets/hosts/${this.object.id}/`,
-        title: this.$t('assets.HardwareInfo'),
+        title: this.$t('HardwareInfo'),
         object: this.object,
         nested: 'gathered_info',
-        showUndefine: false
+        showUndefined: false
       }
     }
   },
@@ -245,15 +239,15 @@ export default {
       const object = this.object
       const type = object.type.value
       const autofill = object.spec_info?.autofill
-      return !(type === 'website' && autofill === 'script') && Object.keys(object.spec_info || {}).length > 0
+      return (
+        !(type === 'website' && autofill === 'script') &&
+        Object.keys(object.spec_info || {}).length > 0
+      )
     }
   },
-  mounted() {
-  },
+  mounted() {},
   methods: {}
 }
 </script>
 
-<style lang='less' scoped>
-
-</style>
+<style lang="scss" scoped></style>

@@ -1,17 +1,16 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
+  </TwoCol>
 </template>
 
-<script>
+<script lang="jsx">
 import AutoDetailCard from '@/components/Cards/DetailCard/auto'
-
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 export default {
   name: 'StrategyDetail',
   components: {
+    TwoCol,
     AutoDetailCard
   },
   props: {
@@ -24,44 +23,48 @@ export default {
     return {
       url: `/api/v1/xpack/cloud/strategies/${this.object.id}/`,
       detailFields: [
-        'name', 'priority',
+        'name',
+        'priority',
         {
-          key: this.$t('common.Rule'),
+          key: this.$t('Rule'),
           formatter: () => {
             const newArr = this.object.strategy_rules || []
             return (
               <ul>
-                {
-                  newArr.map((r, index) => {
-                    return <li key={index}>{`${r.attr.label} ${r.match.label} ${r.value}`} </li>
-                  })
-                }
+                {newArr.map((r, index) => (
+                  <li key={index}>
+                    <el-tag size="small">
+                      {r.attr.label}
+                      <strong> {r.match.label} </strong>
+                      {r.value}
+                    </el-tag>
+                  </li>
+                ))}
               </ul>
             )
           }
         },
         {
-          key: this.$t('common.Action'),
+          key: this.$t('Action'),
           formatter: () => {
             const newArr = this.object.strategy_actions || []
             return (
               <ul>
-                {
-                  newArr.map((a, index) => {
-                    return <li key={index}>{`${a.attr.label}: ${a.value.label}`} </li>
-                  })
-                }
+                {newArr.map((a, index) => (
+                  <li key={index}>
+                    <el-tag size="small">
+                      <strong>{a.attr.label}: </strong>
+                      {a.value.label}
+                    </el-tag>
+                  </li>
+                ))}
               </ul>
             )
           }
         },
-        'comment', 'org_name'
+        'comment',
+        'org_name'
       ]
-    }
-  },
-  computed: {
-    cardTitle() {
-      return this.object.name
     }
   }
 }
@@ -69,31 +72,14 @@ export default {
 
 <style scoped>
 ul {
-  counter-reset: my-counter;
-  list-style-type: none;
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
 }
 
 li {
-  counter-increment: my-counter;
-  position: relative;
-  padding-left: 20px;
-}
-
-li:before {
-  content: counter(my-counter);
-  display: block;
-  position: absolute;
-  left: 0;
-  top: 32%;
-  width: 14px;
-  height: 14px;
-  line-height: 12px;
-  text-align: center;
-  border: 1px solid;
-  border-radius: 50%;
-  background-color: #fff;
+  list-style: none;
+  margin: 3px 0;
 }
 </style>
-

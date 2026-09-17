@@ -1,15 +1,12 @@
 <template>
-  <BaseAuth
-    :config="settings"
-    enable-field="AUTH_CAS"
-    v-on="$listeners"
-  />
+  <BaseAuth :config="settings" enable-field="AUTH_CAS" />
 </template>
 
 <script>
 import BaseAuth from './Base'
 import { JsonRequiredUserNameMapped } from '@/components/Form/DataForm/rules'
 import { JsonEditor } from '@/components/Form/FormFields'
+import { getOrgSelect2Meta } from '@/views/settings/Auth/const'
 
 export default {
   name: 'Cas',
@@ -21,19 +18,16 @@ export default {
       settings: {
         url: '/api/v1/settings/setting/?category=cas',
         fields: [
-          [this.$t('common.Basic'), [
-            'AUTH_CAS', 'CAS_SERVER_URL', 'CAS_ROOT_PROXIED_AS', 'CAS_VERSION'
-          ]],
-          [this.$t('common.Other'), [
-            'CAS_LOGOUT_COMPLETELY', 'CAS_RENAME_ATTRIBUTES', 'CAS_CREATE_USER'
-          ]]
+          [this.$t('Basic'), ['AUTH_CAS', 'CAS_SERVER_URL', 'CAS_ROOT_PROXIED_AS', 'CAS_VERSION']],
+          [this.$t('Search'), ['CAS_RENAME_ATTRIBUTES']],
+          [this.$t('Other'), ['CAS_ORG_IDS', 'CAS_LOGOUT_COMPLETELY']]
         ],
         fieldsMeta: {
           CAS_RENAME_ATTRIBUTES: {
             component: JsonEditor,
-            label: this.$t('setting.authUserAttrMap'),
             rules: [JsonRequiredUserNameMapped]
-          }
+          },
+          CAS_ORG_IDS: getOrgSelect2Meta()
         },
         submitMethod: () => 'patch',
         afterGetFormValue(obj) {
@@ -55,12 +49,9 @@ export default {
     }
   },
   methods: {
-    onConfirm() {
-    }
+    onConfirm() {}
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

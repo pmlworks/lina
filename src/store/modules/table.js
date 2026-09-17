@@ -1,5 +1,4 @@
-
-import Vue from 'vue'
+import { scopedLocalStorage as localStorage } from '@/utils/storage'
 
 function getTableConfigFromLocal() {
   const configs = localStorage.getItem('tableConfig')
@@ -10,20 +9,30 @@ function getTableConfigFromLocal() {
   }
 }
 
-const state = {
-  tableConfig: getTableConfigFromLocal()
-}
-
-const mutations = {
-  SET_TABLE_CONFIG: (state, item) => {
-    const _tableConfig = getTableConfigFromLocal()
-    Vue.set(_tableConfig, item.key, item.value)
-    localStorage.setItem('tableConfig', JSON.stringify(_tableConfig))
+function getProtocolMapFromLocal() {
+  const mapStr = localStorage.getItem('protocolMap')
+  try {
+    const obj = JSON.parse(mapStr)
+    return obj ? new Map(Object.entries(obj)) : new Map()
+  } catch (e) {
+    return new Map()
   }
 }
 
-const actions = {
+const state = {
+  tableConfig: getTableConfigFromLocal(),
+  protocolMap: getProtocolMapFromLocal()
 }
+
+const mutations = {
+  SET_PROTOCOL_MAP_ITEM: (state, item) => {
+    state.protocolMap.set(item.key, item.value)
+    const obj = Object.fromEntries(state.protocolMap)
+    localStorage.setItem('protocolMap', JSON.stringify(obj))
+  }
+}
+
+const actions = {}
 
 export default {
   namespaced: true,

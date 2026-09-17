@@ -1,28 +1,25 @@
 <template>
   <Dialog
     v-if="setting.InviteDialogVisible"
-    :title="$tc('users.InviteUserInOrg')"
-    :visible.sync="setting.InviteDialogVisible"
+    v-model:visible="setting.InviteDialogVisible"
+    :destroy-on-close="true"
     :show-cancel="false"
     :show-confirm="false"
-    custom-class="asset-select-dialog"
-    width="50vw"
-    top="15vh"
+    :title="$tc('InviteUserInOrg')"
     after
-    :destroy-on-close="true"
+    custom-class="asset-select-dialog"
+    top="8vh"
+    width="710px"
   >
-    <GenericCreateUpdateForm
-      v-bind="formConfig"
-      @submitSuccess="onSubmitSuccess"
-    />
+    <GenericCreateUpdateForm v-bind="formConfig" @submit-success="onSubmitSuccess" />
   </Dialog>
 </template>
 <script>
-import Dialog from '@/components/Dialog'
 import { Select2 } from '@/components'
+import Dialog from '@/components/Dialog'
+import rules from '@/components/Form/DataForm/rules'
 import { GenericCreateUpdateForm } from '@/layout/components'
 import { mapGetters } from 'vuex'
-import rules from '@/components/Form/DataForm/rules'
 
 export default {
   components: {
@@ -47,10 +44,11 @@ export default {
         submitMethod: () => 'post',
         hasReset: false,
         hasSaveContinue: false,
-        createSuccessMsg: this.$t('users.InviteSuccess'),
+        createSuccessMsg: this.$t('InviteSuccess'),
         fields: ['users', 'org_roles'],
         fieldsMeta: {
           users: {
+            helpTextAsTip: false,
             component: Select2,
             el: {
               ajax: {
@@ -85,17 +83,8 @@ export default {
       this.setting.InviteDialogVisible = false
       this.$emit('close', res)
       this.$store.dispatch('users/currentUserJoinNewOrg', res.users)
+      this.$router.push({ name: 'UserList', query: { order: '-date_updated' } })
     }
   }
 }
 </script>
-
-<style lang="less" scoped>
-.dialog ::v-deep form {
-  padding: 0 40px;
-}
-
-.dialog ::v-deep .el-dialog__footer {
-  padding: 0;
-}
-</style>

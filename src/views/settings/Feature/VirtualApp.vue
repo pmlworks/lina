@@ -1,6 +1,6 @@
 <template>
   <IBox>
-    <GenericCreateUpdateForm v-bind="config" @submitSuccess="submitSuccess" />
+    <GenericCreateUpdateForm v-bind="config" @submit-success="submitSuccess" />
   </IBox>
 </template>
 
@@ -24,12 +24,9 @@ export default {
     return {
       visible: false,
       config: {
-        fields: [
-          [this.$t('common.Basic'), ['VIRTUAL_APP_ENABLED']]
-        ],
-        fieldsMeta: {
-        },
-        successUrl: { name: 'Settings', params: { activeMenu: 'Basic' }},
+        fields: ['VIRTUAL_APP_ENABLED'],
+        fieldsMeta: {},
+        successUrl: { name: 'Settings', params: { activeMenu: 'Basic' } },
         url: '/api/v1/settings/setting/?category=virtualapp',
         hasReset: false,
         submitMethod() {
@@ -47,6 +44,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

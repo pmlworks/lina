@@ -3,8 +3,8 @@
 </template>
 
 <script>
+import { ResourceSelect } from '@/components/Form/FormFields'
 import { GenericCreateUpdatePage } from '@/layout/components'
-import TransSelect from '@/components/Form/FormFields/TransferSelect.vue'
 
 export default {
   components: {
@@ -18,31 +18,25 @@ export default {
         },
         url: '/api/v1/users/groups/',
         fields: [
-          [this.$t('common.Basic'), ['name', 'users']],
-          [this.$t('common.Other'), ['comment']]
+          [this.$t('Basic'), ['name', 'users']],
+          [this.$t('Other'), ['comment']]
         ],
         fieldsMeta: {
+          name: {
+            uniqueCheck: true
+          },
           users: {
-            component: TransSelect,
+            type: 'resourceSelect',
+            component: ResourceSelect,
             el: {
+              value: [],
               url: '/api/v1/users/users/?fields_size=mini&order=name',
-              ajax: {
-                transformOption: (item) => {
-                  return { label: item.name + '(' + item.username + ')', value: item.id }
-                }
-              },
-              resource: this.$t('common.User')
+              resourceName: this.$t('Users')
             }
           }
         }
       }
     }
-  },
-  methods: {
   }
 }
 </script>
-
-<style lang="less" scoped>
-
-</style>

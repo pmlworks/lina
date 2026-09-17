@@ -16,8 +16,16 @@ export default {
         url: '/api/v1/assets/webs/',
         tableConfig: {
           columnsExclude: [
-            'username_selector', 'password_selector', 'submit_selector',
-            'script', 'spec_info', 'info', 'auto_config'
+            'username_selector',
+            'password_selector',
+            'submit_selector',
+            'success_selector',
+            'interactive_selector',
+            'script',
+            'allowed_urls',
+            'spec_info',
+            'info',
+            'auto_config'
           ],
           columnsMeta: {
             autofill: {
@@ -25,13 +33,9 @@ export default {
             }
           }
         },
-        helpMessage: this.$t('assets.WebHelpMessage')
+        helpMessage: this.$t('WebHelpMessage')
       }
     }
   }
 }
 </script>
-
-<style>
-
-</style>

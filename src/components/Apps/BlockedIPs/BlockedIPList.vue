@@ -1,9 +1,9 @@
 <template>
-  <ListTable ref="ListTable" :table-config="tableConfig" :header-actions="headerActions" />
+  <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" />
 </template>
 
 <script>
-import ListTable from '@/components/Table/ListTable/index.vue'
+import { DrawerListTable as ListTable } from '@/components'
 
 export default {
   name: 'BlockedIPList',
@@ -22,12 +22,11 @@ export default {
     return {
       tableConfig: {
         url: '/api/v1/settings/security/block-ip/',
-        columns: [
-          'ip', 'actions'
-        ],
+        columns: ['ip', 'actions'],
+        totalData: [],
         columnsMeta: {
           ip: {
-            label: this.$t('assets.ip')
+            label: this.$t('IP')
           },
           actions: {
             formatterArgs: {
@@ -37,17 +36,18 @@ export default {
               extraActions: [
                 {
                   name: 'UnlockIP',
-                  title: this.$t('setting.Unblock'),
+                  title: this.$t('Unblock'),
                   can: this.$hasPerm('settings.change_security'),
                   type: 'primary',
                   callback: ({ row }) => {
-                    this.$axios.post(
-                      '/api/v1/settings/security/unlock-ip/',
-                      { ips: [row.ip] }
-                    ).then(() => {
-                      vm.$message.success(this.$tc('common.UnlockSuccessMsg'))
-                      vm.$refs.ListTable.reloadTable()
-                    })
+                    this.$axios
+                      .post('/api/v1/settings/security/unlock-ip/', {
+                        ips: [row.ip]
+                      })
+                      .then(() => {
+                        vm.$message.success(this.$tc('UnlockSuccessMsg'))
+                        vm.$refs.ListTable.reloadTable()
+                      })
                   }
                 }
               ]
@@ -59,7 +59,7 @@ export default {
         hasExport: false,
         hasImport: false,
         hasCreate: false,
-        hasSearch: false,
+        hasSearch: true,
         hasRefresh: true,
         hasBulkDelete: false,
         hasBulkUpdate: false,
@@ -68,30 +68,35 @@ export default {
         extraMoreActions: [
           {
             name: 'UnlockSelected',
-            title: this.$t('setting.BulkUnblock'),
+            title: this.$t('UnblockSelected'),
+            icon: 'fa-solid fa-unlock',
             type: 'primary',
             can: ({ selectedRows }) => {
               return selectedRows.length > 0
             },
-            callback: function({ selectedRows }) {
-              vm.$axios.post(
-                '/api/v1/settings/security/unlock-ip/',
-                {
-                  ips: selectedRows.map(v => { return v.ip })
-                }
-              ).then(res => {
-                vm.$message.success(vm.$tc('common.UnlockSuccessMsg'))
-                vm.$refs.ListTable.reloadTable()
-              })
+            callback: function ({ selectedRows }) {
+              vm.$axios
+                .post('/api/v1/settings/security/unlock-ip/', {
+                  ips: selectedRows.map((v) => {
+                    return v.ip
+                  })
+                })
+                .then((res) => {
+                  vm.$message.success(vm.$tc('UnlockSuccessMsg'))
+                  vm.$refs.ListTable.reloadTable()
+                })
             }
           }
         ]
       }
     }
+  },
+  mounted() {
+    this.$axios.get('/api/v1/settings/security/block-ip/').then((res) => {
+      this.tableConfig.totalData = res.results
+    })
   }
 }
 </script>
 
-<style lang='less' scoped>
-
-</style>
+<style lang="scss" scoped></style>

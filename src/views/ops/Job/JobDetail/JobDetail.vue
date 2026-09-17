@@ -1,16 +1,23 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <AutoDetailCard :fields="detailFields" :object="object" :url="url" />
+    <IBox :title="$tc('Variable')">
+      <Variable v-model="object.variable" @input="updateVariable" />
+    </IBox>
+  </TwoCol>
 </template>
 
-<script type="text/jsx">
+<script>
+import { IBox } from '@/components'
 import AutoDetailCard from '@/components/Cards/DetailCard/auto'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
+import Variable from '@/views/ops/Template/components/Variable.vue'
 
 export default {
   components: {
+    TwoCol,
+    IBox,
+    Variable,
     AutoDetailCard
   },
   props: {
@@ -23,12 +30,16 @@ export default {
     return {
       url: `/api/v1/ops/jobs/${this.object.id}/`,
       detailFields: [
-        'name', 'type', 'comment',
+        'name',
+        'type',
+        'comment',
         {
-          key: this.$t('ops.AverageTimeCost'),
+          key: this.$t('AverageTimeCost'),
           value: this.object.average_time_cost.toFixed(2) + 's'
         },
-        'date_last_run', 'date_updated', 'date_created'
+        'date_last_run',
+        'date_updated',
+        'date_created'
       ]
     }
   },
@@ -37,10 +48,15 @@ export default {
       return this.object.name
     }
   },
-  methods: {}
+  methods: {
+    updateVariable() {
+      const url = `/api/v1/ops/jobs/${this.object.id}/`
+      this.$axios.patch(url, { variable: this.object.variable }).then(() => {
+        this.$message.success(this.$tc('UpdateSuccessMsg'))
+      })
+    }
+  }
 }
 </script>
 
-<style lang="less" scoped>
-
-</style>
+<style lang="scss" scoped></style>

@@ -1,29 +1,24 @@
 <template>
   <Dialog
+    v-bind="$attrs"
     :destroy-on-close="true"
     :loading-status="testLdapLoginStatus"
     :show-cancel="false"
-    :title="$tc('setting.testLdapLoginTitle') "
-    v-bind="$attrs"
+    :title="$tc('TestLdapLoginTitle')"
     @confirm="testUserLoginClick()"
-    v-on="$listeners"
   >
-    <el-form
-      :model="userLoginForm"
-      label-position="right"
-      label-width="17%"
-    >
-      <el-form-item :label="$tc('setting.username')">
+    <el-form :model="userLoginForm" label-position="right" label-width="17%">
+      <el-form-item :label="$tc('Username')">
         <el-input
           v-model="userLoginForm.username"
-          :placeholder="$tc('setting.usernamePlaceholder')"
+          :placeholder="$tc('UsernamePlaceholder')"
           autocomplete="off"
         />
       </el-form-item>
-      <el-form-item :label="$tc('setting.password')">
+      <el-form-item :label="$tc('Password')">
         <el-input
           v-model="userLoginForm.password"
-          :placeholder="$tc('setting.passwordPlaceholder')"
+          :placeholder="$tc('PasswordPlaceholder')"
           autocomplete="off"
           type="password"
         />
@@ -34,11 +29,18 @@
 
 <script>
 import Dialog from '@/components/Dialog/index.vue'
+import { createWsUrl } from '@/utils/common/index'
 
 export default {
   name: 'TestLoginDialog',
   components: {
     Dialog
+  },
+  props: {
+    category: {
+      type: String,
+      required: true
+    }
   },
   data() {
     return {
@@ -67,16 +69,10 @@ export default {
       }
     },
     enableWS() {
-      const scheme = document.location.protocol === 'https:' ? 'wss' : 'ws'
-      const port = document.location.port ? ':' + document.location.port : ''
-      const url = '/ws/ldap/'
-      const wsURL = scheme + '://' + document.location.hostname + port + url
-      this.ws = new WebSocket(wsURL)
+      this.ws = new WebSocket(createWsUrl(`/ws/ldap/?category=${this.category}`))
     }
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

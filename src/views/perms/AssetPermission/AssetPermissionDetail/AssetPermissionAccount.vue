@@ -1,40 +1,40 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="15" :sm="24">
-      <AccountListTable
-        ref="ListTable"
-        :asset="object"
-        :has-clone="false"
-        :has-export="false"
-        :has-import="false"
-        :has-delete-action="false"
-        :has-left-actions="false"
-        :has-column-actions="false"
-        :url="url"
-      />
-    </el-col>
-    <el-col :md="9" :sm="24">
-      <IBox :title="$tc('assets.Account')" type="primary">
+  <TwoCol>
+    <AccountListTable
+      ref="ListTable"
+      :columns-default="columns"
+      :has-clone="false"
+      :has-column-actions="false"
+      :has-delete-action="false"
+      :has-export="false"
+      :has-import="false"
+      :has-left-actions="false"
+      :show-quick-filters="false"
+      :url="url"
+    />
+    <template #right>
+      <IBox :title="$tc('Account')" class="permission-account-box" type="primary">
         <AccountFormatter
-          class="checkbox-accounts"
-          :value="object['accounts']"
           :assets="assetIds"
           :nodes="nodeIds"
+          :value="object['accounts']"
+          class="checkbox-accounts"
           @change="updateAccount"
         />
       </IBox>
-    </el-col>
-  </el-row>
+    </template>
+  </TwoCol>
 </template>
 
 <script>
-import { AccountListTable } from '@/components'
-import { IBox } from '@/components'
+import { AccountListTable, IBox } from '@/components'
 import AccountFormatter from '@/views/perms/AssetPermission/components/AccountFormatter.vue'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'AssetPermissionAccount',
   components: {
+    TwoCol,
     IBox,
     AccountFormatter,
     AccountListTable
@@ -53,15 +53,18 @@ export default {
       relation: {
         disabled: false,
         username: ''
-      }
+      },
+      columns: ['name', 'username', 'secret', 'asset', 'connect']
     }
   },
   computed: {
     assetIds() {
-      return this.object.assets.map(asset => asset.id)
+      const assets = Array.isArray(this.object.assets) ? this.object.assets : []
+      return assets.map((asset) => asset.id)
     },
     nodeIds() {
-      return this.object.nodes.map(node => node.id)
+      const nodes = Array.isArray(this.object.nodes) ? this.object.nodes : []
+      return nodes.map((node) => node.id)
     }
   },
   methods: {
@@ -76,10 +79,19 @@ export default {
 }
 </script>
 
-<style scoped lang="scss">
+<style lang="scss" scoped>
+.checkbox-accounts {
+  width: 100%;
+  min-width: 0;
+}
 
-.checkbox-accounts >>> .el-checkbox-group {
-  line-height: 40px;
+.permission-account-box :deep(.el-card__body) {
+  overflow-x: hidden;
+}
+
+.checkbox-accounts :deep(.el-radio),
+.checkbox-accounts :deep(.el-checkbox) {
+  line-height: 30px;
 }
 
 .item-name {

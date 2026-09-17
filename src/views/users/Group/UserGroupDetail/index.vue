@@ -1,5 +1,5 @@
 <template>
-  <GenericDetailPage :active-menu.sync="config.activeMenu" :object.sync="group" v-bind="config" v-on="$listeners">
+  <GenericDetailPage v-bind="config" v-model:active-menu="config.activeMenu" v-model:object="group">
     <keep-alive>
       <component :is="config.activeMenu" :object="group" />
     </keep-alive>
@@ -21,15 +21,15 @@ export default {
     return {
       group: { name: '', comment: '', users: [] },
       config: {
-        url: '/api/v1/users/groups',
+        url: '/api/v1/users/groups/',
         activeMenu: 'GroupInfo',
         submenu: [
           {
-            title: this.$t('common.BasicInfo'),
+            title: this.$t('Basic'),
             name: 'GroupInfo'
           },
           {
-            title: this.$t('route.UserList'),
+            title: this.$t('UserList'),
             name: 'GroupUser'
           }
         ]
@@ -44,8 +44,8 @@ export default {
 }
 </script>
 
-<style lang='scss' scoped>
-> > > table.CardTable {
+<style lang="scss" scoped>
+:deep(table.CardTable) {
   table-layout: auto !important;
 }
 </style>

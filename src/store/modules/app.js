@@ -1,4 +1,4 @@
-import Cookies from 'js-cookie'
+import { jsCookie as Cookies } from '@/utils/storage'
 
 const state = {
   sidebar: {
@@ -6,13 +6,13 @@ const state = {
     withoutAnimation: false
   },
   // 默认需要展开的菜单
-  defaultOpensMenu: ['/audit/sessions', '/audit/logs', '/workbench/ops'],
+  defaultOpensMenu: [],
   device: 'desktop',
   inited: false
 }
 
 const mutations = {
-  TOGGLE_SIDEBAR: state => {
+  TOGGLE_SIDEBAR: (state) => {
     state.sidebar.opened = !state.sidebar.opened
     state.sidebar.withoutAnimation = false
     if (state.sidebar.opened) {

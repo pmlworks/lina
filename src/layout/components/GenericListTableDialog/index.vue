@@ -1,11 +1,11 @@
 <template>
   <Dialog
+    v-model:visible="iVisible"
     :title="title"
-    :visible.sync="iVisible"
-    top="1vh"
     :width="width"
     :show-cancel="false"
     :show-confirm="false"
+    top="1vh"
   >
     <GenericListTable :table-config="tableConfig" :header-actions="headerActions" />
   </Dialog>
@@ -14,11 +14,13 @@
 <script>
 import Dialog from '@/components/Dialog'
 import { GenericListTable } from '@/layout/components'
+import { useVModel } from '@/utils/vue/useVModel'
 
 export default {
   name: 'Index',
   components: {
-    Dialog, GenericListTable
+    Dialog,
+    GenericListTable
   },
   props: {
     title: {
@@ -42,19 +44,12 @@ export default {
       default: '60%'
     }
   },
-  computed: {
-    iVisible: {
-      set(val) {
-        this.$emit('update:visible', val)
-      },
-      get() {
-        return this.visible
-      }
+  emits: ['update:visible'],
+  setup(props, { emit }) {
+    const iVisible = useVModel(props, emit, 'visible')
+    return {
+      iVisible
     }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

@@ -1,16 +1,16 @@
 <template>
-  <el-row :gutter="20">
-    <el-col :md="14" :sm="24">
-      <AutoDetailCard :excludes="excludes" :object="object" :url="url" />
-    </el-col>
-  </el-row>
+  <TwoCol>
+    <AutoDetailCard :excludes="excludes" :object="object" :url="url" />
+  </TwoCol>
 </template>
 
-<script type="text/jsx">
+<script>
 import AutoDetailCard from '@/components/Cards/DetailCard/auto'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   components: {
+    TwoCol,
     AutoDetailCard
   },
   props: {
@@ -22,9 +22,7 @@ export default {
   data() {
     return {
       url: `/api/v1/ops/playbooks/${this.object.id}/`,
-      excludes: [
-        'path', 'create_method', 'vcs_url'
-      ]
+      excludes: ['variable', 'path', 'create_method', 'vcs_url']
     }
   },
   computed: {
@@ -36,6 +34,4 @@ export default {
 }
 </script>
 
-<style lang="less" scoped>
-
-</style>
+<style lang="scss" scoped></style>

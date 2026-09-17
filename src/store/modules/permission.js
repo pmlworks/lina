@@ -1,8 +1,6 @@
-import Vue from 'vue'
-import { constantRoutes, viewRoutes } from '@/router'
-import empty from '@/layout/empty'
-import Layout from '@/layout/index'
-import { getResourceNameByPath, hasPermission } from '@/utils/jms'
+import { getResourceNameByPath, hasPermission } from '@/utils/jms/permission'
+import i18n from '@/i18n/i18n'
+import _ from 'lodash'
 
 function hasLicense(route, rootState) {
   const licenseIsValid = rootState.settings.hasValidLicense
@@ -21,7 +19,7 @@ function isNeedHidden(route, rootState) {
 export function filterHiddenRoutes(routes, rootState) {
   const res = []
 
-  routes.forEach(route => {
+  routes.forEach((route) => {
     const tmp = {
       ...route
     }
@@ -45,7 +43,7 @@ const actionMapper = {
 }
 
 function getRouteDefaultPerms(route) {
-  if (route.component === empty || route.component === Layout) {
+  if (route.component?.routeViewShell) {
     return []
   }
 
@@ -73,9 +71,15 @@ function cleanRouteAction(route) {
 }
 
 function cleanRoute(tmp, parent) {
-  if (!parent) { parent = { meta: { level: 0, fullPath: '' }} }
-  if (!parent.meta) { parent.meta = {} }
-  if (!tmp.meta) { tmp.meta = {} }
+  if (!parent) {
+    parent = { meta: { level: 0, fullPath: '' } }
+  }
+  if (!parent.meta) {
+    parent.meta = {}
+  }
+  if (!tmp.meta) {
+    tmp.meta = {}
+  }
 
   // 根据层级来标识 类型是 view, app, resource 还是crud
   if (!tmp.meta.level) {
@@ -89,6 +93,9 @@ function cleanRoute(tmp, parent) {
   const path = tmp.path || ''
   const pathSlice = path.split('/')
   const pathValue = pathSlice[pathSlice.length - 1]
+
+  // 不再自动生成 name (vue-router 5 对父子同名严格报错,
+  // 且容器路由不需要 name——没人通过 name 导航到它们)
 
   // 标识路由是哪个 view
   if (!tmp.meta.view) {
@@ -119,10 +126,18 @@ function cleanRoute(tmp, parent) {
   if (!tmp.meta.disableOrgsChange && parent.meta.disableOrgsChange !== undefined) {
     tmp.meta.disableOrgsChange = parent.meta.disableOrgsChange
   }
+
+  // 翻译一下 title 吧
+  if (tmp.meta.title) {
+    tmp.meta.title = i18n.global.t(tmp.meta.title)
+  }
+  if (tmp.meta.menuTitle) {
+    tmp.meta.menuTitle = i18n.global.t(tmp.meta.menuTitle)
+  }
   // 设置 fullPath
   const parentFullPath = _.trimEnd(parent.meta.fullPath, '/')
   if (!tmp.meta.fullPath) {
-    if (tmp.path[0] === '/') {
+    if (tmp.path && tmp.path[0] === '/') {
       tmp.meta['fullPath'] = tmp.path
     } else {
       tmp.meta.fullPath = parentFullPath ? parentFullPath + '/' + tmp.path : parentFullPath
@@ -158,35 +173,38 @@ export function filterPermedRoutes(routes, parent) {
 
 const state = {
   routes: [],
+  constantRoutes: [],
   currentViewRoute: {},
   addRoutes: []
 }
 
 const mutations = {
-  SET_ROUTES: (state, { routes }) => {
+  SET_ROUTES: (state, { routes, constantRoutes }) => {
     state.addRoutes = routes
+    state.constantRoutes = constantRoutes
     state.routes = routes.concat(constantRoutes)
   },
   SET_VIEW_ROUTE: (state, viewRoute) => {
-    Vue.$log.debug('Current view route: ', viewRoute)
+    console.debug('Current view route: ', viewRoute)
     state.currentViewRoute = viewRoute
   }
 }
 
 const actions = {
   generateViewRoutes({ commit, rootState }, { to, from }) {
-    Vue.$log.debug('Start generate view routes')
-    return new Promise(resolve => {
+    console.log('Start generate view routes, to: ', to, 'from: ', from)
+    return new Promise((resolve) => {
       const path = to.path
       const re = new RegExp('/(\\w+)/?.*')
       const matched = path.match(re)
       if (!matched) {
-        Vue.$log.debug('Not match path, set default routes', path)
-        commit('SET_VIEW_ROUTE', constantRoutes[0])
-        resolve(constantRoutes[0])
+        console.debug('Not match path, set default routes', path)
+        commit('SET_VIEW_ROUTE', state.constantRoutes[0])
+        resolve(state.constantRoutes[0])
         return
       }
       const viewName = matched[1]
+      console.log('View name: ', viewName)
       let viewRoute = {}
       for (const route of state.routes) {
         if (route.meta?.view === viewName) {
@@ -194,20 +212,21 @@ const actions = {
           break
         }
       }
+      console.log('Set view route: ', viewRoute)
       commit('SET_VIEW_ROUTE', viewRoute)
       resolve(viewRoute)
     })
   },
-  generateRoutes({ commit, dispatch, rootState }, { to, from }) {
-    return new Promise(resolve => {
+  generateRoutes({ commit, rootState }, { viewRoutes, constantRoutes }) {
+    return new Promise((resolve) => {
       let routes = filterPermedRoutes(viewRoutes, null)
       routes = filterHiddenRoutes(routes, rootState)
       if (routes.length === 0) {
         console.error('No route find')
       } else {
-        Vue.$log.debug('All routes: ', routes)
+        console.debug('All routes in vuex: ', routes)
       }
-      commit('SET_ROUTES', { routes })
+      commit('SET_ROUTES', { routes, constantRoutes })
       resolve(routes)
     })
   }

@@ -1,5 +1,5 @@
 <template>
-  <TabPage v-if="!loading" :active-menu.sync="activeMenu" :submenu="submenu">
+  <TabPage v-if="!loading" v-model:active-menu="activeMenu" :submenu="submenu">
     <keep-alive>
       <component :is="activeMenu" />
     </keep-alive>
@@ -8,7 +8,8 @@
 
 <script>
 import TabPage from '@/layout/components/TabPage'
-import LDAP from './Ldap'
+import LdapHA from './Ldap/LdapHA.vue'
+import LDAP from './Ldap/Ldap.vue'
 import Base from './Base'
 import Basic from './Basic'
 import CAS from './CAS'
@@ -16,17 +17,23 @@ import OIDC from './OIDC'
 import Radius from './Radius'
 import DingTalk from './DingTalk'
 import FeiShu from './FeiShu'
+import Lark from './Lark'
 import WeCom from './WeCom'
 import SSO from './SSO'
 import SAML2 from './SAML2'
 import OAuth2 from './OAuth2'
 import Passkey from './Passkey.vue'
 import Slack from './Slack.vue'
+import { getAuthItems } from './const'
+import { mapState } from 'vuex'
+import Integration from './Integration.vue'
+import UKey from './UKey.vue'
 
 export default {
   components: {
     TabPage,
     LDAP,
+    LdapHA,
     Base,
     Basic,
     CAS,
@@ -34,113 +41,58 @@ export default {
     WeCom,
     DingTalk,
     FeiShu,
+    Lark,
     Radius,
     SSO,
     SAML2,
     OAuth2,
     Passkey,
-    Slack
+    Slack,
+    UKey,
+    Integration
   },
   data() {
-    let extraBackends = []
-    if (this.$store.getters.hasValidLicense) {
-      extraBackends = [
-        {
-          title: this.$t('setting.OIDC'),
-          name: 'OIDC',
-          key: 'AUTH_OPENID'
-        },
-        {
-          title: this.$t('setting.SAML2'),
-          name: 'SAML2',
-          key: 'AUTH_SAML2'
-        },
-        {
-          title: this.$t('setting.OAuth2'),
-          name: 'OAuth2',
-          key: 'AUTH_OAUTH2'
-        },
-        {
-          title: this.$t('setting.WeCom'),
-          name: 'WeCom',
-          key: 'AUTH_WECOM'
-        },
-        {
-          title: this.$t('setting.DingTalk'),
-          name: 'DingTalk',
-          key: 'AUTH_DINGTALK'
-        },
-        {
-          title: this.$t('setting.FeiShu'),
-          name: 'FeiShu',
-          key: 'AUTH_FEISHU'
-        },
-        {
-          title: this.$t('setting.Slack'),
-          name: 'Slack',
-          key: 'AUTH_SLACK'
-        },
-        {
-          title: this.$t('setting.Radius'),
-          name: 'Radius',
-          key: 'AUTH_RADIUS'
-        }
-      ]
-    }
     return {
       loading: true,
       activeMenu: 'Basic',
-      submenu: [
-        {
-          title: this.$t('common.Basic'),
-          name: 'Basic'
-        },
-        {
-          title: this.$t('setting.Ldap'),
-          name: 'LDAP',
-          key: 'AUTH_LDAP'
-        },
-        {
-          title: this.$t('setting.CAS'),
-          name: 'CAS',
-          key: 'AUTH_CAS'
-        },
-        {
-          title: this.$t('setting.Passkey'),
-          name: 'Passkey',
-          key: 'AUTH_PASSKEY'
-        },
-        ...extraBackends
-      ]
+      authMethods: []
     }
   },
   computed: {
-    componentData() {
-      return {}
+    ...mapState({
+      authMethodsSetting: (state) => state.settings.authMethods
+    }),
+    submenu() {
+      return [
+        {
+          title: this.$t('Basic'),
+          name: 'Basic'
+        },
+        {
+          title: this.$t('Integration'),
+          name: 'Integration'
+        },
+        ...this.authMethods.map((item) => {
+          return {
+            ...item,
+            hidden: () => !this.authMethodsSetting[item.authKey]
+          }
+        })
+      ]
     }
   },
-  mounted() {
-    this.$axios.get('/api/v1/settings/setting/?category=auth').then(res => {
-      for (const item of this.submenu) {
-        const key = item.key
-        if (!key) {
-          continue
-        }
-        if (res[key]) {
-          item.icon = 'fa-check-circle text-primary'
-        }
-      }
-    }).finally(() => {
-      this.loading = false
-    })
+  created() {
+    this.$store.dispatch('settings/getAuthMethods').then()
   },
-  methods: {}
+  async mounted() {
+    this.authMethods = getAuthItems()
+    this.loading = false
+  }
 }
 </script>
 
-<style lang='scss' scoped>
->>> .el-tabs__item .fa {
+<style lang="scss" scoped>
+:deep(.el-tabs__item .fa) {
   font-size: 11px;
 }
-
 </style>

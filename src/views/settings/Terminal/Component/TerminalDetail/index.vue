@@ -1,9 +1,8 @@
 <template>
   <GenericDetailPage
-    :active-menu.sync="config.activeMenu"
-    :object.sync="terminal"
     v-bind="config"
-    v-on="$listeners"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="terminal"
   >
     <keep-alive>
       <component :is="config.activeMenu" :object="terminal" />
@@ -30,26 +29,20 @@ export default {
         activeMenu: 'Detail',
         submenu: [
           {
-            'title': this.$t('common.Detail'),
-            'name': 'Detail'
+            title: this.$t('Basic'),
+            name: 'Detail'
           }
         ],
         hasRightSide: true,
         actions: {
           canUpdate: this.$hasPerm('terminal.change_terminal'),
           hasDelete: this.$hasPerm('terminal.delete_terminal'),
-          canDelete: this.$hasPerm('terminal.delete_terminal'),
-          detailApiUrl: `/api/v1/terminal/terminals/${this.$route.params.id}/`
+          canDelete: this.$hasPerm('terminal.delete_terminal')
         },
-        titlePrefix: this.$t('sessions.terminalDetail')
+        titlePrefix: this.$t('TerminalDetail')
       }
     }
   },
-  mounted() {
-  }
+  mounted() {}
 }
 </script>
-
-<style scoped>
-
-</style>

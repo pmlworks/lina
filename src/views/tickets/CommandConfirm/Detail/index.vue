@@ -1,5 +1,10 @@
 <template>
-  <GenericDetailPage :object.sync="ticket" :active-menu.sync="config.activeMenu" v-bind="config" v-on="$listeners">
+  <GenericDetailPage
+    v-bind="config"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="ticket"
+    :title="ticket.title"
+  >
     <component :is="config.activeMenu" :object="ticket" />
   </GenericDetailPage>
 </template>
@@ -16,26 +21,26 @@ export default {
   },
   data() {
     return {
-      ticket: { title: '', user_display: '', type_display: '', status: '', assignees_display: '', date_created: '' },
+      ticket: {
+        title: '',
+        user_display: '',
+        type_display: '',
+        status: '',
+        assignees_display: '',
+        date_created: ''
+      },
       config: {
         activeMenu: 'TicketDetail',
-        url: '',
+        url: '/api/v1/tickets/apply-command-tickets/',
         submenu: [
           {
-            title: this.$t('route.TicketDetail'),
+            title: this.$t('Basic'),
             name: 'TicketDetail'
           }
         ],
-        actions: {
-          detailApiUrl: `/api/v1/tickets/apply-command-tickets/${this.$route.params.id}/`
-        },
-        getObjectName: this.getObjectName,
         hasRightSide: false
       }
     }
-  },
-  mounted() {
-
   },
   methods: {
     getObjectName() {
@@ -44,7 +49,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

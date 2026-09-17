@@ -1,5 +1,7 @@
 <template>
-  <BaseRoleList scope="system" />
+  <div>
+    <BaseRoleList ref="roleList" scope="system" />
+  </div>
 </template>
 
 <script>
@@ -12,11 +14,27 @@ export default {
   },
   data() {
     return {
+      activatedReloadTimer: null,
+      hasBeenDeactivated: false
     }
+  },
+  activated() {
+    if (!this.hasBeenDeactivated) {
+      return
+    }
+    clearTimeout(this.activatedReloadTimer)
+    this.activatedReloadTimer = setTimeout(() => {
+      this.$refs.roleList?.reloadTable()
+    })
+  },
+  deactivated() {
+    this.hasBeenDeactivated = true
+    clearTimeout(this.activatedReloadTimer)
+    this.activatedReloadTimer = null
+  },
+  beforeUnmount() {
+    clearTimeout(this.activatedReloadTimer)
+    this.activatedReloadTimer = null
   }
 }
 </script>
-
-<style>
-
-</style>

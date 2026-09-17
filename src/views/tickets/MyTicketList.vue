@@ -1,10 +1,11 @@
 <template>
-  <BaseTicketList :url="url" v-bind="$data" />
+  <BaseTicketList v-bind="$data" :url="url" />
 </template>
 
 <script>
-import BaseTicketList from './BaseTicketList'
 import { mapGetters } from 'vuex'
+import BaseTicketList from './BaseTicketList'
+
 export default {
   name: 'MyTicketList',
   components: {
@@ -17,10 +18,7 @@ export default {
           dropdown: [
             {
               name: 'RequestAssetPerm',
-              title: this.$t('tickets.RequestAssetPerm'),
-              callback: () => this.$router.push({
-                name: 'RequestAssetPermTicketCreateUpdate'
-              })
+              title: this.$t('RequestAssetPerm')
             }
           ]
         }
@@ -29,15 +27,9 @@ export default {
   },
   computed: {
     url() {
-      return `/api/v1/tickets/tickets/?applicant=${this.currentUser.id}`
+      return `/api/v1/tickets/tickets/?applicant=${this.currentUser.id}&state=pending`
     },
-    ...mapGetters([
-      'currentUser'
-    ])
+    ...mapGetters(['currentUser'])
   }
 }
 </script>
-
-<style scoped>
-
-</style>

@@ -1,5 +1,5 @@
 <template>
-  <TabPage :active-menu.sync="config.activeMenu" :submenu="config.submenu" />
+  <TabPage v-model:active-menu="config.activeMenu" :submenu="config.submenu" />
 </template>
 
 <script>
@@ -16,14 +16,15 @@ export default {
         activeMenu: 'AccountList',
         submenu: [
           {
-            title: this.$t('accounts.GeneralAccounts'),
+            title: this.$t('GeneralAccounts'),
             name: 'AccountList',
             component: () => import('@/views/accounts/Account/AccountList.vue')
           },
           {
-            title: this.$t('accounts.VirtualAccounts'),
+            title: this.$t('VirtualAccounts'),
             name: 'VirtualAccountList',
-            component: () => import('@/views/accounts/VirtualAccount/VirtualList.vue')
+            component: () => import('@/views/accounts/VirtualAccount/VirtualList.vue'),
+            helpTip: this.$t('VirtualAccountHelpMsg')
           }
         ]
       }
@@ -31,6 +32,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-</style>

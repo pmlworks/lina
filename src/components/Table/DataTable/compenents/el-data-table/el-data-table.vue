@@ -1,150 +1,174 @@
 <template>
-  <div class="el-data-table">
+  <div v-bind="rootAttrs" :class="rootClass" :style="rootStyle">
     <template v-if="showNoData">
       <!--@slot 获取数据为空时的内容-->
       <slot name="no-data" />
     </template>
     <template v-else>
-      <el-table
-        ref="table"
-        v-loading="loading"
-        :data="data"
-        :row-class-name="rowClassName"
-        v-bind="tableAttrs"
-        @select="selectStrategy.onSelect"
-        v-on="$listeners"
-        @selection-change="selectStrategy.onSelectionChange"
-        @select-all="selectStrategy.onSelectAll($event, canSelect)"
-        @sort-change="onSortChange"
+      <div
+        :class="[
+          'el-data-table__surface',
+          { 'is-paginated': hasPagination, 'is-empty': !tableLoading && data.length === 0 }
+        ]"
+        :style="tableSurfaceStyle"
       >
-        <!--TODO 不用jsx写, 感觉template逻辑有点不清晰了-->
-        <template v-if="isTree">
-          <!--有多选-->
-          <template v-if="hasSelect">
-            <el-data-table-column
-              key="selection-key"
-              v-bind="{align: columnsAlign, ...columns[0]}"
-            />
-
-            <el-data-table-column
-              key="tree-ctrl"
-              v-bind="{align: columnsAlign, ...columns[1]}"
-            >
-              <template slot-scope="scope">
-                <span
-                  v-for="space in scope.row._level"
-                  :key="space"
-                  class="ms-tree-space"
-                />
-                <span
-                  v-if="iconShow(scope.$index, scope.row)"
-                  class="tree-ctrl"
-                  @click="toggleExpanded(scope.$index)"
-                >
-                  <i
-                    :class="`el-icon-${scope.row._expanded ? 'minus' : 'plus'}`"
-                  />
-                </span>
-                {{ scope.row[columns[1].prop] }}
-              </template>
-            </el-data-table-column>
-
-            <el-data-table-column
-              v-for="col in columns.filter((c, i) => i !== 0 && i !== 1)"
-              :key="col.prop"
-              v-bind="{align: columnsAlign, ...col}"
-            />
-          </template>
-
-          <!--无选择-->
-          <template v-else>
-            <!--展开这列, 丢失 el-data-table-column属性-->
-            <el-data-table-column
-              key="tree-ctrl"
-              v-bind="{align: columnsAlign, ...columns[0]}"
-            >
-              <template slot-scope="scope">
-                <span
-                  v-for="space in scope.row._level"
-                  :key="space"
-                  class="ms-tree-space"
-                />
-
-                <span
-                  v-if="iconShow(scope.$index, scope.row)"
-                  class="tree-ctrl"
-                  @click="toggleExpanded(scope.$index)"
-                >
-                  <i :class="`el-icon-${scope.row._expanded ? 'minus' : 'plus'}`" />
-                </span>
-                {{ scope.row[columns[0].prop] }}
-              </template>
-            </el-data-table-column>
-
-            <el-data-table-column
-              v-for="col in columns.filter((c, i) => i !== 0)"
-              :key="col.prop"
-              v-bind="{align: columnsAlign, ...col}"
-            />
-          </template>
-        </template>
-
-        <!--非树-->
-        <template v-else>
-          <el-data-table-column v-if="hasSelection" :align="selectionAlign" :selectable="canSelect" type="selection" />
-          <el-data-table-column
-            v-for="col in columns"
-            :key="col.prop"
-            :filter-method="typeof col.filterMethod === 'function' ? col.filterMethod : null"
-            :filter-multiple="false"
-            :filters="col.filters || null"
-            :formatter="typeof col.formatter === 'function' ? col.formatter : null"
-            v-bind="{align: columnsAlign, ...col}"
+        <!--
+          过滤 selection 相关事件的透传，避免父组件收到 el-table 原生的“当前页” selection，
+          导致跨页选择（persistSelection）被覆盖，只剩当页数据。
+          选择事件统一走 selectStrategy，在内部维护全量 selected 并向外 emit。
+        -->
+        <div ref="tableBody" v-loading="tableLoading" class="el-data-table__body compact-loading">
+          <el-table
+            v-bind="tableAttrs"
+            :key="tableModeKey"
+            ref="table"
+            :data="data"
+            :height="fillHeight ? '100%' : tableAttrs.height"
+            :native-scrollbar="false"
+            scrollbar-always-on
+            :row-class-name="rowClassName"
+            @select="selectStrategy.onSelect"
+            v-on="forwardListeners"
+            @selection-change="selectStrategy.onSelectionChange"
+            @select-all="handleSelectAll($event, canSelect)"
+            @sort-change="onSortChange"
           >
-            <template v-if="col.formatter && typeof col.formatter !== 'function'" v-slot:default="{row, column, index}">
-              <div
-                :is="col.formatter"
-                :key="row.id"
-                :cell-value="row[col.prop]"
-                :col="col"
-                :column="column"
-                :index="index"
-                :reload="getList"
-                :row="row"
-                :table-data="data"
-                :url="url"
+            <template v-if="isTree">
+              <el-data-table-column
+                v-bind="{ align: columnsAlign, ...columns[0] }"
+                v-if="hasSelect"
+                key="selection-key"
+              />
+              <el-data-table-column
+                v-bind="treeControlColumn"
+                :key="treeControlColumn.prop || 'tree-ctrl'"
+              >
+                <template #default="scope">
+                  <span v-for="space in scope.row._level" :key="space" class="ms-tree-space" />
+                  <span
+                    v-if="iconShow(scope.$index, scope.row)"
+                    class="tree-ctrl"
+                    @click="toggleExpanded(scope.$index)"
+                  >
+                    <el-icon><component :is="scope.row._expanded ? 'Minus' : 'Plus'" /></el-icon>
+                  </span>
+                  {{ scope.row[treeLabelProp] }}
+                </template>
+              </el-data-table-column>
+
+              <el-data-table-column
+                v-bind="{ align: columnsAlign, ...col }"
+                v-for="col in treeDataColumns"
+                :key="col.prop"
               />
             </template>
-          </el-data-table-column>
-        </template>
-        <slot />
-      </el-table>
 
-      <el-pagination
-        v-if="hasPagination"
-        :background="paginationBackground"
-        :current-page="page"
-        :layout="paginationLayout"
-        :page-size="size"
-        :page-sizes="paginationSizes"
-        :total="total"
-        v-bind="extraPaginationAttrs"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+            <!--非树-->
+            <template v-else>
+              <el-data-table-column
+                v-if="hasSelection"
+                :align="selectionAlign"
+                :fixed="selectionFixed"
+                :selectable="canSelect"
+                :width="selectionWidth || undefined"
+                type="selection"
+              />
+              <el-table-column
+                v-bind="getColumnBindProps(col)"
+                v-for="col in displayColumns"
+                :key="col.prop"
+                :filter-method="typeof col.filterMethod === 'function' ? col.filterMethod : null"
+                :filter-multiple="false"
+                :filters="col.filters || null"
+                :formatter="typeof col.formatter === 'function' ? col.formatter : null"
+                :title="col.label"
+                :prop="col.prop"
+              >
+                <template #header>
+                  <span
+                    class="column-header-content"
+                    :class="{ 'is-column-draggable': isColumnDraggable(col) }"
+                    :data-column-prop="col.prop"
+                  >
+                    <span v-if="!col.hideHeaderLabel" :title="col.label">{{ col.label }}</span>
+                    <button
+                      v-if="col.pinState?.visible"
+                      :aria-label="$t(col.pinState.pinned ? 'UnpinColumn' : 'PinColumn')"
+                      :class="['column-pin-button', { 'is-pinned': col.pinState.pinned }]"
+                      :title="$t(col.pinState.pinned ? 'UnpinColumn' : 'PinColumn')"
+                      type="button"
+                      @click.stop="$emit('column-pin-toggle', col.prop)"
+                      @mousedown.stop
+                    >
+                      <svg
+                        aria-hidden="true"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z" />
+                        <path d="M12 14v7" />
+                      </svg>
+                    </button>
+                  </span>
+                </template>
+
+                <template
+                  v-if="col.formatter && typeof col.formatter !== 'function'"
+                  #default="{ row: tableRow, $index }"
+                >
+                  <component
+                    :is="getFormatterComponent(col)"
+                    :key="tableRow.id"
+                    :cell-value="tableRow[col.prop]"
+                    :col="col"
+                    :index="(page - 1) * size + $index"
+                    :reload="getList"
+                    :row="tableRow"
+                    :table-data="data"
+                    :url="url"
+                  />
+                </template>
+              </el-table-column>
+            </template>
+            <slot />
+          </el-table>
+        </div>
+
+        <div v-if="hasPagination" class="el-data-table__pagination-viewport">
+          <el-pagination
+            v-bind="{
+              ...normalizedExtraPaginationAttrs,
+              currentPage: paginationCurrentPage,
+              pageSize: paginationPageSize,
+              background: paginationBackground,
+              layout: paginationLayout,
+              pageSizes: paginationSizes,
+              total: total || 0,
+              'onUpdate:current-page': handleCurrentChange,
+              'onUpdate:page-size': handleSizeChange
+            }"
+          />
+        </div>
+      </div>
 
       <the-dialog
         ref="dialog"
         :button-size="buttonSize"
         :dialog-attrs="dialogAttrs"
-        :edit-title="dialogEditTitle"
+        :edit-title="iDialogEditTitle"
         :form="form"
         :form-attrs="formAttrs"
-        :new-title="dialogNewTitle"
-        :view-title="dialogViewTitle"
+        :new-title="iDialogNewTitle"
+        :view-title="iDialogViewTitle"
         @confirm="onConfirm"
       >
-        <template v-slot="scope">
+        <template #default="scope">
           <!-- @slot 表单作用域插槽。当编辑、查看时传入row；新增时row=null -->
           <slot :row="scope.row" name="form" />
         </template>
@@ -154,18 +178,21 @@
 </template>
 
 <script>
-import _get from 'lodash.get'
-import _values from 'lodash.values'
-import _isEmpty from 'lodash.isempty'
+import { omitVueListeners, pickVueListeners } from '@/utils/vue'
+import { markRaw, toRaw } from 'vue'
+import merge from 'deepmerge'
+import _get from 'lodash/get'
+import _isEmpty from 'lodash/isEmpty'
+import _values from 'lodash/values'
+import ElDataTableColumn from './components/el-data-table-column'
 import SelfLoadingButton from './components/self-loading-button.vue'
 import TheDialog, { dialogModes } from './components/the-dialog.vue'
-import ElDataTableColumn from './components/el-data-table-column'
-import * as queryUtil from './utils/query'
-import getSelectStrategy from './utils/select-strategy'
 import getLocatedSlotKeys from './utils/extract-keys'
-import transformSearchImmediatelyItem from './utils/search-immediately-item'
 import isFalsey from './utils/is-falsey'
-import merge from 'deepmerge'
+import * as queryUtil from './utils/query'
+import transformSearchImmediatelyItem from './utils/search-immediately-item'
+import getSelectStrategy from './utils/select-strategy'
+import { isColumnDraggable } from '@/components/Table/AutoDataTable/column-order'
 
 const defaultFirstPage = 1
 const noPaginationDataPath = 'payload'
@@ -177,6 +204,7 @@ export default {
     TheDialog,
     ElDataTableColumn
   },
+  inheritAttrs: false,
 
   props: {
     /**
@@ -185,6 +213,10 @@ export default {
     url: {
       type: String,
       default: ''
+    },
+    request: {
+      type: Function,
+      default: null
     },
     /**
      * 主键，默认值 id，
@@ -268,8 +300,7 @@ export default {
      */
     beforeSearch: {
       type: Function,
-      default() {
-      }
+      default() {}
     },
     /**
      * 单选, 适用场景: 不可以批量删除
@@ -361,8 +392,8 @@ export default {
      */
     newText: {
       type: String,
-      default: function() {
-        return this.$t('ops.Add')
+      default: function () {
+        return 'Add'
       }
     },
     /**
@@ -370,8 +401,8 @@ export default {
      */
     editText: {
       type: String,
-      default: function() {
-        return this.$t('ops.Modify')
+      default: function () {
+        return 'Modify'
       }
     },
     /**
@@ -379,8 +410,8 @@ export default {
      */
     viewText: {
       type: String,
-      default: function() {
-        return this.$t('ops.View')
+      default: function () {
+        return 'View'
       }
     },
     /**
@@ -388,8 +419,8 @@ export default {
      */
     deleteText: {
       type: String,
-      default: function() {
-        return this.$t('ops.Delete')
+      default: function () {
+        return 'Delete'
       }
     },
     /**
@@ -400,7 +431,7 @@ export default {
     deleteMessage: {
       type: Function,
       default() {
-        return this.$t('ops.Confirm') + this.deleteText + '?'
+        return 'Confirm' + this.deleteText + '?'
       }
     },
     /**
@@ -425,7 +456,7 @@ export default {
     onNew: {
       type: Function,
       default(data) {
-        return this.$axios.post(this.url, data, this.axiosConfig)
+        console.log('onNew', data)
       }
     },
     /**
@@ -434,8 +465,7 @@ export default {
      */
     onEdit: {
       type: Function,
-      default(row) {
-      }
+      default(row) {}
     },
     /**
      * 点击删除按钮时的方法, 当默认删除方法不满足需求时使用, 需要返回promise
@@ -444,10 +474,9 @@ export default {
     onDelete: {
       type: Function,
       default(data) {
-        const ids = Array.isArray(data)
-          ? data.map(v => v[this.id]).join(',')
-          : data[this.id]
-        return this.$axios.delete(this.url + '/' + ids + '/', this.axiosConfig)
+        // const ids = Array.isArray(data) ? data.map(v => v[this.id]).join(',') : data[this.id]
+        // return this.$axios.delete(this.url + '/' + ids + '/', this.axiosConfig)
+        console.log('onDelete', data)
       }
     },
     /**
@@ -459,7 +488,7 @@ export default {
     onSuccess: {
       type: Function,
       default() {
-        return this.$message.success(this.$t('ops.SuccessfulOperation'))
+        return this.$message.success('SuccessfulOperation')
       }
     },
     /**
@@ -541,6 +570,10 @@ export default {
       type: Boolean,
       default: false
     },
+    fillHeight: {
+      type: Boolean,
+      default: false
+    },
     /**
      * element table 属性设置, 详情配置参考element-ui官网
      * @link https://element.eleme.cn/2.4/#/zh-CN/component/table#table-attributes
@@ -566,27 +599,21 @@ export default {
      */
     dialogNewTitle: {
       type: String,
-      default() {
-        return this.newText
-      }
+      default: ''
     },
     /**
      * 修改弹窗的标题，默认为editText的值
      */
     dialogEditTitle: {
       type: String,
-      default() {
-        return this.editText
-      }
+      default: ''
     },
     /**
      * 查看弹窗的标题，默认为viewText的值
      */
     dialogViewTitle: {
       type: String,
-      default() {
-        return this.viewText
-      }
+      default: ''
     },
     /**
      * 弹窗表单, 用于新增与修改, 详情配置参考el-form-renderer
@@ -700,8 +727,8 @@ export default {
       }
     },
     /*
-    * 设置默认对齐方式
-    */
+     * 设置默认对齐方式
+     */
     defaultAlign: {
       type: String,
       default: 'center'
@@ -710,14 +737,26 @@ export default {
       type: String,
       default: 'center'
     },
+    selectionFixed: {
+      type: [Boolean, String],
+      default: false
+    },
+    selectionWidth: {
+      type: [Number, String],
+      default: 0
+    },
+    actionsColumnPosition: {
+      type: String,
+      default: 'end',
+      validator: (value) => ['start', 'end'].includes(value)
+    },
     paginationBackground: {
       type: Boolean,
       default: true
     },
     extraPaginationAttrs: {
       type: Object,
-      default: () => {
-      }
+      default: () => {}
     },
     hasSelection: {
       type: Boolean,
@@ -745,7 +784,9 @@ export default {
       page: defaultFirstPage,
       // https://github.com/ElemeFE/element/issues/1153
       total: null,
-      loading: false,
+      tableLoading: false,
+      listRequestId: 0,
+      listAbortController: null,
       // 多选项的数组
       selected: [],
 
@@ -761,6 +802,64 @@ export default {
     }
   },
   computed: {
+    tableSurfaceStyle() {
+      if (!this.fillHeight) {
+        return undefined
+      }
+      // Element Plus renders a 40px header plus its 1px bottom separator.
+      const headerHeight = 41
+      const rowHeight = 40
+      const emptyBodyHeight = 96
+      const loadingRows = this.tableLoading && !this.data.length && this.hasPagination
+      const visibleRows = loadingRows ? this.size : this.data.length
+      const rowsHeight = visibleRows ? visibleRows * rowHeight : emptyBodyHeight
+      const paginationHeight = this.hasPagination ? 44 : 0
+      const surfaceBorderHeight = 2 // 1px top and bottom borders.
+      const surfaceContentHeight =
+        headerHeight + rowsHeight + paginationHeight + surfaceBorderHeight
+      return { '--el-data-table-content-height': `${surfaceContentHeight}px` }
+    },
+    displayColumns() {
+      if (this.actionsColumnPosition !== 'start') {
+        return this.columns
+      }
+      const actions = this.columns.find((column) => column.prop === 'actions')
+      if (!actions) {
+        return this.columns
+      }
+      return [actions, ...this.columns.filter((column) => column !== actions)]
+    },
+    tableModeKey() {
+      // Element Plus updates keyed columns in place. Recreating the table for
+      // visibility, order or pinning changes also recreates every cell.
+      return [this.isTree ? 'tree' : 'table', this.hasSelection ? 'selection' : 'plain'].join('|')
+    },
+    paginationCurrentPage: {
+      get() {
+        return this.page
+      },
+      set(val) {
+        this.handleCurrentChange(val)
+      }
+    },
+    paginationPageSize: {
+      get() {
+        return this.size
+      },
+      set(val) {
+        this.handleSizeChange(val)
+      }
+    },
+    normalizedExtraPaginationAttrs() {
+      const attrs = { ...(this.extraPaginationAttrs || {}) }
+      if ('small' in attrs) {
+        if (attrs.small && !attrs.size) {
+          attrs.size = 'small'
+        }
+        delete attrs.small
+      }
+      return attrs
+    },
     hasSelect() {
       return this.columns.length && this.columns[0].type === 'selection'
     },
@@ -771,13 +870,28 @@ export default {
       return () => true
     },
     columnsAlign() {
-      if (this.columns.some(col => col.columns && col.columns.length)) {
+      if (this.columns.some((col) => col.columns && col.columns.length)) {
         // 多级表头默认居中
         return 'center'
       } else {
         // 默认居中 //修改点
         return this.defaultAlign
       }
+    },
+    treeColumnIndex() {
+      return this.hasSelect ? 1 : 0
+    },
+    treeControlColumn() {
+      const column = this.columns[this.treeColumnIndex] || {}
+      return { align: this.columnsAlign, ...column }
+    },
+    treeDataColumns() {
+      const start = this.hasSelect ? 2 : 1
+      return this.columns.slice(start)
+    },
+    treeLabelProp() {
+      const column = this.columns[this.treeColumnIndex] || {}
+      return column.prop
     },
     routerMode() {
       return this.$router ? this.$router.mode : 'hash'
@@ -791,7 +905,7 @@ export default {
         (this.hasSelect && this.hasDelete) ||
         this.headerButtons.length ||
         this.canSearchCollapse ||
-        this.$scopedSlots.header
+        this.$slots.header
       )
     },
     _extraBody() {
@@ -803,11 +917,42 @@ export default {
     selectStrategy() {
       return getSelectStrategy(this)
     },
+    rootAttrs() {
+      const attrs = omitVueListeners(this.$attrs)
+      delete attrs.class
+      delete attrs.style
+      return attrs
+    },
+    rootClass() {
+      return ['el-data-table', { 'el-data-table--fill-height': this.fillHeight }, this.$attrs.class]
+    },
+    rootStyle() {
+      return this.$attrs.style
+    },
+    iDialogNewTitle() {
+      return this.dialogNewTitle || this.newText
+    },
+    iDialogEditTitle() {
+      return this.dialogEditTitle || this.editText
+    },
+    iDialogViewTitle() {
+      return this.dialogViewTitle || this.viewText
+    },
+    // 过滤会与内部选择策略冲突的事件，避免父组件只拿到当前页 selection
+    forwardListeners() {
+      const listeners = { ...pickVueListeners(this.$attrs) }
+      delete listeners['selection-change']
+      delete listeners['select']
+      delete listeners['select-all']
+      // 外层如需监听 selection 变化，请监听本组件透出的 selection-change，
+      // 该事件来自选择策略，已汇总跨页后的全量 selected
+      return listeners
+    },
     searchLocatedSlotKeys() {
       return getLocatedSlotKeys(this.$slots, 'search:')
     },
     collapseForm() {
-      return this.searchForm.map(item => {
+      return this.searchForm.map((item) => {
         if ('collapsible' in item && !item.collapsible) {
           return item
         }
@@ -815,7 +960,7 @@ export default {
         const itemHidden = item.hidden || (() => false)
         return {
           ...item,
-          hidden: data => {
+          hidden: (data) => {
             return this.isSearchCollapse || itemHidden(data)
           }
         }
@@ -833,12 +978,26 @@ export default {
     }
   },
   watch: {
+    tableModeKey() {
+      this.$nextTick(() => this.selectStrategy.updateElTableSelection())
+    },
     url: {
-      handler(val) {
-        if (!val) return
+      handler(val, oldVal) {
+        const requestId = this.invalidateListRequest()
+        if (!val) {
+          this.tableLoading = false
+          return
+        }
         this.page = defaultFirstPage
+        const resourceChanged = !oldVal || val.split(/[?#]/, 1)[0] !== oldVal.split(/[?#]/, 1)[0]
         // mounted处有updateForm的行为，所以至少在初始执行时要等到nextTick
-        this.$nextTick(this.getList)
+        this.$nextTick(() => {
+          if (requestId === this.listRequestId) {
+            // Query-only changes (for example, switching the asset scope) keep
+            // the current rows visible until the latest response arrives.
+            this.getList({ debounce: false, loading: resourceChanged })
+          }
+        })
       },
       immediate: true
     },
@@ -853,7 +1012,7 @@ export default {
       if (val && val.length !== this.total) {
         this.page = defaultFirstPage
         this.total = val.length
-        this.getList()
+        this.$nextTick(() => this.getList())
       }
     }
   },
@@ -863,7 +1022,7 @@ export default {
       if (query) {
         this.page = parseInt(query[this.pageKey])
         this.size = parseInt(query[this.pageSizeKey])
-        // 恢复查询条件，但对slot=search无效
+        // 恢复查询条件，但对 slot = search 无效
         if (this.$refs.searchForm) {
           delete query[this.pageKey]
           delete query[this.pageSizeKey]
@@ -872,10 +1031,47 @@ export default {
       }
     }
     if (this.totalData) {
-      this.getList()
+      // Let the page's mounted hook apply its fill-height layout first.
+      const requestId = this.listRequestId
+      this.$nextTick(() => {
+        if (requestId === this.listRequestId) {
+          this.getList()
+        }
+      })
     }
   },
+  created() {
+    this.debouncedGetListFromRemote = _.debounce(this.getListFromRemote, 300)
+  },
+  beforeUnmount() {
+    this.invalidateListRequest()
+  },
   methods: {
+    isColumnDraggable,
+    invalidateListRequest() {
+      this.debouncedGetListFromRemote?.cancel()
+      this.listAbortController?.abort()
+      this.listAbortController = null
+      return ++this.listRequestId
+    },
+    getFormatterComponent(col) {
+      if (!col?.formatter || typeof col.formatter === 'function') {
+        return null
+      }
+      return markRaw(toRaw(col.formatter))
+    },
+    getColumnBindProps(col) {
+      // 排除 formatter，因为组件类型的 formatter 不应该传递给 el-table-column 的 formatter prop
+      // 函数类型的 formatter 已经通过 :formatter 显式传递了
+      // 但是我们需要保留 formatter 在 v-bind 中，以便 template slot 可以访问到
+      // 所以这里不排除 formatter，而是在 el-data-table-column 中处理
+      const { hideHeaderLabel, pinOriginalFixed, pinState, ...columnProps } = col
+      const props = { align: this.columnsAlign, ...columnProps }
+      if (col.type === 'index' && !props.index) {
+        props.index = (index) => (this.page - 1) * this.size + index + 1
+      }
+      return props
+    },
     getQuery() {
       // 构造query对象
       let query = {}
@@ -886,9 +1082,7 @@ export default {
       }
       Object.assign(query, this._extraQuery)
       Object.assign(query, this.innerQuery)
-      query[this.pageSizeKey] = this.hasPagination
-        ? this.size
-        : this.noPaginationSize
+      query[this.pageSizeKey] = this.hasPagination ? this.size : this.noPaginationSize
 
       // 根据偏移值计算接口正确的页数
       const pageOffset = this.firstPage - defaultFirstPage
@@ -896,7 +1090,7 @@ export default {
 
       // 无效值过滤，注意0是有效值
       query = Object.keys(query)
-        .filter(k => !isFalsey(query[k]))
+        .filter((k) => !isFalsey(query[k]))
         .reduce((obj, k) => {
           obj[k] = query[k].toString().trim()
           return obj
@@ -920,23 +1114,50 @@ export default {
     hasNextPage() {
       return this.page < this.lastPageNum
     },
-    getList({ loading = true } = {}) {
-      const { url } = this
-      if (url) {
-        return this.getListFromRemote({ loading: loading })
+    getList({ loading = true, debounce = false } = {}) {
+      // Invalidate immediately, including while the next search is debounced.
+      const requestId = this.invalidateListRequest()
+      if (this.fillHeight && loading) {
+        // A new page/filter starts at the first row, not the previous page's
+        // scroll position. Background refreshes keep the reading position.
+        this.$refs.table?.setScrollTop(0)
       }
+      const { url } = this
       if (this.totalData) {
         return this.getListFromStaticData({ loading: true })
       }
+      if (url) {
+        const options = { loading, requestId }
+        return debounce ? this.debouncedGetListFromRemote(options) : this.getListFromRemote(options)
+      }
+      this.tableLoading = false
       // this.$log.debug("last page is: ", this.lastPageNum)
+    },
+    filterTotalData() {
+      const query = this.getQuery()
+      const keyword = query.search || ''
+      let totalData = this.totalData
+      if (keyword) {
+        totalData = totalData.filter((item) => {
+          return Object.values(item).some((value) => {
+            return value.toString().includes(keyword)
+          })
+        })
+      }
+      return totalData
     },
     getListFromStaticData({ loading = true } = {}) {
       if (loading) {
-        this.loading = true
+        this.tableLoading = true
       }
+      // 静态数据(totalData)模式下总数即数据长度。必须在此设置,
+      // 因为 totalData 的 watcher 仅在其"变化"时才更新 total,而初次挂载
+      // (totalData 创建时已就位、不再变化)不会触发,导致分页显示"共 0 条"。
+      this.total = this.totalData.length
+      const totalData = this.filterTotalData()
       if (!this.hasPagination) {
-        this.data = this.totalData
-        this.loading = false
+        this.data = totalData
+        this.tableLoading = false
         if (this.isTree) {
           this.data = this.tree2Array(this.data, this.expandAll)
         }
@@ -948,8 +1169,8 @@ export default {
       const start = (page + pageOffset - 1) * this.size
       const end = (page + pageOffset) * this.size
       this.$log.debug(`page: ${page}, size: ${this.size}, start: ${start}, end: ${end}`)
-      this.data = this.totalData.slice(start, end)
-      this.loading = false
+      this.data = totalData.slice(start, end)
+      this.tableLoading = false
       this.data = this.tree2Array(this.data, this.expandAll)
       return this.data
     },
@@ -958,9 +1179,9 @@ export default {
      * @public
      * @param {object} options 方法选项
      */
-    getListFromRemote({ loading = true } = {}) {
+    getListFromRemote({ loading = true, requestId = this.invalidateListRequest() } = {}) {
       const { url } = this
-      if (!url) {
+      if (!url || requestId !== this.listRequestId) {
         return
       }
 
@@ -970,12 +1191,15 @@ export default {
         formValue = this.$refs.searchForm.getFormValue()
         Object.assign(query, formValue)
       }
-      const queryStr =
-        (url.indexOf('?') > -1 ? '&' : '?') +
-        queryUtil.stringify(query, '=', '&')
+      for (const key of Object.keys(query)) {
+        if (query[key] === '' || query[key] === null || query[key] === undefined) {
+          delete query[key]
+        }
+      }
+      const queryStr = (url.indexOf('?') > -1 ? '&' : '?') + queryUtil.stringify(query, '=', '&')
 
       // 请求开始
-      this.loading = loading
+      this.tableLoading = loading
 
       // 存储query记录, 便于后面恢复
       if (this.saveQuery) {
@@ -985,17 +1209,23 @@ export default {
         history.replaceState(history.state, 'el-data-table search', newUrl)
       }
 
-      this.$axios
-        .get(url + queryStr, this.axiosConfig)
+      const request = this.request || ((requestUrl, config) => this.$axios.get(requestUrl, config))
+      const controller = new AbortController()
+      this.listAbortController = controller
+      const signal = this.axiosConfig?.signal
+        ? AbortSignal.any([controller.signal, this.axiosConfig.signal])
+        : controller.signal
+      return Promise.resolve()
+        .then(() => request(url + queryStr, { ...this.axiosConfig, signal }))
         .then(({ data: resp }) => {
+          if (requestId !== this.listRequestId || controller.signal.aborted) {
+            return
+          }
           let data = []
 
           // 不分页
           if (!this.hasPagination) {
-            data =
-              _get(resp, this.dataPath) ||
-              _get(resp, noPaginationDataPath) ||
-              []
+            data = _get(resp, this.dataPath) || _get(resp, noPaginationDataPath) || []
             this.total = data.length
           } else {
             data = _get(resp, this.dataPath) || []
@@ -1015,27 +1245,41 @@ export default {
             this.total === 0 &&
             (_isEmpty(formValue) || _values(formValue).every(isFalsey))
 
-          this.loading = false
+          this.tableLoading = false
           /**
            * 请求返回, 数据更新后触发
            * @property {object} data - table的数据
            * @property {object} resp - 请求返回的完整response
            */
-          this.$emit('update', data, resp)
+          this.$emit('data-update', data, resp)
 
           // 开启persistSelection时，需要同步selected状态到el-table中
           this.$nextTick(() => {
-            this.selectStrategy.updateElTableSelection()
+            if (requestId === this.listRequestId) {
+              this.selectStrategy?.updateElTableSelection()
+            }
           })
         })
-        .catch(err => {
+        .catch((err) => {
+          if (requestId !== this.listRequestId) {
+            return
+          }
+          if (signal.aborted) {
+            this.tableLoading = false
+            return
+          }
+          this.total = 0
+          this.tableLoading = false
           /**
            * 请求数据失败，返回err对象
            * @event error
            */
           this.$emit('error', err)
-          this.total = 0
-          this.loading = false
+        })
+        .finally(() => {
+          if (this.listAbortController === controller) {
+            this.listAbortController = null
+          }
         })
     },
     search(attrs, reset) {
@@ -1048,7 +1292,7 @@ export default {
         this.innerQuery = merge(this.innerQuery, attrs)
       }
       this.selected.splice(0, this.selected.length)
-      return this.getList()
+      return this.getList({ debounce: true })
     },
     searchDate(attrs) {
       // 重置搜索结果到第一页
@@ -1086,17 +1330,26 @@ export default {
       })
     },
     handleSizeChange(val) {
-      if (this.size === val) return
+      this.$emit('update:page-size', val)
       this.$emit('sizeChange', val)
+      if (this.size === val) return
       this.page = defaultFirstPage
       this.size = val
       this.getList()
     },
     handleCurrentChange(val) {
       if (this.page === val) return
-
+      this.$emit('update:current-page', val)
       this.page = val
       this.getList()
+    },
+    handleSelectAll(selection, selectable = () => true) {
+      this.tableLoading = true
+      try {
+        this.selectStrategy.onSelectAll(selection, selectable)
+      } finally {
+        this.tableLoading = false
+      }
     },
     /**
      * 切换某一行的选中状态，如果使用了第二个参数，则是设置这一行选中与否
@@ -1114,7 +1367,7 @@ export default {
      * @public
      */
     clearSelection() {
-      return this.selectStrategy.clearSelection()
+      return this.selectStrategy?.clearSelection()
     },
     // 弹窗相关
     // 除非树形结构在操作列点击新增, 否则 row 是 MouseEvent
@@ -1167,10 +1420,10 @@ export default {
      * @param {object|object[]} - 要删除的数据对象或数组
      */
     onDefaultDelete(data) {
-      this.$confirm(this.deleteMessage(data), this.$t('common.Info'), {
+      this.$confirm(this.deleteMessage(data), this.$t('Info'), {
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
-        beforeClose: async(action, instance, done) => {
+        beforeClose: async (action, instance, done) => {
           if (action !== 'confirm') return done()
 
           instance.confirmButtonLoading = true
@@ -1206,11 +1459,7 @@ export default {
       }
       const remain = this.data.length - deleteCount
       const lastPage = Math.ceil(this.total / this.size)
-      if (
-        remain === 0 &&
-        this.page === lastPage &&
-        this.page > defaultFirstPage
-      ) {
+      if (remain === 0 && this.page === lastPage && this.page > defaultFirstPage) {
         this.page--
       }
     },
@@ -1219,15 +1468,15 @@ export default {
     // https://github.com/PanJiaChen/vue-element-admin/tree/master/@/components/TreeTable
     tree2Array(data, expandAll, parent = null, level = null) {
       let tmp = []
-      data.forEach(record => {
+      data.forEach((record) => {
         if (record._expanded === undefined) {
-          this.$set(record, '_expanded', expandAll)
+          record._expanded = expandAll
         }
         let _level = 0
         if (level !== undefined && level !== null) {
           _level = level + 1
         }
-        this.$set(record, '_level', _level)
+        record._level = _level
         // 如果有父元素
         if (parent) {
           Object.defineProperty(record, 'parent', {
@@ -1238,20 +1487,14 @@ export default {
         tmp.push(record)
 
         if (record[this.treeChildKey] && record[this.treeChildKey].length > 0) {
-          const children = this.tree2Array(
-            record[this.treeChildKey],
-            expandAll,
-            record,
-            _level
-          )
+          const children = this.tree2Array(record[this.treeChildKey], expandAll, record, _level)
           tmp = tmp.concat(children)
         }
       })
       return tmp
     },
     rowClassName(...args) {
-      let rcn =
-        this.tableAttrs.rowClassName || this.tableAttrs['row-class-name'] || ''
+      let rcn = this.tableAttrs.rowClassName || this.tableAttrs['row-class-name'] || ''
       if (typeof rcn === 'function') rcn = rcn(...args)
       if (this.isTree) rcn += ' ' + this.showRow(...args)
       return rcn
@@ -1284,13 +1527,13 @@ export default {
   }
 }
 </script>
-<style lang="less" scoped>
+<style lang="scss" scoped>
 // 自定义样式
-@import url(index.less);
+@use './index';
 
 .el-data-table {
-  @color-blue: #2196f3;
-  @space-width: 18px;
+  $color-blue: #2196f3;
+  $space-width: 18px;
 
   .ms-tree-space {
     position: relative;
@@ -1299,7 +1542,7 @@ export default {
     font-style: normal;
     font-weight: 400;
     line-height: 1;
-    width: @space-width;
+    width: $space-width;
     height: 14px;
 
     &::before {
@@ -1310,7 +1553,90 @@ export default {
   .tree-ctrl {
     position: relative;
     cursor: pointer;
-    color: @color-blue;
+    color: $color-blue;
+  }
+
+  .column-header-content {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .column-pin-button {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    visibility: hidden;
+    opacity: 0;
+    padding: 2px 4px;
+    border: 0;
+    color: var(--el-text-color-placeholder);
+    background: transparent;
+    cursor: pointer;
+    transition:
+      opacity 0.15s ease,
+      color 0.15s ease;
+
+    svg {
+      vertical-align: middle;
+      transform: rotate(45deg);
+    }
+
+    &:hover {
+      color: var(--el-color-primary);
+    }
+
+    &.is-pinned {
+      visibility: visible;
+      opacity: 1;
+      color: var(--el-color-primary);
+    }
+  }
+
+  :deep(th:hover) .column-pin-button {
+    right: 8px;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  :deep(th .cell) {
+    position: relative;
+  }
+
+  :deep(.column-header-content + .caret-wrapper),
+  :deep(.column-header-content + .el-table__column-filter-trigger) {
+    margin-left: 5px;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .column-pin-button {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      visibility: visible;
+      opacity: 0.55;
+      border-radius: 4px;
+
+      &:not(.is-pinned),
+      &:not(.is-pinned):hover {
+        color: var(--el-text-color-placeholder);
+      }
+
+      &:not(.is-pinned):active {
+        color: var(--el-color-primary);
+        background: var(--el-color-primary-light-9);
+      }
+
+      &.is-pinned {
+        opacity: 1;
+      }
+    }
+  }
+
+  @media (max-width: 991px) {
+    .column-pin-button {
+      display: none;
+    }
   }
 
   @keyframes treeTableShow {

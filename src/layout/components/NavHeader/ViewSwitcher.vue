@@ -1,8 +1,9 @@
 <template>
   <el-tooltip
-    v-model="iShowTip"
+    v-model:visible="iShowTip"
     :content="tipText"
     :manual="true"
+    :show-after="500"
     class="item"
     effect="dark"
     placement="bottom-start"
@@ -14,13 +15,10 @@
       class="menu-main"
       @select="handleSelectView"
     >
-      <el-menu-item
-        v-for="view of views"
-        :key="view.name"
-        :index="view.name"
-      >
-        <svg-icon :icon-class="view.meta.icon" class="icons" />
-        <span slot="title" class="icons-title">{{ view.meta.title }}</span>
+      <el-menu-item v-for="view of views" :key="view.name" :index="view.name">
+        <span class="outline" />
+        <Icon :icon="view.meta.icon" class="icons" />
+        <span class="icons-title">{{ view.meta.title }}</span>
       </el-menu-item>
     </el-menu>
   </el-tooltip>
@@ -28,10 +26,16 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import Icon from '@/components/Widgets/Icon'
 import store from '@/store'
+import { scopedLocalStorage as localStorage } from '@/utils/storage'
+import { getFirstAccessibleChildPath } from '@/utils/vue'
 
 export default {
   name: 'ViewSwitcher',
+  components: {
+    Icon
+  },
   props: {
     showTitle: {
       type: Boolean,
@@ -44,15 +48,12 @@ export default {
   },
   data() {
     return {
-      tipText: this.$t('common.ChangeViewHelpText'),
+      tipText: this.$t('ChangeViewHelpText'),
       showTip: true
     }
   },
   computed: {
-    ...mapGetters([
-      'currentViewRoute',
-      'viewRoutes'
-    ]),
+    ...mapGetters(['currentViewRoute', 'viewRoutes']),
     views() {
       return this.viewRoutes.filter((item) => {
         let show = item.meta?.showNavSwitcher
@@ -104,16 +105,35 @@ export default {
     }
   },
   methods: {
+    getViewTarget(viewRoute) {
+      if (!viewRoute || typeof viewRoute !== 'object') {
+        return '/'
+      }
+
+      const redirect = viewRoute.redirect
+      if (typeof redirect === 'string' && redirect) {
+        return redirect
+      }
+      if (redirect && typeof redirect === 'object') {
+        return redirect
+      }
+
+      const rootPath = viewRoute.meta?.fullPath || viewRoute.path
+      const firstChildPath = getFirstAccessibleChildPath(rootPath)
+      return firstChildPath || rootPath || '/'
+    },
     async handleSelectView(key, keyPath) {
-      const routeName = this.viewsMapper[key] || '/'
-      localStorage.setItem('PreView', key)
+      const viewRoute = this.viewsMapper[key]
+      const routeTarget = this.getViewTarget(viewRoute)
+      localStorage.setItem('preView', key)
       // Next 之前要重置 init 状态，否则这些路由守卫就不走了
       await store.dispatch('app/reset')
       if (!this.tipHasRead) {
         this.tipHasRead = '1'
         this.iShowTip = false
       }
-      this.$router.push(routeName)
+      await this.$router.push(routeTarget)
+      this.$emit('view-change', routeTarget)
     }
   }
 }
@@ -121,12 +141,20 @@ export default {
 
 <style lang="scss" scoped>
 .menu-main.el-menu {
-  background-color: transparent;
-  border-right: none !important;
+  min-width: 180px;
+  padding: 6px;
+  color: var(--menu-text);
+  background-color: var(--menu-bg) !important;
+  box-shadow: none;
+  letter-spacing: 0.05em;
 
-  ::v-deep .el-submenu .el-submenu__title {
-    height: 40px;
-    line-height: 40px;
+  &.vertical {
+    width: max-content;
+  }
+
+  :deep(.el-sub-menu .el-sub-menu__title) {
+    height: 38px;
+    line-height: 32px;
     border-bottom: none;
   }
 
@@ -134,23 +162,33 @@ export default {
     border-bottom: none;
   }
 
-  & > > > .el-icon-arrow-down {
+  & :deep(.el-sub-menu__icon-arrow) {
     font-size: 13px;
-    color: #606266;
+    color: var(--menu-text);
   }
 
   .el-menu-item {
-    height: 36px;
-    line-height: 26px;
-    padding: 4px 24px;
+    height: 38px;
+    line-height: 28px;
+    padding: 6px 14px;
+    color: var(--menu-text);
 
     &:hover {
-      background-color: var(--menu-hover);
+      color: var(--menu-text-active);
+      background-color: var(--menu-hover-bg, var(--menu-hover));
     }
 
-    &:focus {
-      background-color: transparent;
+    &.is-active {
+      color: var(--menu-active-text, var(--menu-text-active));
+      background-color: var(--menu-active-bg, var(--menu-hover));
     }
+  }
+
+  &.vertical .el-menu-item {
+    width: auto;
+    min-width: 200px;
+    padding: 6px 14px;
+    justify-content: flex-start;
   }
 }
 
@@ -177,7 +215,7 @@ export default {
   }
 }
 
-.el-submenu.is-opened {
+.el-sub-menu.is-opened {
   background-color: transparent;
 }
 
@@ -190,24 +228,20 @@ export default {
 
 .icons {
   vertical-align: middle !important;
-  font-size: 16px;
+  font-size: 14px;
   text-align: center;
-  color: #1F2329;
+  color: inherit;
   margin-right: 10px;
 }
 
 .icons-title {
   display: inline-block;
-  font-size: 14px;
-}
+  font-size: 13px;
+  white-space: nowrap;
+  color: inherit;
 
-.el-menu-item.is-active {
-  font-weight: bold;
-  color: var(--menu-text-active);
-  border-left: 4px solid var(--menu-text-active);
-}
-
-.menu-main.mobile-view-switch > > > .el-submenu__icon-arrow {
-  right: 10px;
+  .menu-main.mobile-view-switch :deep(.el-sub-menu__icon-arrow) {
+    right: 10px;
+  }
 }
 </style>

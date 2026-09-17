@@ -2,16 +2,15 @@
   <div>
     <Dialog
       v-if="isVisible"
-      :title="$tc('route.TemplateCreate')"
-      :visible.sync="isVisible"
+      v-model:visible="isVisible"
       :show-cancel="false"
       :show-confirm="false"
+      :title="$tc('TemplateCreate')"
       width="70%"
     >
       <GenericCreateUpdateForm v-bind="formConfig" />
     </Dialog>
   </div>
-
 </template>
 
 <script>
@@ -40,14 +39,12 @@ export default {
       formConfig: {
         initial: { secret_type: 'password' },
         url: '/api/v1/accounts/account-templates/',
-        getUrl: function() {
+        getUrl: function () {
           return '/api/v1/accounts/account-templates/'
         },
         needGetObjectDetail: false,
         hasDetailInMsg: false,
-        fields: [
-          ...templateFields(this)
-        ],
+        fields: [...templateFields(this)],
         fieldsMeta: {
           ...templateFieldsMeta(this)
         },
@@ -82,7 +79,3 @@ export default {
   methods: {}
 }
 </script>
-
-<style scoped>
-
-</style>

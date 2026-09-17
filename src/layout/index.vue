@@ -1,10 +1,14 @@
 <template>
   <div :class="classObj" class="app-wrapper">
-    <div v-if="device==='mobile' && sidebar.opened" class="drawer-bg" @click="handleClickOutside" />
-    <div :class="{'fixed-header': fixedHeader}" class="disabled-when-print">
+    <div
+      v-if="device === 'mobile' && sidebar.opened"
+      class="drawer-bg"
+      @click="handleClickOutside"
+    />
+    <div :class="{ 'fixed-header': fixedHeader }" class="disabled-when-print">
       <NavHeader />
     </div>
-    <div :class="{hasTagsView: needTagsView}" class="main-container">
+    <div :class="{ hasTagsView: needTagsView }" class="main-container">
       <NavLeft class="sidebar-container disabled-when-print" />
       <app-main />
     </div>
@@ -12,17 +16,22 @@
 </template>
 
 <script>
-import { NavHeader, NavLeft, AppMain } from './components'
-import ResizeMixin from './mixin/ResizeHandler'
+import AppMain from './components/AppMain.vue'
+import NavHeader from './components/NavHeader/index.vue'
+import NavLeft from './components/NavLeft/index.vue'
+import { useResizeHandler } from '@/utils/vue/useResizeHandler'
 
 export default {
   name: 'Layout',
+  routeViewShell: true,
   components: {
     NavLeft,
     NavHeader,
     AppMain
   },
-  mixins: [ResizeMixin],
+  setup() {
+    useResizeHandler()
+  },
   computed: {
     sidebar() {
       return this.$store.state.app.sidebar
@@ -56,64 +65,93 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import "~@/styles/mixin.scss";
-  @import "~@/styles/variables.scss";
+@use '@/styles/mixin' as *;
+@use '@/styles/variables' as *;
 
+.app-wrapper {
+  @include clearfix;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  // 页面内各分区共用同一套间距，窄屏只在布局根上收紧一次。
+  --page-inline-padding: 20px;
+  --page-content-top-padding: 12px;
+  --page-content-bottom-padding: 22px;
+  --page-section-gap: 8px;
+  --sidebar-footer-height: 44px;
+  --list-viewport-bottom-offset: var(--sidebar-footer-height);
+
+  &.mobile.openSidebar {
+    position: fixed;
+    inset: 0;
+  }
+}
+.drawer-bg {
+  background: #000;
+  opacity: 0.3;
+  width: 100%;
+  position: fixed;
+  z-index: 1000;
+  top: $headerHeight;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.fixed-header {
+  position: relative;
+  z-index: 1002;
+  flex: 0 0 $headerHeight;
+  width: 100%;
+  min-width: 0;
+}
+
+.mobile .fixed-header {
+  width: 100%;
+}
+
+@media screen and (max-width: 767px) {
   .app-wrapper {
-    @include clearfix;
-    position: relative;
-    height: 100vh;
+    --page-inline-padding: 12px;
+    --page-content-top-padding: 10px;
+    --page-content-bottom-padding: 14px;
+    --list-viewport-bottom-offset: var(--page-section-gap);
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .app-wrapper {
+    --page-inline-padding: 8px;
+    --page-content-bottom-padding: 10px;
+  }
+}
+
+@media print {
+  .disabled-when-print {
+    display: none;
     width: 100%;
-    overflow: hidden;
-    &.mobile.openSidebar{
-      position: fixed;
-      top: 0;
-    }
+  }
+  .enabled-when-print {
+    display: inherit !important;
+  }
+  .print-margin {
+    margin-top: 10px;
   }
   .drawer-bg {
-    background: #000;
-    opacity: 0.3;
-    width: 100%;
-    top: 0;
-    height: 100%;
-    position: absolute;
-    z-index: 999;
+    display: none;
   }
-
-  .fixed-header {
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 9;
-    width: 100%;
-    transition: width 0.28s;
+  .main-container {
+    margin-left: 0 !important;
   }
-
-  .mobile .fixed-header {
-    width: 100%;
-  }
-  @media print {
-    .disabled-when-print{
-      display: none;
-      width: 100%;
-    }
-    .enabled-when-print{
-      display: inherit !important;
-    }
-    .print-margin{
-      margin-top: 10px;
-    }
-    .drawer-bg{
-      display: none;
-    }
-    .main-container{
-      margin-left: 0 !important;
-    }
-    //.fixed-header{
-    //  width: 100% !important;
-    //}
-    //.hideSidebar .fixed-header{
-    //  width: 100% !important;
-    //}
-  }
+  //.fixed-header{
+  //  width: 100% !important;
+  //}
+}
 </style>

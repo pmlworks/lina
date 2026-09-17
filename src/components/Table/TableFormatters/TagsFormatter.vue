@@ -1,12 +1,12 @@
 <template>
   <div class="tag">
     <el-tag
+      v-bind="formatterArgs.config"
       v-for="tag of iTags"
       :key="tag"
       :type="getTagType(tag)"
       class="tag-formatter"
       disable-transitions
-      v-bind="formatterArgs.config"
     >
       <i class="fa fa-tag" /> {{ tag }}
     </el-tag>
@@ -55,8 +55,9 @@ export default {
 
 <style lang="scss" scoped>
 .tag {
-  display: flex;
+  display: inline-block;
   flex-wrap: wrap;
+
   & > span {
     overflow: hidden;
     white-space: nowrap;

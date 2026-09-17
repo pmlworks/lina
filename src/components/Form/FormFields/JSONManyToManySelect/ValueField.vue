@@ -1,9 +1,20 @@
 <template>
   <div v-if="!loading">
     <TagInput v-if="type === 'array'" :value="iValue" @input="handleInput" />
-    <Select2 v-else-if="type === 'select'" :value="iValue" v-bind="attr.el" @change="handleInput" @input="handleInput" />
-    <Switcher v-else-if="type === 'bool'" :value="iValue" @change="handleInput" @input="handleInput" />
-    <el-input v-else :value="iValue" @input="handleInput" />
+    <Select2
+      v-bind="attr.el"
+      v-else-if="type === 'select'"
+      :value="iValue"
+      @change="handleInput"
+      @input="handleInput"
+    />
+    <Switcher
+      v-else-if="type === 'bool'"
+      :value="iValue"
+      @change="handleInput"
+      @input="handleInput"
+    />
+    <el-input v-else :model-value="iValue" @update:model-value="handleInput" />
   </div>
 </template>
 
@@ -15,6 +26,10 @@ import Switcher from '@/components/Form/FormFields/Switcher.vue'
 export default {
   name: 'ValueField',
   components: { Switcher, TagInput, Select2 },
+  // DataForm listeners must only receive the explicit component event below.
+  // Letting them fall through to the root div captures Select2's native search input event.
+  inheritAttrs: false,
+  emits: ['input'],
   props: {
     value: {
       type: [String, Number, Boolean, Array, Object],
@@ -105,6 +120,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

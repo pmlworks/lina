@@ -1,8 +1,14 @@
 <template>
-  <TabPage :active-menu.sync="config.activeMenu" :submenu="config.submenu" @tab-click="handleTabClick">
-    <div slot="title">
-      {{ Title }}
-    </div>
+  <TabPage
+    v-model:active-menu="config.activeMenu"
+    :submenu="config.submenu"
+    @tab-click="handleTabClick"
+  >
+    <template #title>
+      <div>
+        {{ Title }}
+      </div>
+    </template>
   </TabPage>
 </template>
 
@@ -20,16 +26,21 @@ export default {
         activeMenu: 'SysRoleList',
         submenu: [
           {
-            title: this.$t('route.SystemRole'),
+            title: this.$t('SystemRole'),
             name: 'SysRoleList',
+            icon: 'fa-solid fa-globe',
             hidden: () => !this.$hasPerm('rbac.view_systemrole'),
-            component: () => import('@/views/users/Role/RoleList/SysRoleList.vue')
+            component: () => import('@/views/users/Role/RoleList/SysRoleList.vue'),
+            helpTip: this.$t('SystemRoleHelpMsg')
           },
           {
-            title: this.$t('route.OrgRole'),
+            title: this.$t('OrgRole'),
             name: 'OrgRoleList',
-            hidden: () => !this.$store.getters.hasValidLicense || !this.$hasPerm('rbac.view_orgrole'),
-            component: () => import('@/views/users/Role/RoleList/OrgRoleList.vue')
+            icon: 'fa-solid fa-sitemap',
+            hidden: () =>
+              !this.$store.getters.hasValidLicense || !this.$hasPerm('rbac.view_orgrole'),
+            component: () => import('@/views/users/Role/RoleList/OrgRoleList.vue'),
+            helpTip: this.$t('OrgRoleHelpMsg')
           }
         ]
       }
@@ -37,8 +48,11 @@ export default {
   },
   computed: {
     Title() {
-      return this.$t('route.RoleList')
+      return this.$t('RoleList')
     }
+  },
+  activated() {
+    this.switchGlobalOrg(this.config.activeMenu === 'OrgRoleList')
   },
   mounted() {
     this.switchGlobalOrg(this.config.activeMenu === 'OrgRoleList')
@@ -59,7 +73,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

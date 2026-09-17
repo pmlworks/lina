@@ -1,13 +1,10 @@
 <template>
-  <BaseAuth
-    :config="settings"
-    enable-field="AUTH_SSO"
-    v-on="$listeners"
-  />
+  <BaseAuth :config="settings" enable-field="AUTH_SSO" />
 </template>
 
 <script>
 import BaseAuth from './Base'
+
 export default {
   name: 'SSO',
   components: {
@@ -17,22 +14,15 @@ export default {
     return {
       settings: {
         url: '/api/v1/settings/setting/?category=sso',
-        fields: [
-          [
-            this.$t('common.Basic'), ['AUTH_SSO', 'AUTH_SSO_AUTHKEY_TTL']
-          ]
-        ],
+        fields: [[this.$t('Basic'), ['AUTH_SSO', 'AUTH_SSO_AUTHKEY_TTL']]],
         submitMethod: () => 'patch'
       }
     }
   },
   methods: {
-    onConfirm() {
-    }
+    onConfirm() {}
   }
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

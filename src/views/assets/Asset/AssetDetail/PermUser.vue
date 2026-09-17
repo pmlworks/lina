@@ -1,30 +1,32 @@
 <template>
   <div>
-    <el-row :gutter="20">
-      <el-col :md="16" :sm="24">
-        <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" />
-      </el-col>
-      <el-col :md="8" :sm="24">
+    <TwoCol>
+      <ListTable ref="ListTable" :header-actions="headerActions" :table-config="tableConfig" />
+      <template #right>
         <PermUserGroupCard v-bind="UserGroupCardConfig" />
-      </el-col>
-    </el-row>
+      </template>
+    </TwoCol>
     <GenericListTableDialog
-      :visible.sync="GenericListTableDialogConfig.visible"
       v-bind="GenericListTableDialogConfig"
+      v-model:visible="GenericListTableDialogConfig.visible"
     />
   </div>
 </template>
 
 <script>
-import ListTable from '@/components/Table/ListTable'
+import { DrawerListTable as ListTable } from '@/components'
 import { GenericListTableDialog } from '@/layout/components'
 import { DetailFormatter } from '@/components/Table/TableFormatters'
 import PermUserGroupCard from './components/PermUserGroupCard'
+import TwoCol from '@/layout/components/Page/TwoColPage.vue'
 
 export default {
   name: 'PermUserList',
   components: {
-    ListTable, GenericListTableDialog, PermUserGroupCard
+    TwoCol,
+    ListTable,
+    GenericListTableDialog,
+    PermUserGroupCard
   },
   props: {
     object: {
@@ -37,33 +39,48 @@ export default {
     return {
       tableConfig: {
         url: `/api/v1/assets/assets/${this.object.id}/perm-users/`,
-        columns: [
-          'name', 'username', 'email', 'phone', 'wechat',
-          'groups_display', 'total_role_display', 'source',
-          'is_valid', 'login_blocked', 'mfa_enabled',
-          'mfa_force_enabled', 'is_expired',
-          'last_login', 'date_joined', 'date_password_last_updated',
-          'comment', 'created_by', 'actions'
-        ],
+        columns: ['name', 'username', 'email', 'comment', 'created_by', 'actions'],
         columnsShow: {
           min: ['name', 'username', 'actions'],
-          default: [
-            'name', 'username',
-            'source', 'is_valid', 'actions'
-          ]
+          default: ['name', 'username', 'actions']
         },
         columnsMeta: {
           name: {
-            formatter: vm.$hasPerm('users.view_user') ? DetailFormatter : '',
+            formatter: DetailFormatter,
             formatterArgs: {
-              route: 'UserDetail'
+              drawer: true,
+              can: vm.$hasPerm('users.view_user'),
+              getRoute: ({ row }) => {
+                return {
+                  name: 'UserDetail',
+                  params: { id: row.id }
+                }
+              }
             }
           },
           source: {
             width: '120px'
           },
-          total_role_display: {
-            label: this.$t('users.Role')
+          system_roles: {
+            width: '100px',
+            label: this.$t('SystemRoles'),
+            formatter: (row) => {
+              return row['system_roles'].map((item) => item['display_name']).join(', ') || '-'
+            },
+            filters: [],
+            columnKey: 'system_roles'
+          },
+          org_roles: {
+            width: '100px',
+            label: this.$t('OrgRoles'),
+            formatter: (row) => {
+              return row['org_roles'].map((item) => item['display_name']).join(', ') || '-'
+            },
+            filters: [],
+            columnKey: 'org_roles',
+            has: () => {
+              return this.$store.getters.hasValidLicense && !this.currentOrgIsRoot
+            }
           },
           mfa_enabled: {
             label: 'MFA',
@@ -91,10 +108,10 @@ export default {
               hasClone: false,
               extraActions: [
                 {
-                  title: vm.$t('assets.ViewPerm'),
+                  title: vm.$t('ViewPerm'),
                   name: 'view',
                   type: 'primary',
-                  callback: function(data) {
+                  callback: function (data) {
                     vm.GenericListTableDialogConfig.visible = true
                     vm.GenericListTableDialogConfig.tableConfig.url = `/api/v1/assets/assets/${vm.object.id}/perm-users/${data.row.id}/permissions/`
                   }
@@ -110,31 +127,36 @@ export default {
         hasLeftActions: false
       },
       UserGroupCardConfig: {
-        icon: 'fa-users',
-        title: this.$t('perms.UserGroups'),
+        title: this.$t('UserGroups'),
         url: `/api/v1/assets/assets/${vm.object.id}/perm-user-groups/`,
-        detailRoute: 'UserGroupDetail',
-        buttonTitle: this.$t('assets.ViewPerm'),
+        detailRoute: () => import('@/views/users/Group/UserGroupDetail'),
+        buttonTitle: this.$t('ViewPerm'),
         buttonClickCallback(obj) {
           vm.GenericListTableDialogConfig.visible = true
           vm.GenericListTableDialogConfig.tableConfig.url = `/api/v1/assets/assets/${vm.object.id}/perm-user-groups/${obj.id}/permissions/`
         }
       },
       GenericListTableDialogConfig: {
-        title: this.$t('perms.Permissions'),
+        title: this.$t('Permissions'),
         visible: false,
         width: '60%',
         tableConfig: {
           url: '',
           columns: [
-            'name', 'user_groups_amount', 'assets_amount',
-            'is_valid', 'is_active', 'date_expired', 'comment', 'org_name', 'created_by', 'date_created'
+            'name',
+            'user_groups_amount',
+            'assets_amount',
+            'is_valid',
+            'is_active',
+            'date_expired',
+            'comment',
+            'org_name',
+            'created_by',
+            'date_created'
           ],
           columnsShow: {
             min: ['name'],
-            default: [
-              'name', 'is_valid', 'created_by', 'date_created'
-            ]
+            default: ['name', 'is_valid', 'created_by', 'date_created']
           },
           columnsMeta: {
             name: {
@@ -143,35 +165,35 @@ export default {
               }
             },
             users_amount: {
-              label: this.$t('perms.User'),
+              label: this.$t('User'),
               width: '60px',
               formatter: DetailFormatter,
               formatterArgs: {
                 route: 'AssetPermissionDetail',
                 routeQuery: {
-                  activeTab: 'AssetPermissionUser'
+                  tab: 'AssetPermissionUser'
                 }
               }
             },
             user_groups_amount: {
-              label: this.$t('perms.UserGroups'),
+              label: this.$t('UserGroups'),
               width: '100px',
               formatter: DetailFormatter,
               formatterArgs: {
                 route: 'AssetPermissionDetail',
                 routeQuery: {
-                  activeTab: 'AssetPermissionUser'
+                  tab: 'AssetPermissionUser'
                 }
               }
             },
             assets_amount: {
-              label: this.$t('perms.Asset'),
+              label: this.$t('Asset'),
               width: '60px',
               formatter: DetailFormatter,
               formatterArgs: {
                 route: 'AssetPermissionDetail',
                 routeQuery: {
-                  activeTab: 'AssetPermissionAsset'
+                  tab: 'AssetPermissionAsset'
                 }
               }
             }
@@ -188,10 +210,14 @@ export default {
         }
       }
     }
+  },
+  watch: {
+    $route: {
+      handler(newVal) {
+        newVal.fullPath.includes('/console/perms/asset-permissions/') &&
+          (this.GenericListTableDialogConfig.visible = false)
+      }
+    }
   }
 }
 </script>
-
-<style scoped>
-
-</style>

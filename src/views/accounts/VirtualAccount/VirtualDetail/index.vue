@@ -1,9 +1,8 @@
 <template>
   <GenericDetailPage
-    :active-menu.sync="config.activeMenu"
-    :object.sync="account"
     v-bind="config"
-    v-on="$listeners"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="account"
   >
     <keep-alive>
       <component :is="config.activeMenu" :object="account" />
@@ -24,9 +23,10 @@ export default {
       config: {
         object: null,
         activeMenu: 'Detail',
+        url: '/api/v1/accounts/virtual-accounts/',
         submenu: [
           {
-            title: this.$t('common.Detail'),
+            title: this.$t('Basic'),
             name: 'Detail'
           }
         ]
@@ -35,7 +35,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-</style>

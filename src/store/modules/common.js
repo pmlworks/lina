@@ -2,30 +2,30 @@ import { optionUrlMeta } from '@/api/common'
 
 const getDefaultState = () => {
   return {
-    metaMap: {},
-    metaPromiseMap: {},
     isRouterAlive: true,
     sqlQueryCounter: [],
-    confirmDialogVisible: false
+    showSqlQueryCounter: true,
+    confirmDialogVisible: false,
+    drawerActionMeta: {},
+    successActionMeta: {},
+    inDrawer: false
   }
 }
 
 const state = getDefaultState()
 
 const mutations = {
-  SET_URL_META: (state, { url, meta }) => {
-    state.metaMap[url] = meta
-  },
   reload: (state) => {
-    state.isRouterAlive = false
-    setTimeout(() => {
-      state.isRouterAlive = true
-    }, 0)
+    // 通过切换 key 来强制 router-view 重新渲染，避免使用 v-if 反复销毁/重建根节点导致的 DOM 插入错误
+    state.isRouterAlive = !state.isRouterAlive
   },
   addSQLQueryCounter: (state, { url, count }) => {
-    state.sqlQueryCounter = state.sqlQueryCounter.filter(item => item.url !== url)
+    if (count < 5) {
+      return
+    }
+    state.sqlQueryCounter = state.sqlQueryCounter.filter((item) => item.url !== url)
     state.sqlQueryCounter.push({ url, count, time: new Date().getTime() })
-    if (state.sqlQueryCounter.length > 10) {
+    if (state.sqlQueryCounter.length > 5) {
       state.sqlQueryCounter.shift()
     }
   },
@@ -35,30 +35,8 @@ const mutations = {
 }
 
 const actions = {
-  // get user info
-  getUrlMeta({ commit, state }, { url }) {
-    const meta = state.metaMap[url]
-    if (meta) {
-      return new Promise((resolve, reject) => {
-        resolve(meta)
-      })
-    }
-    let promise = state.metaPromiseMap[url]
-    if (promise) {
-      return promise
-    }
-    promise = new Promise((resolve, reject) => {
-      optionUrlMeta(url).then(meta => {
-        commit('SET_URL_META', { url, meta })
-        resolve(meta)
-      }).catch(error => {
-        reject(error)
-      }).finally(() => {
-        state.metaPromiseMap[url] = null
-      })
-    })
-    state.metaPromiseMap[url] = promise
-    return promise
+  getUrlMeta(_, { url }) {
+    return optionUrlMeta(url)
   },
   digestSQLQuery({ commit, state }, resp) {
     if (!resp || !resp.status.toString().startsWith('20')) {
@@ -81,6 +59,25 @@ const actions = {
   },
   showConfirmDialog({ commit, state }, show) {
     commit('setConfirmDialogVisible', show)
+  },
+  showSqlQueryCounter({ commit, state }, show) {
+    state.showSqlQueryCounter = show
+  },
+  setDrawerActionMeta({ commit, state }, meta) {
+    state.drawerActionMeta = meta
+    state.inDrawer = true
+  },
+  getDrawerActionMeta({ commit, state }) {
+    return state.drawerActionMeta
+  },
+  cleanDrawerActionMeta({ commit, state }) {
+    state.drawerActionMeta = {}
+    state.inDrawer = false
+  },
+  finishDrawerActionMeta({ commit, state }, payload) {
+    state.successActionMeta = payload
+    state.drawerActionMeta = {}
+    state.inDrawer = false
   }
 }
 

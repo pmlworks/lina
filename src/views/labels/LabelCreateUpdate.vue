@@ -1,15 +1,18 @@
 <template>
   <GenericCreateUpdatePage
+    :continue-clean-fields="continueCleanFields"
     :fields="fields"
     :fields-meta="fieldsMeta"
     :has-detail-in-msg="false"
     :initial="initial"
+    :on-perform-error="onPerformError"
     :url="url"
   />
 </template>
 
 <script>
 import GenericCreateUpdatePage from '@/layout/components/GenericCreateUpdatePage'
+import { getLabelCreateFormConfig } from './formConfig'
 
 export default {
   name: 'LabelCreateUpdate',
@@ -17,20 +20,9 @@ export default {
     GenericCreateUpdatePage
   },
   data() {
-    return {
-      initial: {
-      },
-      fields: [
-        [this.$t('common.Basic'), ['name', 'value']],
-        [this.$t('common.Other'), ['comment']]
-      ],
-      url: '/api/v1/labels/labels/',
-      fieldsMeta: {}
-    }
+    return getLabelCreateFormConfig(this)
   }
 }
 </script>
 
-<style>
-
-</style>
+<style></style>

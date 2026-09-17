@@ -1,8 +1,16 @@
 <template>
   <span>
-    <el-tooltip v-if="shown" :disabled="!formatterArgs.hasTips" effect="dark" placement="bottom">
-      <div slot="content" v-html="tips" />
-      <span :class="classes">
+    <el-tooltip
+      v-if="shown"
+      :disabled="!formatterArgs.hasTips"
+      :show-after="500"
+      effect="dark"
+      placement="bottom"
+    >
+      <template #content>
+        <div v-sanitize="tips" />
+      </template>
+      <span :class="classes" class="choices-formatter">
         <i v-if="formatterArgs.showIcon && icon" :class="'fa ' + icon" />
         <span v-if="formatterArgs.showText">{{ text }}</span>
       </span>
@@ -12,7 +20,42 @@
 </template>
 
 <script>
+import i18n from '@/i18n/i18n'
 import BaseFormatter from './base.vue'
+
+const formatterArgsDefault = {
+  faChoices: {
+    true: 'fa-check-circle',
+    false: 'fa-times-circle'
+  },
+  classChoices: {
+    true: 'text-primary',
+    false: 'text-danger'
+  },
+  getKey({ row, cellValue }) {
+    return cellValue && typeof cellValue === 'object' ? cellValue.value : cellValue
+  },
+  getText({ row, cellValue }) {
+    const key = this.getKey({ row, cellValue })
+    if (cellValue && typeof cellValue === 'object') {
+      return cellValue.label
+    }
+    if (key === true || key === 'true') return i18n.t('Yes')
+    if (key === false || key === 'false') return i18n.t('No')
+    return cellValue
+  },
+  getIcon({ row, cellValue }) {
+    const key = this.getKey({ row, cellValue })
+    return this.faChoices[key]
+  },
+  hasTips: false,
+  showIcon: true,
+  showText: true,
+  showFalse: true,
+  getTips: ({ row, cellValue }) => {
+    return cellValue
+  }
+}
 
 export default {
   name: 'ChoicesFormatter',
@@ -21,65 +64,30 @@ export default {
     formatterArgsDefault: {
       type: Object,
       default() {
-        return {
-          faChoices: {
-            true: 'fa-check-circle',
-            false: 'fa-times-circle'
-          },
-          classChoices: {
-            true: 'text-primary',
-            false: 'text-danger'
-          },
-          textChoices: {
-            true: this.$t('common.Yes'),
-            false: this.$t('common.No')
-          },
-          getKey({ row, cellValue }) {
-            return (cellValue && typeof cellValue === 'object') ? cellValue.value : cellValue
-          },
-          getText({ row, cellValue }) {
-            const key = this.getKey({ row, cellValue })
-            return (cellValue && typeof cellValue === 'object') ? cellValue.label : this.textChoices[key] || cellValue
-          },
-          getIcon({ row, cellValue }) {
-            const key = this.getKey({ row, cellValue })
-            return this.faChoices[key]
-          },
-          hasTips: false,
-          showIcon: true,
-          showText: true,
-          showFalse: true,
-          getTips: ({ row, cellValue }) => {
-            return cellValue
-          }
-        }
+        return { ...formatterArgsDefault }
       }
     }
   },
+  formatterArgsDefault: formatterArgsDefault,
   data() {
     return {
-      formatterArgs: Object.assign(this.formatterArgsDefault, this.col.formatterArgs)
+      formatterArgs: Object.assign({}, this.formatterArgsDefault, this.col.formatterArgs)
     }
   },
   computed: {
     key() {
-      return this.formatterArgs.getKey(
-        { row: this.row, cellValue: this.cellValue }
-      )
+      const k = this.formatterArgs.getKey({ row: this.row, cellValue: this.cellValue })
+      return k
     },
     icon() {
-      const icon = this.formatterArgs.getIcon(
-        { row: this.row, cellValue: this.cellValue }
-      )
+      const icon = this.formatterArgs.getIcon({ row: this.row, cellValue: this.cellValue })
       return icon
     },
     classes() {
       return this.formatterArgs.classChoices[this.key]
     },
     text() {
-      return this.formatterArgs.getText(
-        { row: this.row, cellValue: this.cellValue }
-      )
+      return this.formatterArgs.getText({ row: this.row, cellValue: this.cellValue })
     },
     tips() {
       return this.formatterArgs.getTips({ cellValue: this.cellValue, row: this.row })
@@ -96,5 +104,9 @@ export default {
 </script>
 
 <style scoped>
-
+.choices-formatter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 </style>

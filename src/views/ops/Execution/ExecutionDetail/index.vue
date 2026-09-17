@@ -1,9 +1,8 @@
 <template>
   <GenericDetailPage
-    :object.sync="JobExecutionDetail"
-    :active-menu.sync="config.activeMenu"
     v-bind="config"
-    v-on="$listeners"
+    v-model:active-menu="config.activeMenu"
+    v-model:object="JobExecutionDetail"
   >
     <keep-alive>
       <component :is="config.activeMenu" :object="JobExecutionDetail" />
@@ -31,7 +30,7 @@ export default {
         activeMenu: 'JobExecutionDetail',
         submenu: [
           {
-            title: this.$t('ops.ExecutionDetail'),
+            title: this.$t('Basic'),
             name: 'JobExecutionDetail'
           }
         ],
@@ -42,6 +41,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>
